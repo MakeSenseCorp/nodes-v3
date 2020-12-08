@@ -1,0 +1,49 @@
+{
+	"node":
+	{
+		"system": {
+			"log_level": 3,
+			"log_to_file": "True"
+		},
+		"info": {
+			"uuid":"12345678-1234-1234-1234-123456789100",
+			"isHW":"False",
+			"type":1,
+			"ostype":"Linux",
+			"osversion":"Unknown",
+			"brandname":"Master",
+			"name":"Master",
+			"description":"Master Node",
+			"isMasterNode":"True",
+			"is_service":"False",
+			"isLocalServerEnabled":"True",
+			"isWebEnabled":"True",
+			"boardType": "VirtualBox",
+			"is_application_ui_enabled": "False",
+			"tagging": {
+				"cat_1": "application",
+				"cat_2": "admin",
+				"cat_3": "master"
+			}
+		},
+		"service": {
+			"depend": [
+				103
+			]
+		}
+	},
+	"user":
+	{
+		
+	},
+	"device": {
+		
+	},
+	"deploymnet": {
+		"dependencies_cmd": [
+		],
+		"script": {
+
+		}
+	}
+}
