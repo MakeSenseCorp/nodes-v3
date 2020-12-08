@@ -4,11 +4,11 @@ import sys
 import signal
 import json
 import time
-import thread
+import _thread
 import threading
 import re
 import zipfile
-import Queue
+import queue
 import subprocess
 from datetime import datetime
 
@@ -40,7 +40,7 @@ class IServce():
 	def Start(self):
 		self.WorkerRunning = True
 		print("({classname})# Start".format(classname=self.ClassName))
-		thread.start_new_thread(self.Worker, ())
+		_thread.start_new_thread(self.Worker, ())
 	
 	def Stop(self):
 		self.WorkerRunning = False
@@ -91,16 +91,16 @@ class IPScannerService(IServce):
 					self.Networks.append(net)
 		
 		for network in self.Networks:
-			thread.start_new_thread(self.PingDevicesThread, (network, range(1,50), 1,))
-			thread.start_new_thread(self.PingDevicesThread, (network, range(50,100), 2,))
-			thread.start_new_thread(self.PingDevicesThread, (network, range(100,150), 3,))
-			thread.start_new_thread(self.PingDevicesThread, (network, range(150,200), 4,))
+			_thread.start_new_thread(self.PingDevicesThread, (network, range(1,50), 1,))
+			_thread.start_new_thread(self.PingDevicesThread, (network, range(50,100), 2,))
+			_thread.start_new_thread(self.PingDevicesThread, (network, range(100,150), 3,))
+			_thread.start_new_thread(self.PingDevicesThread, (network, range(150,200), 4,))
 
 	def PingDevicesThread(self, network, ip_range, index):
 		while (self.WorkerRunning is True):
 			for client in ip_range:
 				if (self.WorkerRunning is False):
-					print("({classname})# Exit this thread {0}".format(index,classname=self.ClassName))
+					print("({classname})# Exit this _thread {0}".format(index,classname=self.ClassName))
 					return
 				ip = network + str(client)
 				res = MkSUtils.Ping(ip)

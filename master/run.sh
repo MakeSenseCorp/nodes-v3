@@ -1,1 +1,1 @@
-python app.py --type 1
+python3 app.py --type 1
