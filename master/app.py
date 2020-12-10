@@ -23,16 +23,16 @@ from mksdk import MkSFileUploader
 from mksdk import MkSPackageInstaller
 from mksdk import MkSScheduling
 
-from email.MIMEMultipart 	import MIMEMultipart
-from email.MIMEText 		import MIMEText
-from email.MIMEImage 		import MIMEImage
 import smtplib, ssl
 import base64
+from email.mime.multipart 	import MIMEMultipart
+from email.mime.text 		import MIMEText
+from email.mime.image 		import MIMEImage
 
 class IServce():
 	def __init__(self):
 		self.WorkerRunning	= False
-		self.LocalQueue		= Queue.Queue()
+		self.LocalQueue		= queue.Queue()
 		self.Locker			= threading.Lock()
 		self.OnEvent 		= None
 		self.EventLocker	= threading.Lock()
@@ -505,8 +505,6 @@ class Context():
 		network_devices = []
 		for key in self.Services["ipscanner"].OnlineDevices:
 			network_devices.append(self.Services["ipscanner"].OnlineDevices[key])
-		
-		self.Node.LogMSG("({classname})# [Request_GetMasterPublicInfoHandler] {0}".format(network_devices,classname=self.ClassName),5)
 
 		payload = {
 			'cpu_usage': str(cpuUsage),
