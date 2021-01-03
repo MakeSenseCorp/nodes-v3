@@ -1,0 +1,10 @@
+{
+  "installed_nodes": [
+    {
+      "enabled": 0,
+      "type": 2020,
+      "name": "Stock Monitor",
+      "uuid": "ac6de837-9863-72a9-c789-a0aae7e9d021"
+    }
+  ]
+}

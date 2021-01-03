@@ -1,0 +1,19 @@
+{
+    "on_boot_services": [
+        {
+            "enabled": 1, 
+            "type": "ipscanner", 
+            "name": "IP Scanner"
+        }, 
+        {
+            "enabled": 0, 
+            "type": "email", 
+            "name": "EMail"
+        }, 
+        {
+            "enabled": 0, 
+            "type": "sms", 
+            "name": "SMS"
+        }
+    ]
+}

@@ -83,10 +83,11 @@ class IPScannerService(IServce):
 	
 	def SearchNetworks(self):
 		print("({classname})# Searching for networks ...".format(classname=self.ClassName))
-		items = self.Utilities.GetSystemIPs()
+		items = MkSUtils.GetIPList()
 		for item in items:
-			if ("127.0.0" not in item[0] and "" != item[0]):
-				net = ".".join(item[0].split('.')[0:-1]) + '.'
+			ip = item["ip"]
+			if ("127.0.0" not in ip and "" != ip):
+				net = ".".join(ip.split('.')[0:-1]) + '.'
 				if net not in self.Networks:
 					self.Networks.append(net)
 		
@@ -372,7 +373,7 @@ class Context():
 		}
 
 	def Request_GetConnectionsListRequestHandler(self, sock, packet):
-		if THIS.Node.Network.GetNetworkState() is "CONN":
+		if THIS.Node.Network.GetNetworkState() == "CONN":
 			conns = []
 			connections = THIS.Node.GetConnectedNodes()
 			for key in connections:
@@ -489,9 +490,10 @@ class Context():
 		# Get network data
 		interfaces = []
 		self.Utilities = MkSUtils.Utils()
-		items = self.Utilities.GetSystemIPs()
+		items = MkSUtils.GetIPList()
 		for item in items:
-			if ("127.0.0" not in item[0]):
+			ip = item["ip"]
+			if ("127.0.0" not in ip):
 				interfaces.append(item)
 				
 		network = {
