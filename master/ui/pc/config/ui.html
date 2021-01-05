@@ -446,6 +446,7 @@
 				this.API.SendCustomCommand(NodeUUID, "get_master_public_info", {
 				}, function(res) {					
 					payload = res.data.payload;
+					console.log(payload);
 					document.getElementById("master_cpu_usage").innerHTML = payload.cpu_usage + "%";
 					document.getElementById("master_cpu_temperature").innerHTML = payload.cpu_temperature + "C";
 					
@@ -471,8 +472,8 @@
 					document.getElementById("network_interfaces_count_id").innerHTML = interfaces.length;
 					interfaces.forEach(function(element) {
 						row = []
-						row.push(element[0]);
-						row.push(element[1]);
+						row.push(element.iface);
+						row.push(element.ip);
 						row.push(`<span onClick="" style="width: 16px; height: 16px; cursor: pointer;color: green" data-feather="settings"></span>`);
 						data.push(row);
 					});

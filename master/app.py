@@ -429,6 +429,7 @@ class Context():
 		#
 		self.Node.LogMSG("({classname})# [Request_GetMasterPublicInfoHandler]".format(classname=self.ClassName),5)
 		cpuUsage 		= 0
+		ramAvailable 	= 0
 		temperature 	= 0
 		ramTotal 		= 0
 		ramUsed 		= 0
@@ -438,54 +439,58 @@ class Context():
 		osType 			= ""
 		boardType 		= THIS.Node.BoardType
 		cpuType			= ""
+		machineName 	= ""
 		shell = MkSShellExecutor.ShellExecutor()
 		
-		# Get CPU usage (TODO - Not returning correct CPU values use this "top -b -d 1 -n 1")
-		data = shell.ExecuteCommand("ps -eo pcpu,pid | sort -k 1 -r | head -20")
-		data = re.sub(' +', ' ', data)
-		cmdRows = data.split("\n")
-		for row in cmdRows[1:-1]:
-			cols = row.split(" ")
-			if (cols[0] != ""):
-				cpuUsage += float(cols[0])
-			else:
-				cpuUsage += float(cols[1])
-		
-		# Get CPU temperature
-		data = shell.ExecuteCommand("cat /sys/class/thermal/thermal_zone0/temp")
-		try:
-			temperature = float(float(data[:-3]) / 10.0)
-		except Exception as e:
-			pass 
-		
-		# Get RAM free space
-		data = shell.ExecuteCommand("free")
-		data = re.sub(' +', ' ', data)
-		cmdRows = data.split("\n")
-		col = cmdRows[1].split(" ")
-		ramTotal = int(col[1]) / 1023
-		ramUsed  = int(col[2]) / 1023
-		ramAvailable = ramTotal - ramUsed
-		
-		# Get CPU usage
-		data = shell.ExecuteCommand("df")
-		data = re.sub(' +', ' ', data)
-		cmdRows = data.split("\n")
-		for row in cmdRows[1:-1]:
-			cols = row.split(" ")
-			if (cols[5] == "/"):
-				hdTotal 		= int(cols[1]) / (1023 * 1023)
-				hdUsed 			= int(cols[2]) / (1023 * 1023)
-				hdAvailable 	= int(cols[3]) / (1023 * 1023)
-				break
-		
-		# Get OS info
-		data = shell.ExecuteCommand("uname -a")
-		data = re.sub(' +', ' ', data)
-		col = data.split(" ")
-		osType 		= col[0]
-		machineName = col[1]
-		cpuType		= col[11]
+		if os.name != "nt":
+			# Get CPU usage (TODO - Not returning correct CPU values use this "top -b -d 1 -n 1")
+			data = shell.ExecuteCommand("ps -eo pcpu,pid | sort -k 1 -r | head -20")
+			data = re.sub(' +', ' ', data)
+			cmdRows = data.split("\n")
+			for row in cmdRows[1:-1]:
+				cols = row.split(" ")
+				if (cols[0] != ""):
+					cpuUsage += float(cols[0])
+				else:
+					cpuUsage += float(cols[1])
+			
+			# Get CPU temperature
+			data = shell.ExecuteCommand("cat /sys/class/thermal/thermal_zone0/temp")
+			try:
+				temperature = float(float(data[:-3]) / 10.0)
+			except Exception as e:
+				pass 
+			
+			# Get RAM free space
+			data = shell.ExecuteCommand("free")
+			data = re.sub(' +', ' ', data)
+			cmdRows = data.split("\n")
+			col = cmdRows[1].split(" ")
+			ramTotal = int(col[1]) / 1023
+			ramUsed  = int(col[2]) / 1023
+			ramAvailable = ramTotal - ramUsed
+			
+			# Get CPU usage
+			data = shell.ExecuteCommand("df")
+			data = re.sub(' +', ' ', data)
+			cmdRows = data.split("\n")
+			for row in cmdRows[1:-1]:
+				cols = row.split(" ")
+				if (cols[5] == "/"):
+					hdTotal 		= int(cols[1]) / (1023 * 1023)
+					hdUsed 			= int(cols[2]) / (1023 * 1023)
+					hdAvailable 	= int(cols[3]) / (1023 * 1023)
+					break
+			
+			# Get OS info
+			data = shell.ExecuteCommand("uname -a")
+			data = re.sub(' +', ' ', data)
+			col = data.split(" ")
+			osType 		= col[0]
+			machineName = col[1]
+			cpuType		= col[11]
+		else:
+			pass
 		
 		# Get network data
 		interfaces = []
@@ -495,7 +500,7 @@ class Context():
 			ip = item["ip"]
 			if ("127.0.0" not in ip):
 				interfaces.append(item)
-				
+		
 		network = {
 			'interfaces': interfaces
 		}
