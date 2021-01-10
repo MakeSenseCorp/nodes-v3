@@ -11,6 +11,8 @@ import zipfile
 import queue
 import subprocess
 from datetime import datetime
+import psutil
+import shutil
 
 from mksdk import MkSGlobals
 from mksdk import MkSFile
@@ -46,6 +48,9 @@ class IServce():
 		self.WorkerRunning = False
 		print("({classname})# Stop".format(classname=self.ClassName))
 	
+	def Clean(self):
+		print("({classname})# Clean".format(classname=self.ClassName))
+	
 	def QueueItem(self, item):
 		print("({classname})# QueueItem {0}".format(self.WorkerRunning,classname=self.ClassName))
 		if self.WorkerRunning is True:
@@ -80,6 +85,9 @@ class IPScannerService(IServce):
 		self.OnlineDevices	= {}
 		self.Utilities 		= MkSUtils.Utils()
 		self.ScannerLock	= threading.Lock()
+	
+	def Clean(self):
+		self.OnlineDevices	= {}
 	
 	def SearchNetworks(self):
 		print("({classname})# Searching for networks ...".format(classname=self.ClassName))
@@ -119,6 +127,7 @@ class IPScannerService(IServce):
 
 				self.ScannerLock.release()
 				time.sleep(0.5)
+		self.Clean()
 	
 	def Worker(self):
 		self.SearchNetworks()
@@ -182,6 +191,141 @@ class EMailService(IServce):
 				print("({classname})# ERROR - [Worker] {0} {error}".format(item,classname=self.ClassName,error=str(e)))
 		print("({classname})# Exit".format(classname=self.ClassName))
 
+class WindowsPCInfo():
+	def __init__(self):
+		self.CMD = MkSShellExecutor.ShellExecutor()
+	
+	def GetMachineName(self):
+		data = self.CMD.ExecuteCommand("wmic computersystem get name")
+		data_split = data.split("\n")
+		if len(data_split) > 1:
+			return data_split[1]
+		return ""
+	
+	def GetCPUType(self):
+		data = self.CMD.ExecuteCommand("wmic computersystem get systemtype")
+		data_split = data.split("\n")
+		if len(data_split) > 1:
+			return data_split[1]
+		return ""
+	
+	def GetOSType(self):
+		return "Windows"
+	
+	def GetSystemType(self):
+		data = self.CMD.ExecuteCommand("wmic computersystem get Model")
+		data_split = data.split("\n")
+		if len(data_split) > 1:
+			return data_split[1]
+		return "" 
+	
+	def GetMemoryUsage(self):
+		free  = 0
+		total = 0
+		data = self.CMD.ExecuteCommand("wmic OS get FreePhysicalMemory")
+		data_split = data.split("\n")
+		if len(data_split) > 1:
+			free = int(data_split[1]) / 1023
+		data = self.CMD.ExecuteCommand("wmic computersystem get TotalPhysicalMemory")
+		data_split = data.split("\n")
+		if len(data_split) > 1:
+			total = int(data_split[1])/ (1023*1023)
+		used = total - free
+		return [int(free), int(used), int(total)]
+	
+	def GetHDUsage(self):
+		stat = shutil.disk_usage("C:/")
+		free  	= stat[2] / (1023 * 1023 * 1023)
+		total 	= stat[0] / (1023 * 1023 * 1023)
+		used 	= stat[1] / (1023 * 1023 * 1023)
+		return [int(free), int(used), int(total)]
+
+class LinuxPCInfo():
+	def __init__(self):
+		self.CMD = MkSShellExecutor.ShellExecutor()
+	
+	def GetMachineName(self):
+		data = shell.ExecuteCommand("uname -a")
+		data = re.sub(' +', ' ', data)
+		col = data.split(" ")
+		if len(col) > 1:
+			return col[1]
+		return ""
+	
+	def GetCPUType(self):
+		data = shell.ExecuteCommand("uname -a")
+		data = re.sub(' +', ' ', data)
+		col = data.split(" ")
+		if len(col) > 10:
+			return col[11]
+		return ""
+	
+	def GetOSType(self):
+		return "Linux"
+	
+	def GetSystemType(self):
+		return "VirtualMachine"
+	
+	def GetMemoryUsage(self):
+		free  = 0
+		used  = 0
+		total = 0
+		return [free / 1023, used / 1023, total / 1023]
+	
+	def GetHDUsage(self):
+		free  = 0
+		used  = 0
+		total = 0
+		return [free / 1023, used / 1023, total / 1023]
+
+class PCInfo():
+	def __init__(self):
+		self.Machine 		= None
+		self.MachineName 	= ""
+		self.CPUType 		= ""
+		self.OSType 		= ""
+		self.SystemType 	= ""
+		self.CPUsage 		= 0
+		self.RAMTotal 		= 0
+		self.RAMUsed 		= 0
+		self.RAMFree 		= 0
+
+		if os.name != "nt":
+			self.Machine = LinuxPCInfo()
+		else:
+			self.Machine = WindowsPCInfo()
+	
+	def GetMachineName(self):
+		self.MachineName = self.Machine.GetMachineName()
+		return self.MachineName
+	
+	def GetCPUType(self):
+		self.CPUType = self.Machine.GetCPUType()
+		return self.CPUType
+
+	def GetOSType(self):
+		self.OSType = self.Machine.GetOSType()
+		return self.OSType
+	
+	def GetSystemType(self):
+		self.SystemType = self.Machine.GetSystemType()
+		return self.SystemType
+	
+	def GetMemoryUsage(self):
+		free, used, total = self.Machine.GetMemoryUsage()
+		self.RAMTotal = total
+		self.RAMUsed  = used
+		self.RAMFree  = free
+		return free, used, total
+	
+	def GetCPUsage(self):
+		self.CPUsage = psutil.cpu_percent()
+		return self.CPUsage
+	
+	def GetHDUsage(self):
+		self.CPUsage = self.Machine.GetHDUsage()
+		return self.CPUsage
+
 class Context():
 	def __init__(self, node):
 		self.ClassName 						= "Master Application"
@@ -222,6 +366,7 @@ class Context():
 		self.Node.DebugMode 				= True
 		self.Shutdown 						= False
 		self.UploadLocker					= threading.Lock()
+		self.PC 							= PCInfo()
 
 		self.Timer.AddTimeItem(5, self.PrintConnections)
 
@@ -483,14 +628,29 @@ class Context():
 					break
 			
 			# Get OS info
-			data = shell.ExecuteCommand("uname -a")
-			data = re.sub(' +', ' ', data)
-			col = data.split(" ")
-			osType 		= col[0]
-			machineName = col[1]
-			cpuType		= col[11]
+			#data = shell.ExecuteCommand("uname -a")
+			#data = re.sub(' +', ' ', data)
+			#col = data.split(" ")
+			#osType 		= col[0]
+			#machineName = col[1]
+			#cpuType		= col[11]
 		else:
 			pass
+	
+		machineName = self.PC.GetMachineName()
+		cpuType 	= self.PC.GetCPUType()
+		osType		= self.PC.GetOSType()
+		boardType 	= self.PC.GetSystemType()
+		memory 		= self.PC.GetMemoryUsage()
+		cpuUsage	= self.PC.GetCPUsage()
+		hd			= self.PC.GetHDUsage()
+
+		hdTotal 	 = hd[2]
+		hdUsed 		 = hd[1]
+		hdAvailable  = hd[0]
+		ramTotal 	 = memory[2]
+		ramUsed  	 = memory[1]
+		ramAvailable = memory[0]
 		
 		# Get network data
 		interfaces = []
@@ -565,7 +725,9 @@ class Context():
 			self.File.SaveJSON(os.path.join(self.Node.MKSPath,"services.json"), self.ServicesDB)
 			if enabled == 0:
 				self.Services[ntype].Stop()
+				self.Services[ntype].Clean()
 			else:
+				self.Services[ntype].Clean()
 				self.Services[ntype].Start()
 		
 		payload = { 'error': 'ok' }

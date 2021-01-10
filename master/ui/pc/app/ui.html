@@ -471,8 +471,8 @@
 					document.getElementById("network_interfaces_count_id").innerHTML = interfaces.length;
 					interfaces.forEach(function(element) {
 						row = []
-						row.push(element.iface);
 						row.push(element.ip);
+						row.push(element.mac);
 						row.push(`<span onClick="" style="width: 16px; height: 16px; cursor: pointer;color: green" data-feather="settings"></span>`);
 						data.push(row);
 					});

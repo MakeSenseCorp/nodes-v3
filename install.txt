@@ -7,3 +7,4 @@ INSTALL PACKAGES
 c:\Users\kiveishy\AppData\Local\Programs\Python\Python39\Scripts\pip.exe install websocket_client
 c:\Users\kiveishy\AppData\Local\Programs\Python\Python39\Scripts\pip.exe install gevent-websocket
 c:\Users\kiveishy\AppData\Local\Programs\Python\Python39\Scripts\pip.exe install netifaces
+c:\Users\kiveishy\AppData\Local\Programs\Python\Python39\Scripts\pip.exe install psutil
