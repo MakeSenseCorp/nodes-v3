@@ -245,7 +245,7 @@ class LinuxPCInfo():
 		self.CMD = MkSShellExecutor.ShellExecutor()
 	
 	def GetMachineName(self):
-		data = shell.ExecuteCommand("uname -a")
+		data = self.CMD.ExecuteCommand("uname -a")
 		data = re.sub(' +', ' ', data)
 		col = data.split(" ")
 		if len(col) > 1:
@@ -253,7 +253,7 @@ class LinuxPCInfo():
 		return ""
 	
 	def GetCPUType(self):
-		data = shell.ExecuteCommand("uname -a")
+		data = self.CMD.ExecuteCommand("uname -a")
 		data = re.sub(' +', ' ', data)
 		col = data.split(" ")
 		if len(col) > 10:
@@ -264,19 +264,40 @@ class LinuxPCInfo():
 		return "Linux"
 	
 	def GetSystemType(self):
-		return "VirtualMachine"
+		return "Unknown"
 	
 	def GetMemoryUsage(self):
 		free  = 0
 		used  = 0
 		total = 0
-		return [free / 1023, used / 1023, total / 1023]
+
+		data = self.CMD.ExecuteCommand("free")
+		data = re.sub(' +', ' ', data)
+		cmdRows = data.split("\n")
+		col = cmdRows[1].split(" ")
+		total = int(col[1]) / 1023
+		used  = int(col[2]) / 1023
+		free = total - used
+		
+		return [free, used, total]
 	
 	def GetHDUsage(self):
 		free  = 0
 		used  = 0
 		total = 0
-		return [free / 1023, used / 1023, total / 1023]
+
+		data = self.CMD.ExecuteCommand("df")
+		data = re.sub(' +', ' ', data)
+		cmdRows = data.split("\n")
+		for row in cmdRows[1:-1]:
+			cols = row.split(" ")
+			if (cols[5] == "/"):
+				total 	= int(cols[1]) / (1023 * 1023)
+				used 	= int(cols[2]) / (1023 * 1023)
+				free 	= int(cols[3]) / (1023 * 1023)
+				break
+		
+		return [free, used, total]
 
 class PCInfo():
 	def __init__(self):
