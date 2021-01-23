@@ -1,0 +1,49 @@
+{
+	"node":
+	{
+		"system": {
+			"log_level": 3,
+			"log_to_file": "True"
+		},
+		"info": {
+			"uuid":"00000000-0000-0000-0000-000000000101",
+			"isHW":"False",
+			"type":2022,
+			"ostype":"Linux",
+			"osversion":"Unknown",
+			"brandname":"Stock Monitor",
+			"name":"Stock Monitor",
+			"description":"Slave Node",
+			"isMasterNode":"True",
+			"is_service":"False",
+			"isLocalServerEnabled":"True",
+			"isWebEnabled":"True",
+			"boardType": "VirtualBox",
+			"is_application_ui_enabled": "False",
+			"tagging": {
+				"cat_1": "application",
+				"cat_2": "finance",
+				"cat_3": "monitor"
+			}
+		},
+		"service": {
+			"depend": [
+			]
+		}
+	},
+	"user":
+	{
+		
+	},
+	"device": {
+		
+	},
+	"deploymnet": {
+		"dependencies_cmd": [
+			"python3 -m pip install yfinance"
+		],
+		"script": {
+
+		}
+	}
+}

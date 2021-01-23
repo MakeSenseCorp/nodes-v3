@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="">
+        <meta name="author" content="">
+
+        <title>TDD Executor</title>
+
+		[CSS]
+
+        <link rel="stylesheet" href="/static/lib/bootstrap/css/bootstrap.min.css" crossorigin="anonymous">
+		<link rel="stylesheet" href="/static/lib/bootstrap/css/docs.min.css">
+     
+        <style>
+            body {
+              font-size: .875rem;
+            }
+            .feather {
+              width: 16px;
+              height: 16px;
+              vertical-align: text-bottom;
+            }
+            html {
+              position: relative;
+              min-height: 100%;
+            }
+            body {
+              /* Margin bottom by footer height */
+              margin-bottom: 60px;
+            }
+            .footer {
+              position: absolute;
+              bottom: 0;
+              width: 100%;
+              /* Set the fixed height of the footer here */
+              height: 60px;
+              line-height: 60px; /* Vertically center the text there */
+              background-color: #f5f5f5;
+            }
+            body > .container {
+              padding: 60px 15px 0;
+            }
+            .footer > .container {
+              padding-right: 15px;
+              padding-left: 15px;
+            }
+            code {
+              font-size: 80%;
+            }
+        </style>
+
+        <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+        <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+        <!--[if lt IE 9]>
+          <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+          <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+        <![endif]-->
+    </head>
+    <body>
+        <main role="main" class="container">
+        	<div class="row">
+				<div class="col-lg-1"></div>
+				<div class="col-lg-10">
+					<div class="bd-example">
+						<div class="card">
+							<div class="card-body">
+								<div class="row text-center">
+									<div class="col-lg-3">
+										<a href="#"><strong>New Portfolio</strong></a>
+									</div>
+									<div class="col-lg-3">
+										<a href="#"><strong>New Stock</strong></a>
+									</div>
+									<div class="col-lg-3">
+										<a href="#"><strong>Export To CSV</strong></a>
+									</div>
+									<div class="col-lg-3">
+										<a href="#"><strong>Settings</strong></a>
+									</div>
+								</div>
+							</div>
+						</div>
+						<br>
+						<div class="row">
+							<div class="col-lg-12">
+								<h5 class="mt-0"><strong>Choose Portfolio</strong></h5>
+								<div class="card">
+									<div class="card-body">
+										<select class="custom-select d-block w-100" id="id_selected_portfolio" onchange="portfolioOnChangeHandler(this);" required>
+											<option value='0'>Show All</option>
+										</select>
+									</div>
+								</div>
+							</div>
+						</div>
+						<br>
+						<div class="row">
+							<div class="col-lg-12">
+								<h5 class="mt-0"><strong>Summary</strong></h5>
+								<div class="card">
+									<div class="card-body">
+										<div class="row">
+											<div class="col-lg-6">
+												<div class="row text-center">
+													<div class="col-lg-12">
+														<div class="card mb-4 shadow-sm">
+															<div class="card-header">
+															  	<h6 class="my-0 fw-normal">Earnings</h6>
+															</div>
+															<div class="card-body">
+															  	<h4 class="card-title pricing-card-title"><span id="id_portfolio_earnings">0</span> <small class="text-muted">/ mo</small></h4>
+															</div>
+														</div>
+													</div>
+												</div>
+											</div>
+											<div class="col-lg-6">
+												<div class="row text-center">
+													<div class="col-lg-12">
+														<div class="card mb-4 shadow-sm">
+															<div class="card-header">
+															  	<h6 class="my-0 fw-normal"># Of Stocks</h6>
+															</div>
+															<div class="card-body">
+															  	<h4 class="card-title pricing-card-title"><strong class="text-muted" id="id_portfolio_number_of_stocks">0</strong></h4>
+															</div>
+														</div>
+													</div>
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<br>
+						<div class="row row-cols-1 row-cols-md-3 mb-3 text-center" data-masonry='{"percentPosition": true }' id="id_stocks_list">
+							<!-- <div class="col-lg-12">
+								<div class="card">
+									<div class="card-body">
+										<div id="id_stocks_list"></div>
+									</div>
+								</div>
+							</div> -->
+						</div>
+					</div>
+				</div>
+				<div class="col-lg-1"></div>
+        	</div>
+		</main>
+
+        <script src="/static/lib/nodes/js/jquery_3_3_1/jquery.min.js"></script>
+        <script src="/static/lib/nodes/js/popper_1_14_7/popper.min.js" crossorigin="anonymous"></script>
+		<script src="/static/lib/bootstrap/js/bootstrap.min.js" crossorigin="anonymous"></script>
+		<script src="/static/lib/bootstrap/js/bootstrap-slider.js" crossorigin="anonymous"></script>
+        <script src="/static/lib/nodes/js/feather_4_19/feather.min.js"></script>
+		<script src="/static/lib/nodes/map/feather_4_19/feather.min.js.map"></script>
+		<script src="/mksdk-js/widgets/basic_modal.js"></script>
+		<script src="/mksdk-js/widgets/basic_uploader.js"></script>
+		<script src="/mksdk-js/widgets/basic_table.js"></script>
+        
+        [SCRIPTS]
+
+        <script>
+			/*
+			[GATEWAY]
+			[NODE_UUID]
+			[CUSTOM_VARS]
+			*/
+
+			[CONFIGURATION]
+
+			console.log("Gateway IP address - " + GatewayIP);
+			
+			// User Code #1 - Start
+			var portfolioOnChangeHandler = function(obj) {
+				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
+					"portfolio_id": parseInt(obj.value),
+					"portfolio_name": obj.options[obj.value].text
+				}, function(res) {
+					var payload = res.data.payload;
+					ui.RebuildPortfolioEarnings(payload.portfolio);
+					ui.RebuildStockTable(payload.stocks);
+				});
+			};
+			// User Code #1 - End
+
+			$(document).ready(function() {
+				// User Code #1 - Start
+				
+				// User Code #1 - End
+			});
+
+			function NodeUI() {
+				self = this;
+				this.objStockTable = document.getElementById("id_stocks_list");
+				this.objPortfolioEarnings = document.getElementById("id_portfolio_earnings");
+				this.objPortfolioStocksNumber = document.getElementById("id_portfolio_number_of_stocks");
+
+				return this;
+			}
+
+			NodeUI.prototype.RebuildPortfolioEarnings = function(portfolio) {
+				this.objPortfolioEarnings.innerHTML = portfolio.earnings + "$";
+				if (portfolio.earnings < 0) {
+					this.objPortfolioEarnings.style.color = "RED";
+				} else {
+					this.objPortfolioEarnings.style.color = "GREEN";
+				}
+			}
+
+			NodeUI.prototype.RebuildStockTable = function(stocks) {
+				var htmContainer = `
+					<div class="col-sm-6 col-lg-4 mb-4">
+						<div class="card mb-4 shadow-sm">
+							<div class="card-header">
+								<h4 class="d-flex justify-content-between align-items-center mb-3">
+									<span class="text-muted">[TICKER]</span>
+									<small class="badge badge-secondary badge-pill" id="id_stock_table_stock_ammount_[TICKER]">[AMMOUNT]</small>
+								</h4>
+							</div>
+							<div class="card-body">
+								<h4 class="card-title pricing-card-title">
+									<small id="id_stock_table_price_[TICKER]" style="color:[PRICE_COLOR]">[PRICE]$</small>
+									<small id="id_stock_table_earnings_[TICKER]" style="color:[EARNINGS_COLOR]">([EARNINGS])</small>
+								</h4>
+								<ul class="list-unstyled mt-3 mb-4">
+									<li id="id_stock_table_weekly_max_min_slope_[TICKER]">WE: [WEEK_MIN] - [WEEK_MAX] (<span id="id_stock_table_weekly_slope_color_[TICKER]" style="color:[WEEKLY_SLOPE_COLOR]">[WEEK_SLOPE]</span>)</li>
+									<li id="id_stock_table_monthly_max_min_slope_[TICKER]">MO: [MONTH_MIN] - [MONTH_MAX] (<span id="id_stock_table_monthly_slope_color_[TICKER]" style="color:[MONTHLY_SLOPE_COLOR]">[MONTH_SLOPE]</span>)</li>
+								</ul>
+								<button type="button" class="w-100 btn btn-sm btn-outline-primary">Details</button>
+							</div>
+						</div>
+					</div>
+				`;
+
+				var tableContent = "";
+				var portfolioStocksCount = 0.0;
+				for (key in stocks) {
+					var stock = stocks[key];
+					var html  = htmContainer;
+
+					html = html.split("[TICKER]").join(stock.ticker);
+					html = html.split("[PRICE]").join(stock.market_price);
+					html = html.split("[EARNINGS]").join(stock.earnings);
+					html = html.split("[AMMOUNT]").join(stock.number);
+					html = html.split("[PRICE_COLOR]").join("BLUE");
+					if (stock.earnings < 0) {
+						html = html.split("[EARNINGS_COLOR]").join("RED");
+					} else {
+						html = html.split("[EARNINGS_COLOR]").join("GREEN");
+					}
+					html = html.split("[WEEK_MIN]").join(stock.statistics.weekly.min);
+					html = html.split("[WEEK_MAX]").join(stock.statistics.weekly.max);
+					html = html.split("[WEEK_SLOPE]").join(stock.statistics.weekly.slope);
+					html = html.split("[MONTH_MIN]").join(stock.statistics.monthly.min);
+					html = html.split("[MONTH_MAX]").join(stock.statistics.monthly.max);
+					html = html.split("[MONTH_SLOPE]").join(stock.statistics.monthly.slope);
+					if (stock.statistics.weekly.slope < 0) {
+						html = html.split("[WEEKLY_SLOPE_COLOR]").join("RED");
+					} else {
+						html = html.split("[WEEKLY_SLOPE_COLOR]").join("GREEN");
+					}
+					if (stock.statistics.monthly.slope < 0) {
+						html = html.split("[MONTHLY_SLOPE_COLOR]").join("RED");
+					} else {
+						html = html.split("[MONTHLY_SLOPE_COLOR]").join("GREEN");
+					}
+					tableContent += html;
+					portfolioStocksCount += stock.number;
+				}
+
+				this.objStockTable.innerHTML = tableContent;
+				this.objPortfolioStocksNumber.innerHTML = portfolioStocksCount;
+
+				/*
+				var table = new MksBasicTable();
+				table.SetSchema(["","Ticker","Price", "No#", "Earning", ""]);
+				var data = [];
+				for (key in stocks) {
+					stock = stocks[key];
+					row = [];
+					row.push(stock.ticker);
+					row.push(stock.market_price);
+					row.push(stock.number);
+					if (stock.earnings < 0) {
+						row.push("<span style='color:RED'>" + stock.earnings + "</span>");
+					} else {
+						row.push("<span style='color:GREEN'>" + stock.earnings + "</span>");
+					}
+					
+					row.push("<a href='#'>More...</>");
+					data.push(row);
+				}
+				table.SetData(data);
+				table.Build(this.objStockTable);
+				*/
+			}
+
+			function Node() {
+				var self = this;
+
+				// Get makesense api instanse.
+				this.API 		= MkSAPIBuilder.GetInstance();
+				// Update gateway IP address
+				this.API.SetGlobalGatewayIP(GatewayIP);
+				this.API.SetLocalWebsockIP(LocalWSIP);
+				this.API.SetLocalWebsockPort(LocalWSPORT);
+				// Default handler
+				this.API.OnUnexpectedDataArrived = function (packet) {
+					console.log(packet);
+				}
+
+				return this;
+			}
+
+			Node.prototype.Init = function() {
+				// User Code #1 - Start
+				
+				// User Code #1 - End
+			}
+
+			Node.prototype.OnChangeEvent = function(packet) {
+				console.log("OnNodeChangeEvent", packet, packet.data.payload.event);
+				data = packet.data.payload.data
+				switch(packet.data.payload.event) {
+					case "":
+					break;
+					// User Code #1 - End
+				}
+			}
+
+			Node.prototype.Connect = function() {
+				var self = this;
+				console.log("Connect Gateway");
+				self.API.OnNodeChangeCallback = self.OnChangeEvent.bind(self);
+				this.API.ConnectGateway(function() {
+					console.log("Connection to Gateway was established.");
+					self.API.GetNodeInfo(NodeUUID, function(res) {
+						UserGetNodeSensorInfoHandler(res);
+					});
+				});
+			}
+  
+			var ui = new NodeUI();
+			// Self-genrated area
+			var node = new Node();
+			node.Init();
+			node.Connect();
+			var UserGetNodeSensorInfoHandler = function(res) {
+				var payload = res.data.payload;
+				[RESOURCES]
+				node.API.ConnectLocalWS(NodeUUID, function(res) {
+					console.log("Connected to local websocket", res);
+				});
+				// User Code #1 - Start
+				node.API.SendCustomCommand(NodeUUID, "get_portfolios", {}, function(res) {
+					var payload = res.data.payload;
+					var obj = document.getElementById("id_selected_portfolio");
+					
+					for (key in payload.portfolios) {
+						item = payload.portfolios[key];
+						obj.innerHTML += "<option value='" + item.id + "'>" + item.name + "</option>";
+					}
+				});
+				
+				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
+					"portfolio_id": 0,
+					"portfolio_name": "All"
+				}, function(res) {
+					var payload = res.data.payload;
+					ui.RebuildPortfolioEarnings(payload.portfolio);
+					ui.RebuildStockTable(payload.stocks);
+				});
+				
+				// User Code #1 - End
+				node.API.RegisterOnNodeChange(NodeUUID, function(res) {
+					console.log("UI have registered NODE successfuly", res);
+				});
+			}
+			// Self-generated area
+          
+        </script>
+    </body>
+</html>
