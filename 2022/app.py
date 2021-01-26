@@ -22,6 +22,16 @@ class StockMarket():
 	def __init__(self):
 		self.ClassName				= "StockMarket"
 		self.CacheDB 				= {}
+		self.WorkerRunning 			= False
+	
+	def Start(self):
+		self.WorkerRunning = True
+		print("({classname})# Start".format(classname=self.ClassName))
+		_thread.start_new_thread(self.StockMomitorWorker, ())
+
+	def Stop(self):
+		self.WorkerRunning = False
+		print("({classname})# Stop".format(classname=self.ClassName))
 	
 	def StockMomitorWorker(self):
 		pass

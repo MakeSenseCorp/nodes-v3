@@ -317,34 +317,55 @@ class PCInfo():
 			self.Machine = WindowsPCInfo()
 	
 	def GetMachineName(self):
-		self.MachineName = self.Machine.GetMachineName()
+		try:
+			self.MachineName = self.Machine.GetMachineName()
+		except:
+			return "N/A"
 		return self.MachineName
 	
 	def GetCPUType(self):
-		self.CPUType = self.Machine.GetCPUType()
+		try:
+			self.CPUType = self.Machine.GetCPUType()
+		except:
+			return "N/A"
 		return self.CPUType
 
 	def GetOSType(self):
-		self.OSType = self.Machine.GetOSType()
+		try:
+			self.OSType = self.Machine.GetOSType()
+		except:
+			return "N/A"
 		return self.OSType
 	
 	def GetSystemType(self):
-		self.SystemType = self.Machine.GetSystemType()
+		try:
+			self.SystemType = self.Machine.GetSystemType()
+		except:
+			return "N/A"
 		return self.SystemType
 	
 	def GetMemoryUsage(self):
-		free, used, total = self.Machine.GetMemoryUsage()
+		try:
+			free, used, total = self.Machine.GetMemoryUsage()
+		except:
+			return 0, 0, 0
 		self.RAMTotal = total
 		self.RAMUsed  = used
 		self.RAMFree  = free
 		return free, used, total
 	
 	def GetCPUsage(self):
-		self.CPUsage = psutil.cpu_percent()
+		try:
+			self.CPUsage = psutil.cpu_percent()
+		except:
+			return 0
 		return self.CPUsage
 	
 	def GetHDUsage(self):
-		self.CPUsage = self.Machine.GetHDUsage()
+		try:
+			self.CPUsage = self.Machine.GetHDUsage()
+		except:
+			return 0, 0, 0
 		return self.CPUsage
 
 class Context():
@@ -606,58 +627,7 @@ class Context():
 		boardType 		= THIS.Node.BoardType
 		cpuType			= ""
 		machineName 	= ""
-		shell = MkSShellExecutor.ShellExecutor()
 		
-		if os.name != "nt":
-			# Get CPU usage (TODO - Not returning correct CPU values use this "top -b -d 1 -n 1")
-			data = shell.ExecuteCommand("ps -eo pcpu,pid | sort -k 1 -r | head -20")
-			data = re.sub(' +', ' ', data)
-			cmdRows = data.split("\n")
-			for row in cmdRows[1:-1]:
-				cols = row.split(" ")
-				if (cols[0] != ""):
-					cpuUsage += float(cols[0])
-				else:
-					cpuUsage += float(cols[1])
-			
-			# Get CPU temperature
-			data = shell.ExecuteCommand("cat /sys/class/thermal/thermal_zone0/temp")
-			try:
-				temperature = float(float(data[:-3]) / 10.0)
-			except Exception as e:
-				pass 
-			
-			# Get RAM free space
-			data = shell.ExecuteCommand("free")
-			data = re.sub(' +', ' ', data)
-			cmdRows = data.split("\n")
-			col = cmdRows[1].split(" ")
-			ramTotal = int(col[1]) / 1023
-			ramUsed  = int(col[2]) / 1023
-			ramAvailable = ramTotal - ramUsed
-			
-			# Get CPU usage
-			data = shell.ExecuteCommand("df")
-			data = re.sub(' +', ' ', data)
-			cmdRows = data.split("\n")
-			for row in cmdRows[1:-1]:
-				cols = row.split(" ")
-				if (cols[5] == "/"):
-					hdTotal 		= int(cols[1]) / (1023 * 1023)
-					hdUsed 			= int(cols[2]) / (1023 * 1023)
-					hdAvailable 	= int(cols[3]) / (1023 * 1023)
-					break
-			
-			# Get OS info
-			#data = shell.ExecuteCommand("uname -a")
-			#data = re.sub(' +', ' ', data)
-			#col = data.split(" ")
-			#osType 		= col[0]
-			#machineName = col[1]
-			#cpuType		= col[11]
-		else:
-			pass
-	
 		machineName = self.PC.GetMachineName()
 		cpuType 	= self.PC.GetCPUType()
 		osType		= self.PC.GetOSType()
