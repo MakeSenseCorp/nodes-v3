@@ -174,9 +174,14 @@
 			[CONFIGURATION]
 
 			console.log("Gateway IP address - " + GatewayIP);
+
+			var g_portfolio_id 	 = 0;
+			var g_portfolio_name = "";
 			
 			// User Code #1 - Start
 			var portfolioOnChangeHandler = function(obj) {
+				g_portfolio_id   = obj.value;
+				g_portfolio_name = obj.options[obj.value].text;
 				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
 					"portfolio_id": parseInt(obj.value),
 					"portfolio_name": obj.options[obj.value].text
@@ -193,6 +198,73 @@
 				
 				// User Code #1 - End
 			});
+
+			function StockLine() {
+				self = this;
+
+				this.Middle = `
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [LEFT]%"></div>
+					<div class="progress-bar bg-info" data-toggle="tooltip" title="[TOOLTIP_PRICE]" role="progressbar" style="width: [PRICE_HIST_LEFT]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-warning" role="progressbar" style="width: [PRICE]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-info" data-toggle="tooltip" title="[TOOLTIP_PRICE]" role="progressbar" style="width: [PRICE_HIST_RIGHT]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [RIGHT]%"></div>
+					
+				`;
+
+				this.Right = `
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [LEFT]%"></div>
+					<div class="progress-bar bg-info" data-toggle="tooltip" title="[TOOLTIP_PRICE]" role="progressbar" style="width: [PRICE_HIST]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [DELIMITER]%"></div>
+					<div class="progress-bar bg-success" role="progressbar" style="width: [PRICE]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [RIGHT]%"></div>
+				`;
+
+				this.Left = `
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [LEFT]%"></div>
+					<div class="progress-bar bg-danger" role="progressbar" style="width: [PRICE]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [DELIMITER]%"></div>
+					<div class="progress-bar bg-info" data-toggle="tooltip" title="[TOOLTIP_PRICE]" role="progressbar" style="width: [PRICE_HIST]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [RIGHT]%"></div>
+				`;
+
+				return this;
+			}
+
+			StockLine.prototype.Build = function(data) {
+				var html = "";
+
+				if (data.min < data.price && data.max > data.price) {
+					// MIDDLE
+					html = this.Middle;
+					html = html.split("[LEFT]").join(10);
+					html = html.split("[RIGHT]").join(10);
+					html = html.split("[PRICE]").join(5);
+					html = html.split("[PRICE_HIST_LEFT]").join(37.5);
+					html = html.split("[PRICE_HIST_RIGHT]").join(37.5);
+					html = html.split("[TOOLTIP_PRICE]").join(data.min + " - " + data.max);
+				} else if (data.min > data.price) {
+					// LEFT
+					html = this.Left;
+					html = html.split("[LEFT]").join(10);
+					html = html.split("[RIGHT]").join(10);
+					html = html.split("[DELIMITER]").join(10);
+					html = html.split("[PRICE]").join(5);
+					html = html.split("[PRICE_HIST]").join(65);
+					html = html.split("[TOOLTIP_PRICE]").join(data.min + " - " + data.max);
+				} else if (data.max > data.price) {
+					// RIGHT
+					html = this.Right;
+					html = html.split("[LEFT]").join(10);
+					html = html.split("[RIGHT]").join(10);
+					html = html.split("[DELIMITER]").join(10);
+					html = html.split("[PRICE]").join(5);
+					html = html.split("[PRICE_HIST]").join(65);
+					html = html.split("[TOOLTIP_PRICE]").join(data.min + " - " + data.max);
+				} else  {
+
+				}
+				return html;
+			}
 
 			function NodeUI() {
 				self = this;
@@ -314,6 +386,32 @@
 				}
 			}
 
+			NodeUI.prototype.UpdateStocksPrice = function() {
+				self = this;
+				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
+					"portfolio_id": parseInt(g_portfolio_id),
+					"portfolio_name": g_portfolio_name
+				}, function(res) {
+					var payload = res.data.payload;
+					var portfolio = payload.portfolio;
+
+					for (key in payload.stocks) {
+						var stock = payload.stocks[key];
+						var obj = document.getElementById("id_stock_table_price_" + stock.ticker);
+						obj.innerHTML = stock.market_price;
+						obj = document.getElementById("id_stock_table_earnings_" + stock.ticker);
+						obj.innerHTML = "(" + stock.earnings + ")";
+					}
+					
+					ui.objPortfolioEarnings.innerHTML = portfolio.earnings + "$";
+					if (portfolio.earnings < 0) {
+						ui.objPortfolioEarnings.style.color = "RED";
+					} else {
+						ui.objPortfolioEarnings.style.color = "GREEN";
+					}
+				});
+			}
+
 			NodeUI.prototype.RebuildStockTable = function(stocks) {
 				var htmContainer = `
 					<div class="col-sm-6 col-lg-4 mb-4">
@@ -325,15 +423,33 @@
 								</h4>
 							</div>
 							<div class="card-body">
-								<h4 class="card-title pricing-card-title">
-									<small id="id_stock_table_price_[TICKER]" style="color:[PRICE_COLOR]">[PRICE]$</small>
+								<h3 class="card-title pricing-card-title">
+									<small id="id_stock_table_price_[TICKER]" style="color:[PRICE_COLOR]">[PRICE]</small>
 									<small id="id_stock_table_earnings_[TICKER]" style="color:[EARNINGS_COLOR]">([EARNINGS])</small>
-								</h4>
+								</h3>
 								<ul class="list-unstyled mt-3 mb-4">
 									<li id="id_stock_table_weekly_max_min_slope_[TICKER]">WE: [WEEK_MIN] - [WEEK_MAX] (<span id="id_stock_table_weekly_slope_color_[TICKER]" style="color:[WEEKLY_SLOPE_COLOR]">[WEEK_SLOPE]</span>)</li>
 									<li id="id_stock_table_monthly_max_min_slope_[TICKER]">MO: [MONTH_MIN] - [MONTH_MAX] (<span id="id_stock_table_monthly_slope_color_[TICKER]" style="color:[MONTHLY_SLOPE_COLOR]">[MONTH_SLOPE]</span>)</li>
+									<li>
+										<div class="container mb-4">
+											<hr class="mb-4">
+											<div class="progress">
+												[STOCK_LINE]
+											</div>
+										</div>
+									</li>
 								</ul>
-								<button type="button" class="w-100 btn btn-sm btn-outline-primary" onclick="ui.OpenModalStockDetails();">Details</button>
+								<div class="row">
+									<div class="col-lg-4">
+										<button type="button" class="btn btn-sm btn-outline-success" style="width: 95%" onclick="">BUY</button>
+									</div>
+									<div class="col-lg-4">
+										<button type="button" class="btn btn-sm btn-outline-danger" style="width: 95%" onclick="">SELL</button>
+									</div>
+									<div class="col-lg-4">
+										<button type="button" class="w-100 btn btn-sm btn-outline-primary" onclick="ui.OpenModalStockDetails();">Details</button>
+									</div>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -341,10 +457,16 @@
 
 				var tableContent = "";
 				var portfolioStocksCount = 0.0;
+				var line = new StockLine();
 				for (key in stocks) {
 					var stock = stocks[key];
 					var html  = htmContainer;
 
+					html = html.split("[STOCK_LINE]").join(line.Build({
+						price: stock.market_price,
+						min: stock.hist_price_min,
+						max: stock.hist_price_max
+					}));
 					html = html.split("[TICKER]").join(stock.ticker);
 					html = html.split("[PRICE]").join(stock.market_price);
 					html = html.split("[EARNINGS]").join(stock.earnings);
@@ -377,6 +499,7 @@
 
 				this.objStockTable.innerHTML = tableContent;
 				this.objPortfolioStocksNumber.innerHTML = portfolioStocksCount;
+				$('[data-toggle="tooltip"]').tooltip()
 
 				/*
 				var table = new MksBasicTable();
@@ -415,6 +538,9 @@
 				this.API.OnUnexpectedDataArrived = function (packet) {
 					console.log(packet);
 				}
+				// User Code #1 - Start
+				this.GetStocksTimerHndl = null;
+				// User Code #1 - End
 
 				return this;
 			}
@@ -476,6 +602,8 @@
 					var payload = res.data.payload;
 					ui.RebuildPortfolioEarnings(payload.portfolio);
 					ui.RebuildStockTable(payload.stocks);
+
+					node.GetStocksTimerHndl = setInterval(ui.UpdateStocksPrice, 2500);
 				});
 				
 				// User Code #1 - End

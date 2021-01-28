@@ -7,7 +7,8 @@ import time
 import _thread
 import threading
 import base64
-from datetime import datetime
+import datetime
+from datetime import date
 
 import yfinance as yf
 import pandas as pd
@@ -20,28 +21,97 @@ from mksdk import MkSScheduling
 
 class StockMarket():
 	def __init__(self):
-		self.ClassName				= "StockMarket"
-		self.CacheDB 				= {}
-		self.WorkerRunning 			= False
+		self.ClassName					= "StockMarket"
+		self.CacheDB 					= {}
+		self.WorkerRunning 				= False
+		self.Locker						= threading.Lock()
+		self.FirstStockUpdateRun 		= False
+		self.MarketOpen 				= False
+		self.MarketPollingInterval 		= 1
+
+		self.FullLoopPerformedCallback 	= None
 	
 	def Start(self):
 		self.WorkerRunning = True
 		print("({classname})# Start".format(classname=self.ClassName))
-		_thread.start_new_thread(self.StockMomitorWorker, ())
+		_thread.start_new_thread(self.StockMonitorWorker, ())
 
 	def Stop(self):
 		self.WorkerRunning = False
 		print("({classname})# Stop".format(classname=self.ClassName))
 	
-	def StockMomitorWorker(self):
-		pass
+	def StockMonitorWorker(self):
+		while self.WorkerRunning is True:
+			access_stocks_database = False
+			currTime = datetime.datetime.now().time()
+			if (currTime > datetime.time(16,25) and currTime < datetime.time(23,5)):
+				self.MarketOpen = True
+			else:
+				self.MarketOpen = False
+			if self.MarketOpen is True or self.FirstStockUpdateRun is False:
+				for ticker in self.CacheDB:
+					self.Locker.acquire()
+					stock = self.CacheDB[ticker]
+					if stock["pulled"] is False:
+						print("({classname})# Update stock ({0})".format(ticker,classname=self.ClassName))
+						access_stocks_database = True
+						# Update stock info
+						stock["price"] 	 = self.GetStockCurrentPrice(ticker)
+						stock["1MO"] 	 = self.Get1MO(ticker)
+						stock["5D"] 	 = self.Get5D(ticker)
+						stock["pulled"]  = True
+						stock["updated"] = True
+						self.Locker.release()
+						break
+					self.Locker.release()
+				if access_stocks_database is False:
+					print("({classname})# Clean PULLED flag".format(classname=self.ClassName))
+					self.FirstStockUpdateRun = True
+					if self.FullLoopPerformedCallback is not None:
+						self.FullLoopPerformedCallback()
+					self.Locker.acquire()
+					for ticker in self.CacheDB:
+						stock = self.CacheDB[ticker]
+						stock["pulled"] = False
+					self.Locker.release()
+			time.sleep(self.MarketPollingInterval)
 
 	def AppendStock(self, stock):
-		self.CacheDB[stock["ticker"]] = stock
+		self.Locker.acquire()
+		try:
+			self.CacheDB[stock["ticker"]] = stock
+		except:
+			pass
+		self.Locker.release()
+	
+	def GetStockInformation(self, ticker):
+		print("({classname})# [GetStockInformation]".format(classname=self.ClassName))
+		self.Locker.acquire()
+		try:
+			print("({classname})# [DEBUG #1]".format(classname=self.ClassName))
+			if ticker in self.CacheDB:
+				stock = self.CacheDB[ticker]
+				if stock["updated"] is False:
+					stock["price"]   = self.GetStockCurrentPrice(ticker)
+					stock["1MO"] 	 = self.Get1MO(ticker)
+					stock["5D"] 	 = self.Get5D(ticker)
+					stock["updated"] = True
+					stock["pulled"]  = True
+				self.Locker.release()
+				return stock
+		except:
+			pass
+		self.Locker.release()
+		return None
 
 	def RemoveStock(self, ticker):
 		if ticker in self.CacheDB:
-			del self.CacheDB[ticker]
+			self.Locker.acquire()
+			try:
+				del self.CacheDB[ticker]
+			except:
+				pass
+			self.Locker.release()
 	
 	def GetStockCurrentPrice(self, ticker):
 		'''
@@ -49,7 +119,7 @@ class StockMarket():
 		'''
 		try:
 			objtk = yf.Ticker(ticker)
-			df_stock = objtk.history(period="1d", interval='5m')
+			df_stock = objtk.history(period="1d", interval="5m")
 			price = "{0:.3f}".format(df_stock["Close"].iloc[-1])
 		except:
 			price = "0"
@@ -96,7 +166,7 @@ class StockMarket():
 		'''
 		hist = []
 		objtk = yf.Ticker(ticker)
-		data = objtk.history(period="5d")
+		data = objtk.history(period="5d", interval="5m")
 		for idx, row in data.iterrows():
 			hist.append({
 				"date": "{0}".format(idx),
@@ -216,6 +286,111 @@ class StockMarket():
 		std = self.Stdev(line)
 		return var, std
 
+class StockDB():
+	def __init__(self, path):
+		path = os.path.join("", path)
+		self.ClassName	= "StockDB"
+		self.DB 		= sqlite3.connect(path, check_same_thread=False)
+		self.CURS		= self.DB.cursor()
+
+		self.BuildSchema()
+	
+	def BuildSchema(self):
+		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stocks_history" (
+							"timestamp"	REAL NOT NULL,
+							"date"	TEXT NOT NULL,
+							"ticker"	TEXT NOT NULL,
+							"price"	REAL NOT NULL,
+							"action"	TEXT NOT NULL
+						);''')
+		
+		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stocks_info" (
+							"name"	TEXT,
+							"ticker"	TEXT,
+							"sector"	TEXT,
+							"industry"	TEXT,
+							"market_price"	REAL
+						);''')
+				
+		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "portfolios" (
+							"id"	INTEGER PRIMARY KEY AUTOINCREMENT,
+							"name"	TEXT
+						);''')
+		
+		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stock_to_portfolio" (
+							"ticker"	TEXT NOT NULL,
+							"potrfolio_id"	INTEGER NOT NULL
+						);''')
+
+	def GetPortfolios(self):
+		query = "SELECT * FROM portfolios"
+		self.CURS.execute(query)
+		
+		portfolios = []
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			for row in rows:
+				portfolios.append({
+					"id": row[0],
+					"name": row[1]
+				})
+		return portfolios
+	
+	def GetStocks(self):
+		query = "SELECT * FROM stocks_info"
+		self.CURS.execute(query)
+		
+		stocks = []
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			for row in rows:
+				stocks.append({
+					"name": row[0],
+					"ticker": row[1],
+					"sector": row[2],
+					"industry": row[3],
+					"market_price": row[4]
+				})
+		return stocks
+
+	def GetPortfolioStocks(self, id):
+		stocks = []
+		if 0 == id:
+			query = '''
+			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.potrfolio_id, hist_max, hist_min FROM stocks_info 
+			INNER JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
+			INNER JOIN (
+				SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum, MAX(price) as hist_max, MIN(price) as hist_min
+				FROM stocks_history 
+				GROUP BY ticker) as hist ON hist.ticker == stocks_info.ticker
+			'''
+		else:
+			query = '''
+			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.potrfolio_id, hist_max, hist_min FROM stocks_info 
+			INNER JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
+			INNER JOIN (
+				SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum, MAX(price) as hist_max, MIN(price) as hist_min
+				FROM stocks_history 
+				GROUP BY ticker) as hist ON hist.ticker == stocks_info.ticker
+			WHERE stock_to_portfolio.potrfolio_id == {0}
+			'''.format(id)
+		self.CURS.execute(query)
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			for row in rows:
+				stocks.append({
+					"ticker": row[0],
+					"name": row[1],
+					"market_price": row[2],
+					"curr_price_sum": row[3],
+					"hist_price_sum": row[4],
+					"amount_sum": row[5],
+					"potrfolio_id": row[6],
+					"hist_max": row[7],
+					"hist_min": row[8]
+				})
+		return stocks
+
 class Context():
 	def __init__(self, node):
 		self.ClassName					= "Apllication"
@@ -223,6 +398,7 @@ class Context():
 		self.Node						= node
 		self.File						= MkSFile.File()
 		self.Market 					= StockMarket()
+		self.SQL 						= StockDB("stocks.db")
 		# States
 		self.States = {
 		}
@@ -243,126 +419,78 @@ class Context():
 		# Application variables
 
 		self.Timer.AddTimeItem(10, self.PrintConnections)
-		
-		path = os.path.join("stocks.db")
-		self.DB		= sqlite3.connect(path, check_same_thread=False)
-		self.CURS	= self.DB.cursor()
-		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stocks_history" (
-							"timestamp"	REAL NOT NULL,
-							"date"	TEXT NOT NULL,
-							"ticker"	TEXT NOT NULL,
-							"price"	REAL NOT NULL,
-							"action"	TEXT NOT NULL
-						);''')
-		
-		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stocks_info" (
-							"name"	TEXT,
-							"ticker"	TEXT,
-							"activity_counter"	INTEGER,
-							"sector"	TEXT,
-							"industry"	TEXT,
-							"market_price"	REAL
-						);''')
-				
-		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "portfolios" (
-							"id"	INTEGER PRIMARY KEY AUTOINCREMENT,
-							"name"	TEXT
-						);''')
-		
-		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stock_to_portfolio" (
-							"ticker"	TEXT NOT NULL,
-							"potrfolio_id"	INTEGER NOT NULL
-						);''')
+		self.Market.FullLoopPerformedCallback = self.FullLoopPerformedEvent
 	
+	def FullLoopPerformedEvent(self):
+		pass
+
 	def GetPortfoliosHandler(self, sock, packet):
-		source		= self.Node.BasicProtocol.GetSourceFromJson(packet)
-		payload		= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [GetPortfoliosHandler]".format(classname=self.ClassName),5)
 		
-		query = "SELECT * FROM portfolios"
-		self.CURS.execute(query)
-		
-		portfolios = []
-		rows = self.CURS.fetchall()
-		if len(rows) > 0:
-			for row in rows:
-				portfolios.append({
-					"id": row[0],
-					"name": row[1]
-				})
-		
 		return {
-			"portfolios": portfolios
+			"portfolios": self.SQL.GetPortfolios()
 		}
 	
 	def GetPortfolioStocksHandler(self, sock, packet):
-		source		= self.Node.BasicProtocol.GetSourceFromJson(packet)
 		payload		= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler]".format(classname=self.ClassName),5)
 		
 		potrfolio_id = payload["portfolio_id"]
-		if 0 == potrfolio_id:
-			query = '''
-			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.potrfolio_id FROM stocks_info 
-			INNER JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
-			INNER JOIN (
-				SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum 
-				FROM stocks_history 
-				GROUP BY ticker) as hist ON hist.ticker == stocks_info.ticker
-			'''
-		else:
-			query = '''
-			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.potrfolio_id FROM stocks_info 
-			INNER JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
-			INNER JOIN (
-				SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum 
-				FROM stocks_history 
-				GROUP BY ticker) as hist ON hist.ticker == stocks_info.ticker
-			WHERE stock_to_portfolio.potrfolio_id == {0}
-			'''.format(potrfolio_id)
-		self.CURS.execute(query)
+		db_stocks = self.SQL.GetPortfolioStocks(potrfolio_id)
 		
-		portfolio_earnings = 0.0
 		stocks = []
-		rows = self.CURS.fetchall()
-		if len(rows) > 0:
-			for row in rows:
-				ticker = row[0]
-				price = self.Market.GetStockCurrentPrice(ticker)
-				earnings = float("{0:.3f}".format(price * row[5] - row[4]))
-				portfolio_earnings += earnings
+		portfolio_earnings = 0.0
+		if len(db_stocks) > 0:
+			for db_stock in db_stocks:
+				ticker = db_stock["ticker"]
+				stock = self.Market.GetStockInformation(ticker)
 
-				data = self.Market.Get5D(ticker) # 5 Day history price
-				w_min, w_max = self.Market.CalculateMinMax(data)
-				w_slope, w_b, w_r2 = self.Market.GetRegressionLineStatistics(data)
-				w_var, w_std = self.Market.GetBasicStatistics(data)
+				if stock is not None:
+					#price = self.Market.GetStockCurrentPrice(ticker)
+					price = stock["price"]
+					earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
+					portfolio_earnings += earnings
 
-				data = self.Market.Get1MO(ticker) # One month history price
-				m_min, m_max = self.Market.CalculateMinMax(data)
-				m_slope, m_b, m_r2 = self.Market.GetRegressionLineStatistics(data)
-				m_var, m_std = self.Market.GetBasicStatistics(data)
+					#data = self.Market.Get5D(ticker) # 5 Day history price
+					data = stock["5D"]
+					w_min, w_max = self.Market.CalculateMinMax(data)
+					w_slope, w_b, w_r2 = self.Market.GetRegressionLineStatistics(data)
+					w_var, w_std = self.Market.GetBasicStatistics(data)
 
-				stocks.append({
-					"ticker": row[0],
-					"name": row[1],
-					"number": row[5],
-					"earnings": earnings,
-					"market_price": price,
-					"statistics": {
-						"weekly": {
-							"min": float("{0:.2f}".format(w_min)),
-							"max": float("{0:.2f}".format(w_max)),
-							"slope": float("{0:.2f}".format(w_slope)),
-							"std": float("{0:.2f}".format(w_std))
-						},
-						"monthly": {
-							"min": float("{0:.2f}".format(m_min)),
-							"max": float("{0:.2f}".format(m_max)),
-							"slope": float("{0:.2f}".format(m_slope)),
-							"std": float("{0:.2f}".format(m_std))
+					#data = self.Market.Get1MO(ticker) # One month history price
+					data = stock["1MO"]
+					m_min, m_max = self.Market.CalculateMinMax(data)
+					m_slope, m_b, m_r2 = self.Market.GetRegressionLineStatistics(data)
+					m_var, m_std = self.Market.GetBasicStatistics(data)
+					stocks.append({
+						"ticker":ticker,
+						"name": db_stock["name"],
+						"number": db_stock["amount_sum"],
+						"earnings": earnings,
+						"market_price": price,
+						"hist_price_min": db_stock["hist_min"],
+						"hist_price_max": db_stock["hist_max"],
+						"statistics": {
+							"weekly": {
+								"min": float("{0:.2f}".format(w_min)),
+								"max": float("{0:.2f}".format(w_max)),
+								"slope": float("{0:.2f}".format(w_slope)),
+								"std": float("{0:.2f}".format(w_std)),
+								"slope_offset": float("{0:.2f}".format(w_b)),
+								"r_value": float("{0:.2f}".format(w_r2)),
+								"varience": float("{0:.2f}".format(w_var))
+							},
+							"monthly": {
+								"min": float("{0:.2f}".format(m_min)),
+								"max": float("{0:.2f}".format(m_max)),
+								"slope": float("{0:.2f}".format(m_slope)),
+								"std": float("{0:.2f}".format(m_std)),
+								"slope_offset": float("{0:.2f}".format(m_b)),
+								"r_value": float("{0:.2f}".format(m_r2)),
+								"varience": float("{0:.2f}".format(m_var))
+							}
 						}
-					}
-				})
+					})
 		portfolio_earnings = float("{0:.3f}".format(portfolio_earnings))
 		return {
 			"portfolio": {
@@ -405,6 +533,20 @@ class Context():
 
 	def NodeSystemLoadedHandler(self):
 		self.Node.LogMSG("({classname})# Loading system ...".format(classname=self.ClassName),5)
+		stocks = self.SQL.GetStocks()
+		if stocks is not None:
+			if len(stocks) > 0:
+				for stock in stocks:
+					#self.Node.LogMSG("({classname})# {0}".format(stock,classname=self.ClassName),5)
+					self.Market.AppendStock({
+						"ticker": 	stock["ticker"],
+						"price": 	0,
+						"1MO": 		None,
+						"5D": 		None,
+						"updated": 	False,
+						"pulled": 	False
+					})
+		self.Market.Start()
 	
 	def OnGetNodesListHandler(self, uuids):
 		print ("OnGetNodesListHandler", uuids)
@@ -424,6 +566,7 @@ Node = MkSSlaveNode.SlaveNode()
 THIS = Context(Node)
 
 def signal_handler(signal, frame):
+	THIS.Market.Stop()
 	THIS.Node.Stop("Accepted signal from other app")
 
 def main():
