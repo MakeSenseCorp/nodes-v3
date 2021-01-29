@@ -251,7 +251,7 @@
 					html = html.split("[PRICE]").join(5);
 					html = html.split("[PRICE_HIST]").join(65);
 					html = html.split("[TOOLTIP_PRICE]").join(data.min + " - " + data.max);
-				} else if (data.max > data.price) {
+				} else if (data.max < data.price) {
 					// RIGHT
 					html = this.Right;
 					html = html.split("[LEFT]").join(10);
@@ -388,6 +388,7 @@
 
 			NodeUI.prototype.UpdateStocksPrice = function() {
 				self = this;
+				console.log("UpdateStocksPrice");
 				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
 					"portfolio_id": parseInt(g_portfolio_id),
 					"portfolio_name": g_portfolio_name
@@ -440,13 +441,13 @@
 									</li>
 								</ul>
 								<div class="row">
-									<div class="col-lg-4">
-										<button type="button" class="btn btn-sm btn-outline-success" style="width: 95%" onclick="">BUY</button>
+									<div class="col">
+										<button type="button" class="btn btn-sm btn-outline-success" onclick="">BUY</button>
 									</div>
-									<div class="col-lg-4">
-										<button type="button" class="btn btn-sm btn-outline-danger" style="width: 95%" onclick="">SELL</button>
+									<div class="col">
+										<button type="button" class="btn btn-sm btn-outline-danger" onclick="">SELL</button>
 									</div>
-									<div class="col-lg-4">
+									<div class="col">
 										<button type="button" class="w-100 btn btn-sm btn-outline-primary" onclick="ui.OpenModalStockDetails();">Details</button>
 									</div>
 								</div>
@@ -603,7 +604,7 @@
 					ui.RebuildPortfolioEarnings(payload.portfolio);
 					ui.RebuildStockTable(payload.stocks);
 
-					node.GetStocksTimerHndl = setInterval(ui.UpdateStocksPrice, 2500);
+					node.GetStocksTimerHndl = setInterval(ui.UpdateStocksPrice, 5000);
 				});
 				
 				// User Code #1 - End

@@ -42,39 +42,42 @@ class StockMarket():
 	
 	def StockMonitorWorker(self):
 		while self.WorkerRunning is True:
-			access_stocks_database = False
-			currTime = datetime.datetime.now().time()
-			if (currTime > datetime.time(16,25) and currTime < datetime.time(23,5)):
-				self.MarketOpen = True
-			else:
-				self.MarketOpen = False
-			if self.MarketOpen is True or self.FirstStockUpdateRun is False:
-				for ticker in self.CacheDB:
-					self.Locker.acquire()
-					stock = self.CacheDB[ticker]
-					if stock["pulled"] is False:
-						print("({classname})# Update stock ({0})".format(ticker,classname=self.ClassName))
-						access_stocks_database = True
-						# Update stock info
-						stock["price"] 	 = self.GetStockCurrentPrice(ticker)
-						stock["1MO"] 	 = self.Get1MO(ticker)
-						stock["5D"] 	 = self.Get5D(ticker)
-						stock["pulled"]  = True
-						stock["updated"] = True
-						self.Locker.release()
-						break
-					self.Locker.release()
-				if access_stocks_database is False:
-					print("({classname})# Clean PULLED flag".format(classname=self.ClassName))
-					self.FirstStockUpdateRun = True
-					if self.FullLoopPerformedCallback is not None:
-						self.FullLoopPerformedCallback()
-					self.Locker.acquire()
+			try:
+				access_stocks_database = False
+				currTime = datetime.datetime.now().time()
+				if (currTime > datetime.time(16,25) and currTime < datetime.time(23,5)):
+					self.MarketOpen = True
+				else:
+					self.MarketOpen = False
+				if self.MarketOpen is True or self.FirstStockUpdateRun is False:
 					for ticker in self.CacheDB:
+						self.Locker.acquire()
 						stock = self.CacheDB[ticker]
-						stock["pulled"] = False
-					self.Locker.release()
-			time.sleep(self.MarketPollingInterval)
+						if stock["pulled"] is False:
+							print("({classname})# Update stock ({0})".format(ticker,classname=self.ClassName))
+							access_stocks_database = True
+							# Update stock info
+							stock["price"] 	 = self.GetStockCurrentPrice(ticker)
+							stock["1MO"] 	 = self.Get1MO(ticker)
+							stock["5D"] 	 = self.Get5D(ticker)
+							stock["pulled"]  = True
+							stock["updated"] = True
+							self.Locker.release()
+							break
+						self.Locker.release()
+					if access_stocks_database is False:
+						print("({classname})# Clean PULLED flag".format(classname=self.ClassName))
+						self.FirstStockUpdateRun = True
+						if self.FullLoopPerformedCallback is not None:
+							self.FullLoopPerformedCallback()
+						self.Locker.acquire()
+						for ticker in self.CacheDB:
+							stock = self.CacheDB[ticker]
+							stock["pulled"] = False
+						self.Locker.release()
+				time.sleep(self.MarketPollingInterval)
+			except Exception as e:
+				print("({classname})# [Exeption] ({0})".format(e,classname=self.ClassName))
 
 	def AppendStock(self, stock):
 		self.Locker.acquire()
@@ -85,10 +88,9 @@ class StockMarket():
 		self.Locker.release()
 	
 	def GetStockInformation(self, ticker):
-		print("({classname})# [GetStockInformation]".format(classname=self.ClassName))
+		print("({classname})# [GetStockInformation] ({0})".format(ticker,classname=self.ClassName))
 		self.Locker.acquire()
 		try:
-			print("({classname})# [DEBUG #1]".format(classname=self.ClassName))
 			if ticker in self.CacheDB:
 				stock = self.CacheDB[ticker]
 				if stock["updated"] is False:
@@ -360,18 +362,28 @@ class StockDB():
 			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.potrfolio_id, hist_max, hist_min FROM stocks_info 
 			INNER JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
 			INNER JOIN (
-				SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum, MAX(price) as hist_max, MIN(price) as hist_min
+				SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum
 				FROM stocks_history 
 				GROUP BY ticker) as hist ON hist.ticker == stocks_info.ticker
+			INNER JOIN (
+				SELECT ticker, MAX(price) as hist_max, MIN(price) as hist_min
+				FROM stocks_history
+				WHERE action == -1
+				GROUP BY ticker) as tbl_actions ON tbl_actions.ticker == stocks_info.ticker
 			'''
 		else:
 			query = '''
 			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.potrfolio_id, hist_max, hist_min FROM stocks_info 
 			INNER JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
 			INNER JOIN (
-				SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum, MAX(price) as hist_max, MIN(price) as hist_min
+				SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum
 				FROM stocks_history 
 				GROUP BY ticker) as hist ON hist.ticker == stocks_info.ticker
+			INNER JOIN (
+				SELECT ticker, MAX(price) as hist_max, MIN(price) as hist_min
+				FROM stocks_history
+				WHERE action == -1
+				GROUP BY ticker) as tbl_actions ON tbl_actions.ticker == stocks_info.ticker
 			WHERE stock_to_portfolio.potrfolio_id == {0}
 			'''.format(id)
 		self.CURS.execute(query)
