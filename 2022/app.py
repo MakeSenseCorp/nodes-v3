@@ -402,6 +402,28 @@ class StockDB():
 					"hist_min": row[8]
 				})
 		return stocks
+	
+	def GetStockHistory(self, ticker):
+		query = '''
+			SELECT timestamp, date, price, amount, name, action FROM stocks_history
+			INNER JOIN actions ON actions.id == stocks_history.action
+			WHERE stocks_history.ticker == "{0}"
+		'''.format(ticker)
+		self.CURS.execute(query)
+		
+		stocks = []
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			for row in rows:
+				stocks.append({
+					"timestamp": row[0],
+					"date": row[1],
+					"price": row[2],
+					"amount": row[3],
+					"action": row[5],
+					"action_name": row[4]
+				})
+		return stocks
 
 class Context():
 	def __init__(self, node):
@@ -419,6 +441,7 @@ class Context():
 			'get_sensor_info':			self.GetSensorInfoHandler,
 			'get_portfolios':			self.GetPortfoliosHandler,
 			'get_portfolio_stocks':		self.GetPortfolioStocksHandler,
+			'get_stock_history':		self.GetStockHistoryHandler,
 			'undefined':				self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -436,6 +459,14 @@ class Context():
 	def FullLoopPerformedEvent(self):
 		pass
 
+	def GetStockHistoryHandler(self, sock, packet):
+		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetStockHistoryHandler]".format(classname=self.ClassName),5)
+		
+		return {
+			"history": self.SQL.GetStockHistory(payload["ticker"])
+		}
+	
 	def GetPortfoliosHandler(self, sock, packet):
 		self.Node.LogMSG("({classname})# [GetPortfoliosHandler]".format(classname=self.ClassName),5)
 		
@@ -444,7 +475,7 @@ class Context():
 		}
 	
 	def GetPortfolioStocksHandler(self, sock, packet):
-		payload		= self.Node.BasicProtocol.GetPayloadFromJson(packet)
+		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler]".format(classname=self.ClassName),5)
 		
 		potrfolio_id = payload["portfolio_id"]
@@ -452,6 +483,7 @@ class Context():
 		
 		stocks = []
 		portfolio_earnings = 0.0
+		portfolio_investment = 0.0
 		if len(db_stocks) > 0:
 			for db_stock in db_stocks:
 				ticker = db_stock["ticker"]
@@ -462,6 +494,7 @@ class Context():
 					price = stock["price"]
 					earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
 					portfolio_earnings += earnings
+					portfolio_investment += price * db_stock["amount_sum"]
 
 					#data = self.Market.Get5D(ticker) # 5 Day history price
 					data = stock["5D"]
@@ -507,7 +540,9 @@ class Context():
 		return {
 			"portfolio": {
 				"name": payload["portfolio_name"],
-				"earnings": portfolio_earnings
+				"earnings": portfolio_earnings,
+				"investment": portfolio_investment,
+				"stocks_count": len(db_stocks)
 			},
 			"stocks": stocks
 		}

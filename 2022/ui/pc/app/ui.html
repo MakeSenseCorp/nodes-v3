@@ -108,10 +108,10 @@
 													<div class="col-lg-12">
 														<div class="card mb-4 shadow-sm">
 															<div class="card-header">
-															  	<h6 class="my-0 fw-normal">Earnings</h6>
+															  	<h6 class="my-0 fw-normal">Earnings Vs. Investment</h6>
 															</div>
 															<div class="card-body">
-															  	<h4 class="card-title pricing-card-title"><span id="id_portfolio_earnings">0</span> <small class="text-muted">/ mo</small></h4>
+															  	<h4 class="card-title pricing-card-title"><span id="id_portfolio_earnings">0</span> (<strong class="text-muted" id="id_portfolio_investment">0</strong>)</h4>
 															</div>
 														</div>
 													</div>
@@ -122,10 +122,10 @@
 													<div class="col-lg-12">
 														<div class="card mb-4 shadow-sm">
 															<div class="card-header">
-															  	<h6 class="my-0 fw-normal"># Of Stocks</h6>
+															  	<h6 class="my-0 fw-normal">Stocks Vs. Companes</h6>
 															</div>
 															<div class="card-body">
-															  	<h4 class="card-title pricing-card-title"><strong class="text-muted" id="id_portfolio_number_of_stocks">0</strong></h4>
+															  	<h4 class="card-title pricing-card-title"><strong class="text-muted" id="id_portfolio_number_of_stocks">0</strong> (<strong class="text-muted" id="id_portfolio_stocks_count"></strong>)</h4>
 															</div>
 														</div>
 													</div>
@@ -138,25 +138,18 @@
 						</div>
 						<br>
 						<div class="row row-cols-1 row-cols-md-3 mb-3 text-center" data-masonry='{"percentPosition": true }' id="id_stocks_list">
-							<!-- <div class="col-lg-12">
-								<div class="card">
-									<div class="card-body">
-										<div id="id_stocks_list"></div>
-									</div>
-								</div>
-							</div> -->
 						</div>
 					</div>
 				</div>
 				<div class="col-lg-1"></div>
-        	</div>
+			</div>
 		</main>
 
-        <script src="/static/lib/nodes/js/jquery_3_3_1/jquery.min.js"></script>
-        <script src="/static/lib/nodes/js/popper_1_14_7/popper.min.js" crossorigin="anonymous"></script>
+		<script src="/static/lib/nodes/js/jquery_3_3_1/jquery.min.js"></script>
+		<script src="/static/lib/nodes/js/popper_1_14_7/popper.min.js" crossorigin="anonymous"></script>
 		<script src="/static/lib/bootstrap/js/bootstrap.min.js" crossorigin="anonymous"></script>
 		<script src="/static/lib/bootstrap/js/bootstrap-slider.js" crossorigin="anonymous"></script>
-        <script src="/static/lib/nodes/js/feather_4_19/feather.min.js"></script>
+		<script src="/static/lib/nodes/js/feather_4_19/feather.min.js"></script>
 		<script src="/static/lib/nodes/map/feather_4_19/feather.min.js.map"></script>
 		<script src="/mksdk-js/widgets/basic_modal.js"></script>
 		<script src="/mksdk-js/widgets/basic_uploader.js"></script>
@@ -273,6 +266,8 @@
 				this.objStockTable = document.getElementById("id_stocks_list");
 				this.objPortfolioEarnings = document.getElementById("id_portfolio_earnings");
 				this.objPortfolioStocksNumber = document.getElementById("id_portfolio_number_of_stocks");
+				this.objPortfolioInvestment = document.getElementById("id_portfolio_investment");
+				this.objPortfolioStocksCount = document.getElementById("id_portfolio_stocks_count");
 
 				this.AppendNewStockContainer = `
 					<div class="container">
@@ -355,6 +350,15 @@
 				`;
 
 				this.StockDetailsContainer = `
+					<div class="row">
+						<div class="col-lg-12">
+							<div class="card">
+								<div class="card-body">
+									<div id="id_stock_history_list"></div>
+								</div>
+							</div>
+						</div>
+					</div>
 				`;
 
 				return this;
@@ -369,16 +373,43 @@
 				this.Modal.Show();
 			}
 
-			NodeUI.prototype.OpenModalStockDetails = function() {
+			NodeUI.prototype.OpenModalStockDetails = function(ticker) {
+				self = this;
 				this.Modal.Remove();
 				this.Modal.SetTitle("Details");
 				this.Modal.SetContent(this.StockDetailsContainer);
 				this.Modal.Build("lg");
 				this.Modal.Show();
+
+				node.API.SendCustomCommand(NodeUUID, "get_stock_history", {
+					"ticker": ticker,
+				}, function(res) {
+					var payload = res.data.payload;
+					var table = new MksBasicTable();
+					table.SetSchema(["","Date","Price", "Amount", "Action"]);
+					var data = [];
+					for (key in payload.history) {
+						stock = payload.history[key];
+						row = [];
+						row.push(stock.date);
+						row.push(stock.price);
+						row.push(stock.amount);
+						if (stock.action < 0) {
+							row.push("<span style='color:RED'>BUY</span>");
+						} else {
+							row.push("<span style='color:GREEN'>SELL</span>");
+						}
+						data.push(row);
+					}
+					table.SetData(data);
+					table.Build(document.getElementById("id_stock_history_list"));
+				});
 			}
 
 			NodeUI.prototype.RebuildPortfolioEarnings = function(portfolio) {
-				this.objPortfolioEarnings.innerHTML = portfolio.earnings + "$";
+				this.objPortfolioInvestment.innerHTML = portfolio.investment;
+				this.objPortfolioStocksCount.innerHTML = portfolio.stocks_count;
+				this.objPortfolioEarnings.innerHTML = portfolio.earnings;
 				if (portfolio.earnings < 0) {
 					this.objPortfolioEarnings.style.color = "RED";
 				} else {
@@ -404,7 +435,7 @@
 						obj.innerHTML = "(" + stock.earnings + ")";
 					}
 					
-					ui.objPortfolioEarnings.innerHTML = portfolio.earnings + "$";
+					ui.objPortfolioEarnings.innerHTML = portfolio.earnings;
 					if (portfolio.earnings < 0) {
 						ui.objPortfolioEarnings.style.color = "RED";
 					} else {
@@ -416,7 +447,7 @@
 			NodeUI.prototype.RebuildStockTable = function(stocks) {
 				var htmContainer = `
 					<div class="col-sm-6 col-lg-4 mb-4">
-						<div class="card mb-4 shadow-sm">
+						<div class="card [BORDER_COLOR] mb-4 shadow-sm">
 							<div class="card-header">
 								<h4 class="d-flex justify-content-between align-items-center mb-3">
 									<span class="text-muted">[TICKER]</span>
@@ -448,7 +479,7 @@
 										<button type="button" class="btn btn-sm btn-outline-danger" onclick="">SELL</button>
 									</div>
 									<div class="col">
-										<button type="button" class="w-100 btn btn-sm btn-outline-primary" onclick="ui.OpenModalStockDetails();">Details</button>
+										<button type="button" class="w-100 btn btn-sm btn-outline-primary" onclick="ui.OpenModalStockDetails('[TICKER]');">Details</button>
 									</div>
 								</div>
 							</div>
@@ -475,8 +506,10 @@
 					html = html.split("[PRICE_COLOR]").join("BLUE");
 					if (stock.earnings < 0) {
 						html = html.split("[EARNINGS_COLOR]").join("RED");
+						html = html.split("[BORDER_COLOR]").join("border-danger");
 					} else {
 						html = html.split("[EARNINGS_COLOR]").join("GREEN");
+						html = html.split("[BORDER_COLOR]").join("border-success");
 					}
 					html = html.split("[WEEK_MIN]").join(stock.statistics.weekly.min);
 					html = html.split("[WEEK_MAX]").join(stock.statistics.weekly.max);
@@ -501,29 +534,6 @@
 				this.objStockTable.innerHTML = tableContent;
 				this.objPortfolioStocksNumber.innerHTML = portfolioStocksCount;
 				$('[data-toggle="tooltip"]').tooltip()
-
-				/*
-				var table = new MksBasicTable();
-				table.SetSchema(["","Ticker","Price", "No#", "Earning", ""]);
-				var data = [];
-				for (key in stocks) {
-					stock = stocks[key];
-					row = [];
-					row.push(stock.ticker);
-					row.push(stock.market_price);
-					row.push(stock.number);
-					if (stock.earnings < 0) {
-						row.push("<span style='color:RED'>" + stock.earnings + "</span>");
-					} else {
-						row.push("<span style='color:GREEN'>" + stock.earnings + "</span>");
-					}
-					
-					row.push("<a href='#'>More...</>");
-					data.push(row);
-				}
-				table.SetData(data);
-				table.Build(this.objStockTable);
-				*/
 			}
 
 			function Node() {
