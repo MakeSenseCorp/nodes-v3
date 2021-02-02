@@ -445,95 +445,62 @@
 			}
 
 			NodeUI.prototype.RebuildStockTable = function(stocks) {
-				var htmContainer = `
-					<div class="col-sm-6 col-lg-4 mb-4">
-						<div class="card [BORDER_COLOR] mb-4 shadow-sm">
-							<div class="card-header">
-								<h4 class="d-flex justify-content-between align-items-center mb-3">
-									<span class="text-muted">[TICKER]</span>
-									<small class="badge badge-secondary badge-pill" id="id_stock_table_stock_ammount_[TICKER]">[AMMOUNT]</small>
-								</h4>
-							</div>
-							<div class="card-body">
-								<h3 class="card-title pricing-card-title">
-									<small id="id_stock_table_price_[TICKER]" style="color:[PRICE_COLOR]">[PRICE]</small>
-									<small id="id_stock_table_earnings_[TICKER]" style="color:[EARNINGS_COLOR]">([EARNINGS])</small>
-								</h3>
-								<ul class="list-unstyled mt-3 mb-4">
-									<li id="id_stock_table_weekly_max_min_slope_[TICKER]">WE: [WEEK_MIN] - [WEEK_MAX] (<span id="id_stock_table_weekly_slope_color_[TICKER]" style="color:[WEEKLY_SLOPE_COLOR]">[WEEK_SLOPE]</span>)</li>
-									<li id="id_stock_table_monthly_max_min_slope_[TICKER]">MO: [MONTH_MIN] - [MONTH_MAX] (<span id="id_stock_table_monthly_slope_color_[TICKER]" style="color:[MONTHLY_SLOPE_COLOR]">[MONTH_SLOPE]</span>)</li>
-									<li>
-										<div class="container mb-4">
-											<hr class="mb-4">
-											<div class="progress">
-												[STOCK_LINE]
-											</div>
-										</div>
-									</li>
-								</ul>
-								<div class="row">
-									<div class="col">
-										<button type="button" class="btn btn-sm btn-outline-success" onclick="">BUY</button>
-									</div>
-									<div class="col">
-										<button type="button" class="btn btn-sm btn-outline-danger" onclick="">SELL</button>
-									</div>
-									<div class="col">
-										<button type="button" class="w-100 btn btn-sm btn-outline-primary" onclick="ui.OpenModalStockDetails('[TICKER]');">Details</button>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-				`;
+				var self = this;
+				node.API.GetFileContent(NodeUUID, {
+					"file_path": "modules/html/m_stock_block.html"
+				}, function(res) {
+					var payload = res.data.payload;
+					var htmContainer = "";
+					htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
 
-				var tableContent = "";
-				var portfolioStocksCount = 0.0;
-				var line = new StockLine();
-				for (key in stocks) {
-					var stock = stocks[key];
-					var html  = htmContainer;
+					var tableContent = "";
+					var portfolioStocksCount = 0.0;
+					var line = new StockLine();
+					for (key in stocks) {
+						var stock = stocks[key];
+						var html  = htmlContainer;
 
-					html = html.split("[STOCK_LINE]").join(line.Build({
-						price: stock.market_price,
-						min: stock.hist_price_min,
-						max: stock.hist_price_max
-					}));
-					html = html.split("[TICKER]").join(stock.ticker);
-					html = html.split("[PRICE]").join(stock.market_price);
-					html = html.split("[EARNINGS]").join(stock.earnings);
-					html = html.split("[AMMOUNT]").join(stock.number);
-					html = html.split("[PRICE_COLOR]").join("BLUE");
-					if (stock.earnings < 0) {
-						html = html.split("[EARNINGS_COLOR]").join("RED");
-						html = html.split("[BORDER_COLOR]").join("border-danger");
-					} else {
-						html = html.split("[EARNINGS_COLOR]").join("GREEN");
-						html = html.split("[BORDER_COLOR]").join("border-success");
+						html = html.split("[STOCK_LINE]").join(line.Build({
+							price: stock.market_price,
+							min: stock.hist_price_min,
+							max: stock.hist_price_max
+						}));
+						html = html.split("[TICKER]").join(stock.ticker);
+						html = html.split("[PRICE]").join(stock.market_price);
+						html = html.split("[EARNINGS]").join(stock.earnings);
+						html = html.split("[AMMOUNT]").join(stock.number);
+						html = html.split("[PRICE_COLOR]").join("BLUE");
+						if (stock.earnings < 0) {
+							html = html.split("[EARNINGS_COLOR]").join("RED");
+							html = html.split("[BORDER_COLOR]").join("border-danger");
+						} else {
+							html = html.split("[EARNINGS_COLOR]").join("GREEN");
+							html = html.split("[BORDER_COLOR]").join("border-success");
+						}
+						html = html.split("[WEEK_MIN]").join(stock.statistics.weekly.min);
+						html = html.split("[WEEK_MAX]").join(stock.statistics.weekly.max);
+						html = html.split("[WEEK_SLOPE]").join(stock.statistics.weekly.slope);
+						html = html.split("[MONTH_MIN]").join(stock.statistics.monthly.min);
+						html = html.split("[MONTH_MAX]").join(stock.statistics.monthly.max);
+						html = html.split("[MONTH_SLOPE]").join(stock.statistics.monthly.slope);
+						if (stock.statistics.weekly.slope < 0) {
+							html = html.split("[WEEKLY_SLOPE_COLOR]").join("RED");
+						} else {
+							html = html.split("[WEEKLY_SLOPE_COLOR]").join("GREEN");
+						}
+						if (stock.statistics.monthly.slope < 0) {
+							html = html.split("[MONTHLY_SLOPE_COLOR]").join("RED");
+						} else {
+							html = html.split("[MONTHLY_SLOPE_COLOR]").join("GREEN");
+						}
+						tableContent += html;
+						portfolioStocksCount += stock.number;
 					}
-					html = html.split("[WEEK_MIN]").join(stock.statistics.weekly.min);
-					html = html.split("[WEEK_MAX]").join(stock.statistics.weekly.max);
-					html = html.split("[WEEK_SLOPE]").join(stock.statistics.weekly.slope);
-					html = html.split("[MONTH_MIN]").join(stock.statistics.monthly.min);
-					html = html.split("[MONTH_MAX]").join(stock.statistics.monthly.max);
-					html = html.split("[MONTH_SLOPE]").join(stock.statistics.monthly.slope);
-					if (stock.statistics.weekly.slope < 0) {
-						html = html.split("[WEEKLY_SLOPE_COLOR]").join("RED");
-					} else {
-						html = html.split("[WEEKLY_SLOPE_COLOR]").join("GREEN");
-					}
-					if (stock.statistics.monthly.slope < 0) {
-						html = html.split("[MONTHLY_SLOPE_COLOR]").join("RED");
-					} else {
-						html = html.split("[MONTHLY_SLOPE_COLOR]").join("GREEN");
-					}
-					tableContent += html;
-					portfolioStocksCount += stock.number;
-				}
-
-				this.objStockTable.innerHTML = tableContent;
-				this.objPortfolioStocksNumber.innerHTML = portfolioStocksCount;
-				$('[data-toggle="tooltip"]').tooltip()
+					
+					self.objStockTable.innerHTML = tableContent;
+					self.objPortfolioStocksNumber.innerHTML = portfolioStocksCount;
+					$('[data-toggle="tooltip"]').tooltip();
+				});
 			}
 
 			function Node() {
