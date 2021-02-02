@@ -145,3 +145,38 @@ class StockDB():
 					"action_name": row[4]
 				})
 		return stocks
+	
+	def InsertStock(self, stock):
+		query = '''
+			INSERT INTO stocks_info (name,ticker,sector,industry,market_price)
+			VALUES ('{0}','{1}','{2}','{3}',{4})
+		'''.format(stock["name"],stock["ticker"],stock["sector"],stock["industry"],stock["market_price"])
+		self.CURS.execute(query)
+		self.DB.commit()
+		return self.CURS.lastrowid
+	
+	def InsertStockToPortfolio(self, ticker, portfolio_id):
+		query = '''
+			INSERT INTO stock_to_portfolio (ticker,portfolio_id)
+			VALUES ('{0}',{1})
+		'''.format(ticker,portfolio_id)
+		self.CURS.execute(query)
+		self.DB.commit()
+		return self.CURS.lastrowid
+	
+	def InsertStockHistory(self, transaction):
+		query = '''
+			INSERT INTO stock_to_portfolio (timestamp,date,ticker,price,action,amount)
+			VALUES ({0},'{1}','{2}',{3},{4},{5})
+		'''.format(transaction["timestamp"],transaction["date"],transaction["ticker"],transaction["price"],transaction["action"],transaction["amount"])
+		self.CURS.execute(query)
+		self.DB.commit()
+		return self.CURS.lastrowid
+	
+	def InsertPortfolio(self, portfolio_name):
+		query = '''
+			INSERT INTO portfolios VALUES (NULL,'{0}')
+		'''.format(portfolio_name)
+		self.CURS.execute(query)
+		self.DB.commit()
+		return self.CURS.lastrowid
