@@ -9,6 +9,7 @@ import threading
 import base64
 import datetime
 from datetime import date
+from datetime import datetime
 
 import yfinance as yf
 import pandas as pd
@@ -39,6 +40,8 @@ class Context():
 			'get_portfolios':			self.GetPortfoliosHandler,
 			'get_portfolio_stocks':		self.GetPortfolioStocksHandler,
 			'get_stock_history':		self.GetStockHistoryHandler,
+			'append_new_action':		self.AppendNewActionHandler,
+			'create_new_portfolio':		self.CreateNewPortfolioHandler,
 			'undefined':				self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -55,6 +58,33 @@ class Context():
 	
 	def FullLoopPerformedEvent(self):
 		pass
+
+	def CreateNewPortfolioHandler(self, sock, packet):
+		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [CreateNewPortfolioHandler]".format(classname=self.ClassName),5)
+		res = self.SQL.InsertPortfolio(payload["name"])
+
+		return {
+			"id": res
+		}
+
+	def AppendNewActionHandler(self, sock, packet):
+		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [AppendNewActionHandler]".format(classname=self.ClassName),5)
+
+		now = datetime.now()
+		res = self.SQL.InsertStockHistory({
+			'timestamp': time.time(),
+			'date': now.strftime("%m-%d-%Y 00:00:00"),
+			'ticker': payload["ticker"],
+			'price': payload["price"],
+			'action': payload["action"],
+			'amount': payload["amount"]
+		})
+
+		return {
+			"id": res
+		}
 
 	def GetStockHistoryHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
@@ -131,7 +161,8 @@ class Context():
 							}
 						}
 					})
-		portfolio_earnings = float("{0:.3f}".format(portfolio_earnings))
+		portfolio_earnings   = float("{0:.3f}".format(portfolio_earnings))
+		portfolio_investment = float("{0:.3f}".format(portfolio_investment))
 		return {
 			"portfolio": {
 				"name": payload["portfolio_name"],

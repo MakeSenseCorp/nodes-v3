@@ -68,16 +68,19 @@
 						<div class="card">
 							<div class="card-body">
 								<div class="row text-center">
-									<div class="col-lg-3">
-										<a href="#"><strong>New Portfolio</strong></a>
+									<div class="col-lg-2">
+										<a href="#" onclick="ui.OpenModalPortfolio();"><strong>Portfolios</strong></a>
 									</div>
-									<div class="col-lg-3">
-										<a href="#" onclick="ui.OpenModalAppendNewStock();"><strong>Append Action</strong></a>
+									<div class="col-lg-2">
+										<a href="#" onclick="ui.OpenModalAppendNewStock();"><strong>Stocks</strong></a>
 									</div>
-									<div class="col-lg-3">
-										<a href="#"><strong>Export To CSV</strong></a>
+									<div class="col-lg-2">
+										<a href="#"><strong>Export</strong></a>
 									</div>
-									<div class="col-lg-3">
+									<div class="col-lg-2">
+										<a href="#"><strong>Import</strong></a>
+									</div>
+									<div class="col-lg-4">
 										<a href="#"><strong>Settings</strong></a>
 									</div>
 								</div>
@@ -268,12 +271,90 @@
 				this.objPortfolioInvestment = document.getElementById("id_portfolio_investment");
 				this.objPortfolioStocksCount = document.getElementById("id_portfolio_stocks_count");
 
-				this.AppendNewStockFooter = `
-					<button type="button" class="btn btn-primary" onclick="">Confirm</button>
+				this.ConfirmFooter = `
+					<button type="button" class="btn [COLOR]" onclick="[FUNC]">[NAME]</button>
 					<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
 				`;
 
 				return this;
+			}
+
+			NodeUI.prototype.CreatePortfolio = function() {
+				var self = this;
+				node.API.SendCustomCommand(NodeUUID, "create_new_portfolio", {
+					"name": document.getElementById("id_m_portfolio_name").value 
+				}, function(res) {
+					var payload = res.data.payload;
+					self.UpdatePortfolioList();
+					self.Modal.Hide();
+					self.Modal.Remove();
+				});
+			}
+
+			NodeUI.prototype.OpenModalPortfolio = function() {
+				var self = this;
+				node.API.GetFileContent(NodeUUID, {
+					"file_path": "modules/html/m_potfolio.html"
+				}, function(res) {
+					var payload = res.data.payload;
+					htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
+
+					var footer = self.ConfirmFooter;
+					footer = footer.split("[NAME]").join("Create");
+					footer = footer.split("[COLOR]").join("btn-success");
+					footer = footer.split("[FUNC]").join("ui.CreatePortfolio();");
+					
+					self.Modal.Remove();
+					self.Modal.SetTitle("Create portfolio");
+					self.Modal.SetContent(htmlContainer);
+					self.Modal.SetFooter(footer);
+					self.Modal.Build("sm");
+					self.Modal.Show();
+				});
+			}
+
+			NodeUI.prototype.AppendAction = function(ticker, action) {
+				var self = this;
+				node.API.SendCustomCommand(NodeUUID, "append_new_action", {
+					"ticker": ticker,
+					"price": document.getElementById("id_m_append_action_price").value,
+					"action": action,
+					"amount": document.getElementById("id_m_append_action_amount").value 
+				}, function(res) {
+					var payload = res.data.payload;
+					self.Modal.Hide();
+					self.Modal.Remove();
+				});
+			}
+
+			NodeUI.prototype.OpenModalAction = function(ticker, action) {
+				var self = this;
+				node.API.GetFileContent(NodeUUID, {
+					"file_path": "modules/html/m_stock_append_action.html"
+				}, function(res) {
+					var payload = res.data.payload;
+					htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
+
+					var footer = self.ConfirmFooter;
+					htmlContainer = htmlContainer.split("[ACTION]").join(action);
+					htmlContainer = htmlContainer.split("[TICKER]").join(ticker);
+					footer = footer.split("[NAME]").join(action);
+					
+					if (action == "SELL") {
+						footer = footer.split("[COLOR]").join("btn-success");
+						footer = footer.split("[FUNC]").join("ui.AppendAction('"+ticker+"',1);");
+					} else {
+						footer = footer.split("[COLOR]").join("btn-danger");
+						footer = footer.split("[FUNC]").join("ui.AppendAction('"+ticker+"',-1);");
+					}
+					
+					self.Modal.Remove();
+					self.Modal.SetTitle(action);
+					self.Modal.SetContent(htmlContainer);
+					self.Modal.SetFooter(footer);
+					self.Modal.Build("sm");
+					self.Modal.Show();
+				});
 			}
 
 			NodeUI.prototype.OpenModalAppendNewStock = function() {
@@ -284,10 +365,14 @@
 					var payload = res.data.payload;
 					htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
 
+					var footer = self.ConfirmFooter;
+					footer = footer.split("[NAME]").join("Confirm");
+					footer = footer.split("[COLOR]").join("btn-primary");
+					footer = footer.split("[FUNC]").join("");
 					self.Modal.Remove();
 					self.Modal.SetTitle("Append New Stock");
 					self.Modal.SetContent(htmlContainer);
-					self.Modal.SetFooter(self.AppendNewStockFooter);
+					self.Modal.SetFooter(footer);
 					self.Modal.Build("lg");
 					self.Modal.Show();
 				});
@@ -431,6 +516,19 @@
 				});
 			}
 
+			NodeUI.prototype.UpdatePortfolioList = function() {
+				node.API.SendCustomCommand(NodeUUID, "get_portfolios", {}, function(res) {
+					var payload = res.data.payload;
+					var obj = document.getElementById("id_selected_portfolio");
+
+					obj.innerHTML = "";
+					for (key in payload.portfolios) {
+						item = payload.portfolios[key];
+						obj.innerHTML += "<option value='" + item.id + "'>" + item.name + "</option>";
+					}
+				});
+			}
+
 			function Node() {
 				var self = this;
 
@@ -491,15 +589,7 @@
 					console.log("Connected to local websocket", res);
 				});
 				// User Code #1 - Start
-				node.API.SendCustomCommand(NodeUUID, "get_portfolios", {}, function(res) {
-					var payload = res.data.payload;
-					var obj = document.getElementById("id_selected_portfolio");
-					
-					for (key in payload.portfolios) {
-						item = payload.portfolios[key];
-						obj.innerHTML += "<option value='" + item.id + "'>" + item.name + "</option>";
-					}
-				});
+				ui.UpdatePortfolioList();
 				
 				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
 					"portfolio_id": 0,
