@@ -46,6 +46,7 @@ class StockMarket():
 		self.LogMSG("({classname})# Stop".format(classname=self.ClassName), 5)
 	
 	def StockMonitorWorker(self):
+		self.MarketPollingInterval = 0
 		while self.WorkerRunning is True:
 			try:
 				access_stocks_database = False
@@ -72,6 +73,7 @@ class StockMarket():
 						self.Locker.release()
 					if access_stocks_database is False:
 						self.LogMSG("({classname})# Clean PULLED flag".format(classname=self.ClassName), 5)
+						self.MarketPollingInterval = 1
 						self.FirstStockUpdateRun = True
 						if self.FullLoopPerformedCallback is not None:
 							self.FullLoopPerformedCallback()

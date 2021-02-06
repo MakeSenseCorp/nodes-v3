@@ -78,7 +78,7 @@
 										<a href="#"><strong>Export</strong></a>
 									</div>
 									<div class="col-lg-2">
-										<a href="#"><strong>Import</strong></a>
+										<a href="#" onclick="ui.OpenModalImportStocks();"><strong>Import</strong></a>
 									</div>
 									<div class="col-lg-4">
 										<a href="#"><strong>Settings</strong></a>
@@ -261,8 +261,19 @@
 				return html;
 			}
 
-			function NodeUI() {
+			NodeUI.prototype.OnUploadCompleteHandler = function () {
+				console.log("OnUploadCompleteHandler");
+				// Load CSV file and send stocks information.
+			}
+
+			function NodeUI(api) {
 				self = this;
+				this.API = api;
+
+				this.Uploader	= MksBasicUploaderBuilder.GetInstance();
+				this.Uploader.SetAPI(this.API);
+				this.Uploader.SetFileType("csv")
+				this.Uploader.OnUploadCompete = this.OnUploadCompleteHandler;
 
 				this.Modal = new MksBasicModal();
 				this.objStockTable = document.getElementById("id_stocks_list");
@@ -277,6 +288,32 @@
 				`;
 
 				return this;
+			}
+
+			NodeUI.prototype.OpenModalImportStocks = function() {
+				var self = this;
+				node.API.GetFileContent(NodeUUID, {
+					"file_path": "modules/html/m_import_stocks.html"
+				}, function(res) {
+					var payload = res.data.payload;
+					htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
+
+					var footer = self.ConfirmFooter;
+					footer = footer.split("[NAME]").join("Import");
+					footer = footer.split("[COLOR]").join("btn-success");
+					footer = footer.split("[FUNC]").join("ui.ImportStocks();");
+					
+					self.Modal.Remove();
+					self.Modal.SetTitle("Import Stocks From CSV");
+					self.Modal.SetContent(htmlContainer);
+					self.Modal.SetFooter(footer);
+					self.Modal.Build("lg");
+					self.Modal.Show();
+
+					var objUploader = document.getElementById("id-basic-uploader-installer");
+					// Build DOM UI for Uploader
+					self.Uploader.Build(objUploader, "Upload");
+				});
 			}
 
 			NodeUI.prototype.CreatePortfolio = function() {
@@ -559,8 +596,9 @@
 				console.log("OnNodeChangeEvent", packet, packet.data.payload.event);
 				data = packet.data.payload.data
 				switch(packet.data.payload.event) {
-					case "":
-					break;
+					case "upload_progress": {
+						ui.Uploader.UpdateProgress(data);
+					}
 					// User Code #1 - End
 				}
 			}
@@ -577,7 +615,7 @@
 				});
 			}
   
-			var ui = new NodeUI();
+			var ui = null;
 			// Self-genrated area
 			var node = new Node();
 			node.Init();
@@ -588,6 +626,7 @@
 				node.API.ConnectLocalWS(NodeUUID, function(res) {
 					console.log("Connected to local websocket", res);
 				});
+				ui = new NodeUI(node.API);
 				// User Code #1 - Start
 				ui.UpdatePortfolioList();
 				

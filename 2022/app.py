@@ -19,6 +19,7 @@ import sqlite3
 from mksdk import MkSFile
 from mksdk import MkSSlaveNode
 from mksdk import MkSScheduling
+from mksdk import MkSFileUploader
 
 from classes import StockMarket
 from classes import StockDataBase
@@ -42,6 +43,9 @@ class Context():
 			'get_stock_history':		self.GetStockHistoryHandler,
 			'append_new_action':		self.AppendNewActionHandler,
 			'create_new_portfolio':		self.CreateNewPortfolioHandler,
+			'import_stocks': 			self.ImportStocksHandler,
+			'export_stocks': 			self.ExportStocksHandler,
+			'upload_file':				self.Request_UploadFileHandler,
 			'undefined':				self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -52,12 +56,39 @@ class Context():
 			0x1:	self.OperationInfo
 		}
 		# Application variables
+		self.UploadLocker 				= threading.Lock()
+		self.LocalStoragePath 			= "import"
 
 		self.Timer.AddTimeItem(10, self.PrintConnections)
 		self.Market.FullLoopPerformedCallback = self.FullLoopPerformedEvent
 	
 	def FullLoopPerformedEvent(self):
 		pass
+
+	def Request_UploadFileHandler(self, sock, packet):
+		self.UploadLocker.acquire()
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [Request_UploadFileHandler] {0}".format(payload["upload"]["chunk"], classname=self.ClassName),5)
+
+		if payload["upload"]["chunk"] == 1:
+			self.Uploader.AddNewUploader(payload["upload"])
+		else:
+			self.Uploader.UpdateUploader(payload["upload"])
+		
+		self.UploadLocker.release()
+		return THIS.Node.BasicProtocol.BuildResponse(packet, {
+			'status': 'accept',
+			'chunk': payload["upload"]["chunk"],
+			'file': payload["upload"]["file"]
+		})
+
+	def ExportStocksHandler(self, sock, packet):
+		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [ExportStocksHandler]".format(classname=self.ClassName),5)
+
+	def ImportStocksHandler(self, sock, packet):
+		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [ImportStocksHandler]".format(classname=self.ClassName),5)
 
 	def CreateNewPortfolioHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
@@ -221,6 +252,15 @@ class Context():
 						"pulled": 	False
 					})
 		self.Market.Start()
+
+		# Create file system for storing videos
+		if not os.path.exists(self.LocalStoragePath):
+			os.makedirs(self.LocalStoragePath)
+		
+		# Uploader
+		self.Uploader = MkSFileUploader.Manager(self)
+		self.Uploader.SetUploadPath(os.path.join(".",self.LocalStoragePath))
+		self.Uploader.Run()
 	
 	def OnGetNodesListHandler(self, uuids):
 		print ("OnGetNodesListHandler", uuids)
@@ -241,6 +281,7 @@ THIS = Context(Node)
 
 def signal_handler(signal, frame):
 	THIS.Market.Stop()
+	THIS.Uploader.Stop()
 	THIS.Node.Stop("Accepted signal from other app")
 
 def main():
