@@ -75,6 +75,17 @@ class StockDB():
 					"market_price": row[4]
 				})
 		return stocks
+	
+	def GetTickers(self):
+		query = "SELECT * FROM stocks_info"
+		self.CURS.execute(query)
+		
+		tickers = []
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			for row in rows:
+				tickers.append(row[1])
+		return tickers
 
 	def GetPortfolioStocks(self, id):
 		stocks = []
@@ -166,7 +177,7 @@ class StockDB():
 	
 	def InsertStockHistory(self, transaction):
 		query = '''
-			INSERT INTO stock_to_portfolio (timestamp,date,ticker,price,action,amount)
+			INSERT INTO stocks_history (timestamp,date,ticker,price,action,amount)
 			VALUES ({0},'{1}','{2}',{3},{4},{5})
 		'''.format(transaction["timestamp"],transaction["date"],transaction["ticker"],transaction["price"],transaction["action"],transaction["amount"])
 		self.CURS.execute(query)

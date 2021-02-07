@@ -261,18 +261,59 @@
 				return html;
 			}
 
-			NodeUI.prototype.OnUploadCompleteHandler = function () {
+			NodeUI.prototype.ImportData = [];
+			NodeUI.prototype.OnUploadCompleteHandler = function (file) {
 				console.log("OnUploadCompleteHandler");
 				// Load CSV file and send stocks information.
+				node.API.SendCustomCommand(NodeUUID, "load_csv", {
+					"file_name": file
+				}, function(res) {
+					var payload = res.data.payload;
+					var table = new MksBasicTable();
+					table.SetSchema(["", "Date", "Ticker", "Price", "Amount", "Fee", "Action", "Exist"]);
+					var data = [];
+					var importData = [];
+					for (key in payload.stocks) {
+						stock = payload.stocks[key];
+						row = [];
+						row.push(stock.date);
+						row.push(stock.ticker);
+						row.push(stock.price);
+						row.push(stock.amount);
+						row.push(stock.fee);
+						if (stock.action == "Buy") {
+							row.push("<strong><span style='color:RED'>BUY</span></strong>");
+						} else {
+							row.push("<strong><span style='color:GREEN'>SELL</span></strong>");
+						}
+						if (stock.exists == 1) {
+							row.push("");
+						} else {
+							row.push("<strong><span style='color:GREEN'>New Stock</span></strong>");
+						}
+						
+						data.push(row);
+						importData.push({
+							'date': stock.date,
+							'ticker': stock.ticker,
+							'price': stock.price.replace("$",""),
+							'amount': stock.amount,
+							'fee': stock.fee.replace("$",""),
+							'action': stock.action.toLowerCase()
+						})
+					}
+					table.SetData(data);
+					table.Build(document.getElementById("id_import_stocks_table"));
+					ui.ImportData = Array.from(importData);
+				});
 			}
 
 			function NodeUI(api) {
-				self = this;
 				this.API = api;
 
 				this.Uploader	= MksBasicUploaderBuilder.GetInstance();
 				this.Uploader.SetAPI(this.API);
-				this.Uploader.SetFileType("csv")
+				this.Uploader.SetFileType(["ms-excel","csv"])
 				this.Uploader.OnUploadCompete = this.OnUploadCompleteHandler;
 
 				this.Modal = new MksBasicModal();
@@ -288,6 +329,18 @@
 				`;
 
 				return this;
+			}
+
+			NodeUI.prototype.ImportStocks = function() {
+				var self = this;
+				node.API.SendCustomCommand(NodeUUID, "import_stocks", {
+					"stocks": this.ImportData
+				}, function(res) {
+					var payload = res.data.payload;
+					self.Modal.Hide();
+					self.Modal.Remove();
+					self.ImportData = [];
+				});
 			}
 
 			NodeUI.prototype.OpenModalImportStocks = function() {
@@ -638,7 +691,7 @@
 					ui.RebuildPortfolioEarnings(payload.portfolio);
 					ui.RebuildStockTable(payload.stocks);
 
-					node.GetStocksTimerHndl = setInterval(ui.UpdateStocksPrice, 5000);
+					node.GetStocksTimerHndl = setInterval(ui.UpdateStocksPrice, 10000);
 				});
 				
 				// User Code #1 - End

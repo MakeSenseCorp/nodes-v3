@@ -43,9 +43,10 @@ class Context():
 			'get_stock_history':		self.GetStockHistoryHandler,
 			'append_new_action':		self.AppendNewActionHandler,
 			'create_new_portfolio':		self.CreateNewPortfolioHandler,
-			'import_stocks': 			self.ImportStocksHandler,
+			'import_stocks':			self.ImportStocksHandler,
 			'export_stocks': 			self.ExportStocksHandler,
 			'upload_file':				self.Request_UploadFileHandler,
+			'load_csv':					self.LoadCSVHandler,
 			'undefined':				self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -65,6 +66,47 @@ class Context():
 	def FullLoopPerformedEvent(self):
 		pass
 
+	def LoadCSVHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [LoadCSVHandler] {0}".format(payload["file_name"],classname=self.ClassName),5)
+		csv = self.File.Load(os.path.join(".","import",payload["file_name"]))
+
+		exist = 0
+		data  = []
+		if csv is not None and len(csv) > 0:
+			tickers = self.SQL.GetTickers()
+			rows = csv.split("\n")
+			for row in rows:
+				if row is not None:
+					cols = row.split(',')
+					if len(cols) > 3:
+						if cols[1] in tickers:
+							exist = 1
+						else:
+							exist = 0
+						# TODO - Check each field for correctness						
+						data.append({
+							"date": 	cols[0],
+							"ticker": 	cols[1],
+							"price":  	cols[2],
+							"fee": 		cols[3],
+							"amount": 	cols[4],
+							"action": 	cols[5],
+							"exists": 	exist
+						})
+			
+			return {
+				'status': 'success',
+				'file_name': payload["file_name"],
+				'stocks': data
+			}
+
+		return {
+			'status': 'failed',
+			'file_name': payload["file_name"],
+			'stocks': data
+		}
+
 	def Request_UploadFileHandler(self, sock, packet):
 		self.UploadLocker.acquire()
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
@@ -76,19 +118,25 @@ class Context():
 			self.Uploader.UpdateUploader(payload["upload"])
 		
 		self.UploadLocker.release()
-		return THIS.Node.BasicProtocol.BuildResponse(packet, {
+		return {
 			'status': 'accept',
 			'chunk': payload["upload"]["chunk"],
 			'file': payload["upload"]["file"]
-		})
+		}
 
 	def ExportStocksHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [ExportStocksHandler]".format(classname=self.ClassName),5)
-
+		return {
+			'status': 'success'
+		}
+	
 	def ImportStocksHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		self.Node.LogMSG("({classname})# [ImportStocksHandler]".format(classname=self.ClassName),5)
+		self.Node.LogMSG("({classname})# [ImportStocksHandler] {0}".format(payload["stocks"], classname=self.ClassName),5)
+		return {
+			'status': 'success'
+		}
 
 	def CreateNewPortfolioHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
