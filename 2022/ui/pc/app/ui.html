@@ -177,10 +177,10 @@
 			// User Code #1 - Start
 			var portfolioOnChangeHandler = function(obj) {
 				g_portfolio_id   = obj.value;
-				g_portfolio_name = obj.options[obj.value].text;
+				g_portfolio_name = obj.options[obj.value-1].text;
 				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
 					"portfolio_id": parseInt(obj.value),
-					"portfolio_name": obj.options[obj.value].text
+					"portfolio_name": g_portfolio_name
 				}, function(res) {
 					var payload = res.data.payload;
 					ui.RebuildPortfolioEarnings(payload.portfolio);
@@ -261,7 +261,31 @@
 				return html;
 			}
 
+			function NodeUI(api) {
+				this.API = api;
+
+				this.Uploader	= MksBasicUploaderBuilder.GetInstance();
+				this.Uploader.SetAPI(this.API);
+				this.Uploader.SetFileType(["ms-excel","csv"])
+				this.Uploader.OnUploadCompete = this.OnUploadCompleteHandler;
+
+				this.Modal = new MksBasicModal();
+				this.objStockTable = document.getElementById("id_stocks_list");
+				this.objPortfolioEarnings = document.getElementById("id_portfolio_earnings");
+				this.objPortfolioStocksNumber = document.getElementById("id_portfolio_number_of_stocks");
+				this.objPortfolioInvestment = document.getElementById("id_portfolio_investment");
+				this.objPortfolioStocksCount = document.getElementById("id_portfolio_stocks_count");
+
+				this.ConfirmFooter = `
+					<button type="button" class="btn [COLOR]" onclick="[FUNC]">[NAME]</button>
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
+				`;
+
+				return this;
+			}
+
 			NodeUI.prototype.ImportData = [];
+			NodeUI.prototype.ImportDataCreatePortfolioChecked = [];
 			NodeUI.prototype.OnUploadCompleteHandler = function (file) {
 				console.log("OnUploadCompleteHandler");
 				// Load CSV file and send stocks information.
@@ -293,54 +317,53 @@
 						}
 						
 						data.push(row);
+
+						action = (stock.action.toLowerCase() == "buy") ? -1 : 1;
+						fee = stock.fee.replace("$","")
+						fee = (fee == "") ? "0.0" : fee;
 						importData.push({
 							'date': stock.date,
 							'ticker': stock.ticker,
 							'price': stock.price.replace("$",""),
 							'amount': stock.amount,
-							'fee': stock.fee.replace("$",""),
-							'action': stock.action.toLowerCase()
+							'fee': fee,
+							'action': action
 						})
 					}
 					table.SetData(data);
 					table.Build(document.getElementById("id_import_stocks_table"));
 					ui.ImportData = Array.from(importData);
+					document.getElementById("id_m_ipmort_stocks_block").classList.remove("d-none");
 				});
-			}
-
-			function NodeUI(api) {
-				this.API = api;
-
-				this.Uploader	= MksBasicUploaderBuilder.GetInstance();
-				this.Uploader.SetAPI(this.API);
-				this.Uploader.SetFileType(["ms-excel","csv"])
-				this.Uploader.OnUploadCompete = this.OnUploadCompleteHandler;
-
-				this.Modal = new MksBasicModal();
-				this.objStockTable = document.getElementById("id_stocks_list");
-				this.objPortfolioEarnings = document.getElementById("id_portfolio_earnings");
-				this.objPortfolioStocksNumber = document.getElementById("id_portfolio_number_of_stocks");
-				this.objPortfolioInvestment = document.getElementById("id_portfolio_investment");
-				this.objPortfolioStocksCount = document.getElementById("id_portfolio_stocks_count");
-
-				this.ConfirmFooter = `
-					<button type="button" class="btn [COLOR]" onclick="[FUNC]">[NAME]</button>
-					<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
-				`;
-
-				return this;
 			}
 
 			NodeUI.prototype.ImportStocks = function() {
 				var self = this;
+				
+				if (this.ImportDataCreatePortfolioChecked == true && document.getElementById("id_m_ipmort_stocks_portfolio_name").value == "") {
+					alert("Portfolio name is empty");
+					return;
+				}
+
 				node.API.SendCustomCommand(NodeUUID, "import_stocks", {
-					"stocks": this.ImportData
+					"stocks": this.ImportData,
+					"portfolio_checked": this.ImportDataCreatePortfolioChecked,
+					"portfolio_name": document.getElementById("id_m_ipmort_stocks_portfolio_name").value
 				}, function(res) {
 					var payload = res.data.payload;
 					self.Modal.Hide();
 					self.Modal.Remove();
 					self.ImportData = [];
 				});
+			}
+
+			NodeUI.prototype.ImportStocksCreateNewPortfolio = function(obj) {
+				this.ImportDataCreatePortfolioChecked = obj.checked;
+				if (obj.checked == true) {
+					document.getElementById("id_m_ipmort_stocks_portfolio_name_block").classList.remove("d-none");
+				} else {
+					document.getElementById("id_m_ipmort_stocks_portfolio_name_block").classList.add("d-none");
+				}
 			}
 
 			NodeUI.prototype.OpenModalImportStocks = function() {
@@ -409,7 +432,8 @@
 					"ticker": ticker,
 					"price": document.getElementById("id_m_append_action_price").value,
 					"action": action,
-					"amount": document.getElementById("id_m_append_action_amount").value 
+					"amount": document.getElementById("id_m_append_action_amount").value,
+					"fee": (document.getElementById("id_m_append_action_fee").value == "") ? "0.0" : document.getElementById("id_m_append_action_fee").value
 				}, function(res) {
 					var payload = res.data.payload;
 					self.Modal.Hide();
@@ -442,7 +466,7 @@
 					self.Modal.SetTitle(action);
 					self.Modal.SetContent(htmlContainer);
 					self.Modal.SetFooter(footer);
-					self.Modal.Build("sm");
+					self.Modal.Build("lg");
 					self.Modal.Show();
 				});
 			}
@@ -573,6 +597,12 @@
 						html = html.split("[EARNINGS]").join(stock.earnings);
 						html = html.split("[AMMOUNT]").join(stock.number);
 						html = html.split("[PRICE_COLOR]").join("BLUE");
+						console.log(stock.warning);
+						if (stock.warning == 1) {
+							html = html.split("[TICKER_COLOR]").join("RED");
+						} else {
+							html = html.split("[TICKER_COLOR]").join("");
+						}
 						if (stock.earnings < 0) {
 							html = html.split("[EARNINGS_COLOR]").join("RED");
 							html = html.split("[BORDER_COLOR]").join("border-danger");
@@ -611,11 +641,13 @@
 					var payload = res.data.payload;
 					var obj = document.getElementById("id_selected_portfolio");
 
+					console.log(payload.portfolios);
 					obj.innerHTML = "";
 					for (key in payload.portfolios) {
 						item = payload.portfolios[key];
 						obj.innerHTML += "<option value='" + item.id + "'>" + item.name + "</option>";
 					}
+					console.log(obj.innerHTML);
 				});
 			}
 

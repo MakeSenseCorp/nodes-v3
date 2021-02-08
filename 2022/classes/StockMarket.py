@@ -240,7 +240,10 @@ class StockMarket():
 
 			x_dist_2_sum += sample["x_dist_2"]
 			y_dist_2_sum += sample["y_dist_2"]
-			
+		
+		if x_dist_2_sum <= 0:
+			return 0, 0
+		
 		slope = (y_dist_2_sum) / (x_dist_2_sum)
 		b = avg_y - slope * avg_x
 
@@ -264,6 +267,9 @@ class StockMarket():
 			y_dist_2_sum += sample["y_dist_2"]
 			estimated_y_dist_2_sum += sample["estimated_y_dist_2"]
 		
+		if float(y_dist_2_sum) <= 0.0:
+			return 0.0
+		
 		r = float(estimated_y_dist_2_sum) / float(y_dist_2_sum)
 		return r
 
@@ -284,6 +290,7 @@ class StockMarket():
 				"y": item["close"],
 				"x": idx
 			})
+		
 		slope, b = self.CalculateRegression(line)
 		r2 = self.RValue(line, slope, b)
 		return slope, b, r2

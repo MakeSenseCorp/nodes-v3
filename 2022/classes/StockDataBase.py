@@ -24,12 +24,14 @@ class StockDB():
 							"date"	TEXT NOT NULL,
 							"ticker"	TEXT NOT NULL,
 							"price"	REAL NOT NULL,
-							"action"	TEXT NOT NULL
+							"action"	INTEGER NOT NULL,
+							"amount"	INTEGER,
+							"fee"	REAL
 						);''')
 		
 		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stocks_info" (
-							"name"	TEXT,
-							"ticker"	TEXT,
+							"name"	TEXT NOT NULL,
+							"ticker"	TEXT NOT NULL,
 							"sector"	TEXT,
 							"industry"	TEXT,
 							"market_price"	REAL
@@ -42,7 +44,12 @@ class StockDB():
 		
 		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stock_to_portfolio" (
 							"ticker"	TEXT NOT NULL,
-							"potrfolio_id"	INTEGER NOT NULL
+							"portfolio_id"	INTEGER NOT NULL
+						);''')
+
+		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "actions" (
+							"id"	INTEGER,
+							"name"	TEXT
 						);''')
 
 	def GetPortfolios(self):
@@ -91,7 +98,7 @@ class StockDB():
 		stocks = []
 		if 0 == id:
 			query = '''
-			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.potrfolio_id, hist_max, hist_min FROM stocks_info 
+			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.portfolio_id, hist_max, hist_min FROM stocks_info 
 			INNER JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
 			INNER JOIN (
 				SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum
@@ -105,7 +112,7 @@ class StockDB():
 			'''
 		else:
 			query = '''
-			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.potrfolio_id, hist_max, hist_min FROM stocks_info 
+			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.portfolio_id, hist_max, hist_min FROM stocks_info 
 			INNER JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
 			INNER JOIN (
 				SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum
@@ -116,7 +123,7 @@ class StockDB():
 				FROM stocks_history
 				WHERE action == -1
 				GROUP BY ticker) as tbl_actions ON tbl_actions.ticker == stocks_info.ticker
-			WHERE stock_to_portfolio.potrfolio_id == {0}
+			WHERE stock_to_portfolio.portfolio_id == {0}
 			'''.format(id)
 		self.CURS.execute(query)
 		rows = self.CURS.fetchall()
@@ -129,7 +136,7 @@ class StockDB():
 					"curr_price_sum": row[3],
 					"hist_price_sum": row[4],
 					"amount_sum": row[5],
-					"potrfolio_id": row[6],
+					"portfolio_id": row[6],
 					"hist_max": row[7],
 					"hist_min": row[8]
 				})
@@ -137,7 +144,7 @@ class StockDB():
 	
 	def GetStockHistory(self, ticker):
 		query = '''
-			SELECT timestamp, date, price, amount, name, action FROM stocks_history
+			SELECT timestamp, date, price, amount, name, action, fee FROM stocks_history
 			INNER JOIN actions ON actions.id == stocks_history.action
 			WHERE stocks_history.ticker == "{0}"
 		'''.format(ticker)
@@ -153,9 +160,30 @@ class StockDB():
 					"price": row[2],
 					"amount": row[3],
 					"action": row[5],
-					"action_name": row[4]
+					"action_name": row[4],
+					"fee": row[6]
 				})
 		return stocks
+	
+	def StockToPortfolioExist(self, ticker, portfolio_id):
+		query = "SELECT * FROM stock_to_portfolio WHERE ticker = '{0}' AND portfolio_id = {1}".format(ticker, portfolio_id)
+		self.CURS.execute(query)
+
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			return True
+		
+		return False
+	
+	def PortfolioExist(self, portfolio_name):
+		query = "SELECT * FROM portfolios WHERE name = '{0}'".format(portfolio_name)
+		self.CURS.execute(query)
+		
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			return True
+		
+		return False
 	
 	def InsertStock(self, stock):
 		query = '''
@@ -177,9 +205,10 @@ class StockDB():
 	
 	def InsertStockHistory(self, transaction):
 		query = '''
-			INSERT INTO stocks_history (timestamp,date,ticker,price,action,amount)
-			VALUES ({0},'{1}','{2}',{3},{4},{5})
-		'''.format(transaction["timestamp"],transaction["date"],transaction["ticker"],transaction["price"],transaction["action"],transaction["amount"])
+			INSERT INTO stocks_history (timestamp,date,ticker,price,action,amount,fee)
+			VALUES ({0},'{1}','{2}',{3},{4},{5},{6})
+		'''.format(transaction["timestamp"],transaction["date"],transaction["ticker"],transaction["price"],transaction["action"],transaction["amount"],transaction["fee"])
+
 		self.CURS.execute(query)
 		self.DB.commit()
 		return self.CURS.lastrowid

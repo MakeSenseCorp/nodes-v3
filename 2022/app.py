@@ -131,9 +131,64 @@ class Context():
 			'status': 'success'
 		}
 	
+	def GenerateTimestamp(self, month, day, year):
+		if month < 1 or month > 12:
+			return None
+		if day < 1 or day > 31:
+			return None
+		if year < 1900:
+			return None
+
+		ts_date = date(int(year),int(month),int(day))
+		return time.mktime(ts_date.timetuple())
+	
 	def ImportStocksHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		self.Node.LogMSG("({classname})# [ImportStocksHandler] {0}".format(payload["stocks"], classname=self.ClassName),5)
+		self.Node.LogMSG("({classname})# [ImportStocksHandler]".format(classname=self.ClassName),5)
+		
+		portfolio_id = 1
+		tickers = self.SQL.GetTickers()
+		if payload["portfolio_checked"] is True:
+			if False == self.SQL.PortfolioExist(payload["portfolio_name"]):
+				self.Node.LogMSG("({classname})# [ImportStocksHandler] Create portfolio ({0})".format(payload["portfolio_name"], classname=self.ClassName),5)
+				portfolio_id = self.SQL.InsertPortfolio(payload["portfolio_name"])
+		
+		stocks = payload["stocks"]
+		for item in stocks:
+			date 	= item["date"].replace("/","-")
+			ticker 	= item["ticker"]
+			price 	= item["price"]
+			amount 	= item["amount"]
+			fee 	= item["fee"]
+			action 	= item["action"]
+
+			date_arr = date.split("-")
+			timestamp = self.GenerateTimestamp(int(date_arr[0]), int(date_arr[1]), int(date_arr[2]))
+			self.Node.LogMSG("({classname})# [ImportStocksHandler] DEBUG #1".format(classname=self.ClassName),5)
+			if timestamp is not None:
+				self.SQL.InsertStockHistory({
+					'timestamp': timestamp,
+					'date': "{0} 00:00:00".format(date),
+					'ticker': ticker,
+					'price': price,
+					'action': action,
+					'amount': amount,
+					'fee': fee
+				})
+
+				if ticker not in tickers:
+					self.SQL.InsertStock({
+						"name": "",
+						"ticker": ticker,
+						"sector": "",
+						"industry": "",
+						"market_price": float(price)
+					})
+					tickers = self.SQL.GetTickers()
+				
+				if False == self.SQL.StockToPortfolioExist(ticker, portfolio_id):
+					self.SQL.InsertStockToPortfolio(ticker, portfolio_id)
+
 		return {
 			'status': 'success'
 		}
@@ -158,7 +213,8 @@ class Context():
 			'ticker': payload["ticker"],
 			'price': payload["price"],
 			'action': payload["action"],
-			'amount': payload["amount"]
+			'amount': payload["amount"],
+			'fee': payload["fee"]
 		})
 
 		return {
@@ -182,7 +238,7 @@ class Context():
 	
 	def GetPortfolioStocksHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler]".format(classname=self.ClassName),5)
+		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload["portfolio_id"], classname=self.ClassName),5)
 		
 		potrfolio_id = payload["portfolio_id"]
 		db_stocks = self.SQL.GetPortfolioStocks(potrfolio_id)
@@ -196,21 +252,31 @@ class Context():
 				stock = self.Market.GetStockInformation(ticker)
 
 				if stock is not None:
+					warning = 0
 					price = stock["price"]
 					if price > 0:
 						earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
 						portfolio_earnings += earnings
 						portfolio_investment += price * db_stock["amount_sum"]
 
+					w_min = w_max = w_slope = w_b = w_r2 = w_var = w_std = 0
 					data = stock["5D"]
-					w_min, w_max = self.Market.CalculateMinMax(data)
-					w_slope, w_b, w_r2 = self.Market.GetRegressionLineStatistics(data)
-					w_var, w_std = self.Market.GetBasicStatistics(data)
+					if len(data) > 0:
+						w_min, w_max = self.Market.CalculateMinMax(data)
+						w_slope, w_b, w_r2 = self.Market.GetRegressionLineStatistics(data)
+						w_var, w_std = self.Market.GetBasicStatistics(data)
+					else:
+						warning = 1
 
+					m_min = m_max = m_slope = m_b = m_r2 = m_var = m_std = 0
 					data = stock["1MO"]
-					m_min, m_max = self.Market.CalculateMinMax(data)
-					m_slope, m_b, m_r2 = self.Market.GetRegressionLineStatistics(data)
-					m_var, m_std = self.Market.GetBasicStatistics(data)
+					if len(data) > 0:
+						m_min, m_max = self.Market.CalculateMinMax(data)
+						m_slope, m_b, m_r2 = self.Market.GetRegressionLineStatistics(data)
+						m_var, m_std = self.Market.GetBasicStatistics(data)
+					else:
+						warning = 1
+					
 					stocks.append({
 						"ticker":ticker,
 						"name": db_stock["name"],
@@ -219,6 +285,7 @@ class Context():
 						"market_price": price,
 						"hist_price_min": db_stock["hist_min"],
 						"hist_price_max": db_stock["hist_max"],
+						"warning": warning,
 						"statistics": {
 							"weekly": {
 								"min": float("{0:.2f}".format(w_min)),
