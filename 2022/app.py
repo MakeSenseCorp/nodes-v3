@@ -164,7 +164,6 @@ class Context():
 
 			date_arr = date.split("-")
 			timestamp = self.GenerateTimestamp(int(date_arr[0]), int(date_arr[1]), int(date_arr[2]))
-			self.Node.LogMSG("({classname})# [ImportStocksHandler] DEBUG #1".format(classname=self.ClassName),5)
 			if timestamp is not None:
 				self.SQL.InsertStockHistory({
 					'timestamp': timestamp,
@@ -274,6 +273,20 @@ class Context():
 						m_min, m_max = self.Market.CalculateMinMax(data)
 						m_slope, m_b, m_r2 = self.Market.GetRegressionLineStatistics(data)
 						m_var, m_std = self.Market.GetBasicStatistics(data)
+						if math.isnan(m_min) is True:
+							m_min = 0
+						if math.isnan(m_max) is True:
+							m_max = 0
+						if math.isnan(m_slope) is True:
+							m_slope = 0
+						if math.isnan(m_b) is True:
+							m_b = 0
+						if math.isnan(m_r2) is True:
+							m_r2 = 0
+						if math.isnan(m_var) is True:
+							m_var = 0
+						if math.isnan(m_std) is True:
+							m_std = 0
 					else:
 						warning = 1
 					
