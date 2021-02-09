@@ -60,7 +60,7 @@ class StockMarket():
 						self.Locker.acquire()
 						stock = self.CacheDB[ticker]
 						if stock["pulled"] is False:
-							self.LogMSG("({classname})# Update stock ({0})".format(ticker,classname=self.ClassName), 5)
+							# self.LogMSG("({classname})# Update stock ({0})".format(ticker,classname=self.ClassName), 5)
 							access_stocks_database = True
 							# Update stock info
 							stock["price"] 	 = self.GetStockCurrentPrice(ticker)
@@ -72,7 +72,7 @@ class StockMarket():
 							break
 						self.Locker.release()
 					if access_stocks_database is False:
-						self.LogMSG("({classname})# Clean PULLED flag".format(classname=self.ClassName), 5)
+						self.LogMSG("({classname})# Iterration ended".format(classname=self.ClassName), 5)
 						self.MarketPollingInterval = 1
 						self.FirstStockUpdateRun = True
 						if self.FullLoopPerformedCallback is not None:
@@ -95,23 +95,29 @@ class StockMarket():
 			pass
 		self.Locker.release()
 	
+	def GetMarketStatus(self):
+		res = {
+			"local_stock_market_ready": self.FirstStockUpdateRun
+		}
+		return res
+
 	def GetStockInformation(self, ticker):
-		self.LogMSG("({classname})# [GetStockInformation] ({0})".format(ticker,classname=self.ClassName), 5)
-		self.Locker.acquire()
+		# self.LogMSG("({classname})# [GetStockInformation] ({0})".format(ticker,classname=self.ClassName), 5)
+		#self.Locker.acquire()
 		try:
 			if ticker in self.CacheDB:
 				stock = self.CacheDB[ticker]
-				if stock["updated"] is False:
-					stock["price"]   = self.GetStockCurrentPrice(ticker)
-					stock["1MO"] 	 = self.Get1MO(ticker)
-					stock["5D"] 	 = self.Get5D(ticker)
-					stock["updated"] = True
-					stock["pulled"]  = True
-				self.Locker.release()
+				#if stock["updated"] is False:
+				#	stock["price"]   = self.GetStockCurrentPrice(ticker)
+				#	stock["1MO"] 	 = self.Get1MO(ticker)
+				#	stock["5D"] 	 = self.Get5D(ticker)
+				#	stock["updated"] = True
+				#	stock["pulled"]  = True
+				#self.Locker.release()
 				return stock
 		except:
 			pass
-		self.Locker.release()
+		#self.Locker.release()
 		return None
 
 	def RemoveStock(self, ticker):

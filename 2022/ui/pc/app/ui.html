@@ -140,7 +140,17 @@
 							</div>
 						</div>
 						<br>
-						<div class="row row-cols-1 row-cols-md-3 mb-3 text-center" data-masonry='{"percentPosition": true }' id="id_stocks_list">
+						<div class="row" id="id_stocks_list">
+							<div class="col-lg-4">
+							</div>
+							<div class="col-lg-1" style="text-align: right;">
+								<span class="spinner-grow spinner-grow-lg" role="status" aria-hidden="true"></span>
+							</div>
+							<div class="col-lg-3" style="text-align:left;">
+								<h4>Loading...</h4>
+							</div>
+							<div class="col-lg-4">
+							</div>
 						</div>
 					</div>
 				</div>
@@ -574,8 +584,15 @@
 
 			NodeUI.prototype.RebuildStockTable = function(stocks) {
 				var self = this;
+
+				var stockUIBlock = "modules/html/m_stock_block.html";
+				var stocksCount = stocks.length;
+				if (stocksCount > 30) {
+					stockUIBlock = "modules/html/m_stock_row.html";
+				}
+
 				node.API.GetFileContent(NodeUUID, {
-					"file_path": "modules/html/m_stock_block.html"
+					"file_path": stockUIBlock
 				}, function(res) {
 					var payload = res.data.payload;
 					var htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
@@ -605,10 +622,10 @@
 						}
 						if (stock.earnings < 0) {
 							html = html.split("[EARNINGS_COLOR]").join("RED");
-							html = html.split("[BORDER_COLOR]").join("border-danger");
+							html = html.split("[BORDER_COLOR]").join("danger");
 						} else {
 							html = html.split("[EARNINGS_COLOR]").join("GREEN");
-							html = html.split("[BORDER_COLOR]").join("border-success");
+							html = html.split("[BORDER_COLOR]").join("success");
 						}
 						html = html.split("[WEEK_MIN]").join(stock.statistics.weekly.min);
 						html = html.split("[WEEK_MAX]").join(stock.statistics.weekly.max);
@@ -648,6 +665,23 @@
 						obj.innerHTML += "<option value='" + item.id + "'>" + item.name + "</option>";
 					}
 					console.log(obj.innerHTML);
+				});
+			}
+
+			NodeUI.prototype.GetStocks = function() {
+				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
+					"portfolio_id": 0,
+					"portfolio_name": "All"
+				}, function(res) {
+					var payload = res.data.payload;
+					if (payload.status.local_stock_market_ready == false) {
+						setTimeout(ui.GetStocks, 1000);
+						return;
+					}
+
+					ui.RebuildPortfolioEarnings(payload.portfolio);
+					ui.RebuildStockTable(payload.stocks);
+					node.GetStocksTimerHndl = setInterval(ui.UpdateStocksPrice, 10000);
 				});
 			}
 
@@ -714,18 +748,7 @@
 				ui = new NodeUI(node.API);
 				// User Code #1 - Start
 				ui.UpdatePortfolioList();
-				
-				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
-					"portfolio_id": 0,
-					"portfolio_name": "All"
-				}, function(res) {
-					var payload = res.data.payload;
-					ui.RebuildPortfolioEarnings(payload.portfolio);
-					ui.RebuildStockTable(payload.stocks);
-
-					node.GetStocksTimerHndl = setInterval(ui.UpdateStocksPrice, 10000);
-				});
-				
+				ui.GetStocks();
 				// User Code #1 - End
 				node.API.RegisterOnNodeChange(NodeUUID, function(res) {
 					console.log("UI have registered NODE successfuly", res);

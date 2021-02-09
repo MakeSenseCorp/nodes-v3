@@ -237,7 +237,15 @@ class Context():
 	
 	def GetPortfolioStocksHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload["portfolio_id"], classname=self.ClassName),5)
+		# self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload["portfolio_id"], classname=self.ClassName),5)
+
+		status = self.Market.GetMarketStatus()
+		if status["local_stock_market_ready"] is False:
+			return {
+				"portfolio": None,
+				"stocks": None,
+				"status": status
+			}
 		
 		potrfolio_id = payload["portfolio_id"]
 		db_stocks = self.SQL.GetPortfolioStocks(potrfolio_id)
@@ -273,19 +281,27 @@ class Context():
 						m_min, m_max = self.Market.CalculateMinMax(data)
 						m_slope, m_b, m_r2 = self.Market.GetRegressionLineStatistics(data)
 						m_var, m_std = self.Market.GetBasicStatistics(data)
+
 						if math.isnan(m_min) is True:
+							warning = 1
 							m_min = 0
 						if math.isnan(m_max) is True:
+							warning = 1
 							m_max = 0
 						if math.isnan(m_slope) is True:
+							warning = 1
 							m_slope = 0
 						if math.isnan(m_b) is True:
+							warning = 1
 							m_b = 0
 						if math.isnan(m_r2) is True:
+							warning = 1
 							m_r2 = 0
 						if math.isnan(m_var) is True:
+							warning = 1
 							m_var = 0
 						if math.isnan(m_std) is True:
+							warning = 1
 							m_std = 0
 					else:
 						warning = 1
@@ -329,7 +345,8 @@ class Context():
 				"investment": portfolio_investment,
 				"stocks_count": len(db_stocks)
 			},
-			"stocks": stocks
+			"stocks": stocks,
+			"status": status
 		}
 	
 	def UndefindHandler(self, sock, packet):
