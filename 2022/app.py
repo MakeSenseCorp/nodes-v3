@@ -47,6 +47,7 @@ class Context():
 			'export_stocks': 			self.ExportStocksHandler,
 			'upload_file':				self.Request_UploadFileHandler,
 			'load_csv':					self.LoadCSVHandler,
+			'download_stock_history':	self.DownloadStockHistoryHandler,
 			'undefined':				self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -235,20 +236,64 @@ class Context():
 			"portfolios": self.SQL.GetPortfolios()
 		}
 	
+	def DownloadStockHistoryHandler(self, sock, packet):
+		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
+		hist = self.Market.Get5D(payload["ticker"])
+
+		stock_date 	= []
+		stock_open 	= []
+		stock_close = []
+		stock_high 	= []
+		stock_low 	= []
+		stock_vol 	= []
+		for stock in hist:
+			stock_date.append(stock["date"])
+			stock_open.append(stock["open"])
+			stock_close.append(stock["close"])
+			stock_high.append(stock["high"])
+			stock_low.append(stock["low"])
+			stock_vol.append(stock["vol"])
+		
+		hist_open_y, hist_open_x = self.Market.CreateHistogram(stock_open, 1.0)
+		#print(hist_open_y, hist_open_x)
+
+		return {
+			"ticker": payload["ticker"],
+			"data": {
+				"date": stock_date,
+				"open": stock_open,
+				"close": stock_close,
+				"high": stock_high,
+				"low": stock_low,
+				"vol": stock_vol,
+				"hist_open": {
+					"x": hist_open_x,
+					"y": hist_open_y
+				}
+			}
+		}
+
 	def GetPortfolioStocksHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		# self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload["portfolio_id"], classname=self.ClassName),5)
 
+		potrfolio_id 	= payload["portfolio_id"]
+		db_stocks  		= self.SQL.GetPortfolioStocks(potrfolio_id)
+
 		status = self.Market.GetMarketStatus()
 		if status["local_stock_market_ready"] is False:
+			mkt_stocks 		= self.Market.GetStocks()
+			updated_stocks 	= 0
+			for db_stock in db_stocks:
+				ticker = db_stock["ticker"]
+				if mkt_stocks[ticker]["updated"] is True:
+					updated_stocks += 1
+			status["percentage"] = float("{0:.1f}".format(float(updated_stocks) / float(len(db_stocks)) * 100.0)) 
 			return {
 				"portfolio": None,
 				"stocks": None,
 				"status": status
 			}
-		
-		potrfolio_id = payload["portfolio_id"]
-		db_stocks = self.SQL.GetPortfolioStocks(potrfolio_id)
 		
 		stocks = []
 		portfolio_earnings = 0.0

@@ -60,7 +60,7 @@ class StockMarket():
 						self.Locker.acquire()
 						stock = self.CacheDB[ticker]
 						if stock["pulled"] is False:
-							# self.LogMSG("({classname})# Update stock ({0})".format(ticker,classname=self.ClassName), 5)
+							self.LogMSG("({classname})# Update stock ({0})".format(ticker,classname=self.ClassName), 5)
 							access_stocks_database = True
 							# Update stock info
 							stock["price"] 	 = self.GetStockCurrentPrice(ticker)
@@ -100,6 +100,9 @@ class StockMarket():
 			"local_stock_market_ready": self.FirstStockUpdateRun
 		}
 		return res
+
+	def GetStocks(self):
+		return self.CacheDB
 
 	def GetStockInformation(self, ticker):
 		# self.LogMSG("({classname})# [GetStockInformation] ({0})".format(ticker,classname=self.ClassName), 5)
@@ -185,7 +188,7 @@ class StockMarket():
 		data = objtk.history(period="5d", interval="5m")
 		for idx, row in data.iterrows():
 			hist.append({
-				"date": "{0}".format(idx),
+				"date": "{0}".format(idx).replace("00:00:00",""),
 				"open": row['Open'],
 				"close": row['Close'],
 				"high": row['High'],
@@ -193,6 +196,36 @@ class StockMarket():
 				"vol": row['Volume']
 			})
 		return hist
+	
+	def CreateHistogram(self, buffer, hist_bin_size):
+		hist_len = len(buffer)
+		hist_buffer_y = []
+		hist_buffer_x = []
+		ret_hist_buffer_y = []
+		ret_hist_buffer_x = []
+		if hist_len > 0:
+			pmax = 0		
+			pmin = buffer[0]
+			for item in buffer:
+				if pmax < item:
+					pmax = item
+				if pmin > item:
+					pmin = item
+			normal = 1.0 / (pmax - pmin)
+
+			hist_buffer_y = [0]*hist_len # [0]*(int(pmax - pmin) + 2)
+			hist_buffer_x = [0]*hist_len
+			for sample in buffer:
+				index = int((sample-pmin)*normal*hist_len) - 1
+				#print(hist_len,index)
+				hist_buffer_y[index] += 1
+				hist_buffer_x[index] = float("{0:.3f}".format(sample))
+			
+			for idx, sample in enumerate(hist_buffer_y):
+				if sample > 0:
+					ret_hist_buffer_y.append(sample)
+					ret_hist_buffer_x.append(hist_buffer_x[idx])
+		return ret_hist_buffer_y, ret_hist_buffer_x
 
 	def Get1MO(self, ticker):
 		'''

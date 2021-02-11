@@ -62,25 +62,25 @@
     <body>
         <main role="main" class="container">
         	<div class="row">
-				<div class="col-lg-1"></div>
-				<div class="col-lg-10">
+				<div class="col-xl-1"></div>
+				<div class="col-xl-10">
 					<div class="bd-example">
 						<div class="card">
 							<div class="card-body">
 								<div class="row text-center">
-									<div class="col-lg-2">
+									<div class="col-xl-2">
 										<a href="#" onclick="ui.OpenModalPortfolio();"><strong>Portfolios</strong></a>
 									</div>
-									<div class="col-lg-2">
+									<div class="col-xl-2">
 										<a href="#" onclick="ui.OpenModalAppendNewStock();"><strong>Stocks</strong></a>
 									</div>
-									<div class="col-lg-2">
+									<div class="col-xl-2">
 										<a href="#"><strong>Export</strong></a>
 									</div>
-									<div class="col-lg-2">
+									<div class="col-xl-2">
 										<a href="#" onclick="ui.OpenModalImportStocks();"><strong>Import</strong></a>
 									</div>
-									<div class="col-lg-4">
+									<div class="col-xl-4">
 										<a href="#"><strong>Settings</strong></a>
 									</div>
 								</div>
@@ -88,7 +88,7 @@
 						</div>
 						<br>
 						<div class="row">
-							<div class="col-lg-12">
+							<div class="col-xl-12">
 								<h5 class="mt-0"><strong>Choose Portfolio</strong></h5>
 								<div class="card">
 									<div class="card-body">
@@ -101,14 +101,14 @@
 						</div>
 						<br>
 						<div class="row">
-							<div class="col-lg-12">
+							<div class="col-xl-12">
 								<h5 class="mt-0"><strong>Summary</strong></h5>
 								<div class="card">
 									<div class="card-body">
 										<div class="row">
-											<div class="col-lg-6">
+											<div class="col-xl-6">
 												<div class="row text-center">
-													<div class="col-lg-12">
+													<div class="col-xl-12">
 														<div class="card mb-4 shadow-sm">
 															<div class="card-header">
 															  	<h6 class="my-0 fw-normal">Earnings Vs. Investment</h6>
@@ -120,9 +120,9 @@
 													</div>
 												</div>
 											</div>
-											<div class="col-lg-6">
+											<div class="col-xl-6">
 												<div class="row text-center">
-													<div class="col-lg-12">
+													<div class="col-xl-12">
 														<div class="card mb-4 shadow-sm">
 															<div class="card-header">
 															  	<h6 class="my-0 fw-normal">Stocks Vs. Companes</h6>
@@ -137,6 +137,9 @@
 										</div>
 									</div>
 								</div>
+							</div>
+							<div class="col-xl-12">
+								<div id="id_stocks_loading_progressbar"></div>
 							</div>
 						</div>
 						<br>
@@ -154,7 +157,7 @@
 						</div>
 					</div>
 				</div>
-				<div class="col-lg-1"></div>
+				<div class="col-xl-1"></div>
 			</div>
 		</main>
 
@@ -164,9 +167,11 @@
 		<script src="/static/lib/bootstrap/js/bootstrap-slider.js" crossorigin="anonymous"></script>
 		<script src="/static/lib/nodes/js/feather_4_19/feather.min.js"></script>
 		<script src="/static/lib/nodes/map/feather_4_19/feather.min.js.map"></script>
+		<script src="/static/lib/chartjs/current/Chart.min.js"></script>
 		<script src="/mksdk-js/widgets/basic_modal.js"></script>
 		<script src="/mksdk-js/widgets/basic_uploader.js"></script>
 		<script src="/mksdk-js/widgets/basic_table.js"></script>
+		<script src="/mksdk-js/widgets/progress_bar.js"></script>
         
         [SCRIPTS]
 
@@ -187,7 +192,7 @@
 			// User Code #1 - Start
 			var portfolioOnChangeHandler = function(obj) {
 				g_portfolio_id   = obj.value;
-				g_portfolio_name = obj.options[obj.value-1].text;
+				g_portfolio_name = obj.options[obj.value].text;
 				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
 					"portfolio_id": parseInt(obj.value),
 					"portfolio_name": g_portfolio_name
@@ -274,10 +279,15 @@
 			function NodeUI(api) {
 				this.API = api;
 
-				this.Uploader	= MksBasicUploaderBuilder.GetInstance();
+				this.Uploader = MksBasicUploaderBuilder.GetInstance();
 				this.Uploader.SetAPI(this.API);
 				this.Uploader.SetFileType(["ms-excel","csv"])
 				this.Uploader.OnUploadCompete = this.OnUploadCompleteHandler;
+
+				this.StockLoaderProgressBar	= new MksBasicProgressBar("StockLoaderProgressBar");
+				this.StockLoaderProgressBar.EnableInnerPercentageText(false);
+				this.StockLoaderProgressBar.Build(document.getElementById("id_stocks_loading_progressbar"));
+				this.StockLoaderProgressBar.Show();
 
 				this.Modal = new MksBasicModal();
 				this.objStockTable = document.getElementById("id_stocks_list");
@@ -541,6 +551,120 @@
 						table.SetData(data);
 						table.Build(document.getElementById("id_stock_history_list"));
 					});
+
+					node.API.SendCustomCommand(NodeUUID, "download_stock_history", {
+						"ticker": ticker,
+						"period": "5D",
+						"interval": "5M"
+					}, function(res) {
+						var payload = res.data.payload;
+						console.log(payload);
+						var chartColors = {
+							red: 'rgb(255, 99, 132)',
+							orange: 'rgb(255, 159, 64)',
+							yellow: 'rgb(255, 205, 86)',
+							green: 'rgb(75, 192, 192)',
+							blue: 'rgb(54, 162, 235)',
+							purple: 'rgb(153, 102, 255)',
+							grey: 'rgb(201, 203, 207)'
+						};
+
+						var config = {
+							type: 'line',
+							data: {
+								labels: payload.data.date,
+								datasets: [{
+									label: 'Open',
+									fill: false,
+									backgroundColor: chartColors.blue,
+									borderColor: chartColors.blue,
+									data: payload.data.open,
+									pointRadius: 0,
+								}]
+							},
+							options: {
+								responsive: true,
+								title: {
+									display: true,
+									text: 'Stock Price'
+								},
+								tooltips: {
+									mode: 'index',
+									intersect: false,
+								},
+								hover: {
+									mode: 'nearest',
+									intersect: true
+								},
+								scales: {
+									xAxes: [{
+										display: false,
+										scaleLabel: {
+											display: true,
+											labelString: 'Days'
+										}
+									}],
+									yAxes: [{
+										display: true,
+										scaleLabel: {
+											display: true,
+											labelString: 'Price'
+										}
+									}]
+								}
+							}
+						};
+												
+						var ctx = document.getElementById('id_history_stock_data').getContext('2d');
+						window.StockHistory = new Chart(ctx, config);
+
+						config = {
+							type: 'bar',
+							data: {
+								labels: payload.data.hist_open.x,
+								datasets: [{
+									label: 'Unfilled',
+									fill: false,
+									backgroundColor: chartColors.red,
+									borderColor: chartColors.red,
+									data: payload.data.hist_open.y,
+								}]
+							},
+							options: {
+								responsive: true,
+								title: {
+									display: true,
+									text: 'Stock Price'
+								},
+								tooltips: {
+									mode: 'index',
+									intersect: false,
+								},
+								hover: {
+									mode: 'nearest',
+									intersect: true
+								},
+								scales: {
+									xAxes: [{
+										display: true,
+										scaleLabel: {
+											display: true,
+											labelString: 'Days'
+										}
+									}],
+									yAxes: [{
+										display: true,
+										scaleLabel: {
+											display: true,
+											labelString: 'Price'
+										}
+									}]
+								}
+							}
+						};
+						var ctx = document.getElementById('id_histograme_stock_data').getContext('2d');
+						window.StockHistograme = new Chart(ctx, config);
+					});
 				});
 			}
 
@@ -659,7 +783,7 @@
 					var obj = document.getElementById("id_selected_portfolio");
 
 					console.log(payload.portfolios);
-					obj.innerHTML = "";
+					obj.innerHTML = "<option value='0'>All</option>";
 					for (key in payload.portfolios) {
 						item = payload.portfolios[key];
 						obj.innerHTML += "<option value='" + item.id + "'>" + item.name + "</option>";
@@ -669,16 +793,22 @@
 			}
 
 			NodeUI.prototype.GetStocks = function() {
+				var self = this;
 				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
 					"portfolio_id": 0,
 					"portfolio_name": "All"
 				}, function(res) {
 					var payload = res.data.payload;
 					if (payload.status.local_stock_market_ready == false) {
-						setTimeout(ui.GetStocks, 1000);
+						ui.StockLoaderProgressBar.UpdateProgress({
+							'precentage': payload.status.percentage,
+							'message': "Loading (" + payload.status.percentage + "%)"
+						});
+						setTimeout(ui.GetStocks, 2500);
 						return;
 					}
 
+					ui.StockLoaderProgressBar.Hide();
 					ui.RebuildPortfolioEarnings(payload.portfolio);
 					ui.RebuildStockTable(payload.stocks);
 					node.GetStocksTimerHndl = setInterval(ui.UpdateStocksPrice, 10000);
@@ -747,6 +877,16 @@
 				});
 				ui = new NodeUI(node.API);
 				// User Code #1 - Start
+				/*
+				node.API.SendCustomCommand(NodeUUID, "download_stock_history", {
+					"ticker": "T",
+					"period": "5D",
+					"interval": "5M"
+				}, function(res) {
+					var payload = res.data.payload;
+					console.log(payload);
+				});
+				*/
 				ui.UpdatePortfolioList();
 				ui.GetStocks();
 				// User Code #1 - End
