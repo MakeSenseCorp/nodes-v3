@@ -576,16 +576,40 @@
 								datasets: [{
 									label: 'Open',
 									fill: false,
+									backgroundColor: chartColors.red,
+									borderColor: chartColors.red,
+									data: payload.data.open,
+									pointRadius: 0,
+								},
+								{
+									label: 'Regression',
+									fill: false,
 									backgroundColor: chartColors.blue,
 									borderColor: chartColors.blue,
-									data: payload.data.open,
+									data: payload.data.regression,
+									pointRadius: 0,
+								},
+								{
+									label: 'High',
+									fill: false,
+									backgroundColor: chartColors.green,
+									borderColor: chartColors.green,
+									data: payload.data.high,
+									pointRadius: 0,
+								},
+								{
+									label: 'low',
+									fill: false,
+									backgroundColor: chartColors.purple,
+									borderColor: chartColors.purple,
+									data: payload.data.low,
 									pointRadius: 0,
 								}]
 							},
 							options: {
 								responsive: true,
 								title: {
-									display: true,
+									display: false,
 									text: 'Stock Price'
 								},
 								tooltips: {
@@ -623,17 +647,17 @@
 							data: {
 								labels: payload.data.hist_open.x,
 								datasets: [{
-									label: 'Unfilled',
+									label: 'Price Histograme',
 									fill: false,
-									backgroundColor: chartColors.red,
-									borderColor: chartColors.red,
+									backgroundColor: chartColors.blue,
+									borderColor: chartColors.orange,
 									data: payload.data.hist_open.y,
 								}]
 							},
 							options: {
 								responsive: true,
 								title: {
-									display: true,
+									display: false,
 									text: 'Stock Price'
 								},
 								tooltips: {
@@ -649,14 +673,14 @@
 										display: true,
 										scaleLabel: {
 											display: true,
-											labelString: 'Days'
+											labelString: 'Price'
 										}
 									}],
 									yAxes: [{
 										display: true,
 										scaleLabel: {
 											display: true,
-											labelString: 'Price'
+											labelString: 'Count'
 										}
 									}]
 								}

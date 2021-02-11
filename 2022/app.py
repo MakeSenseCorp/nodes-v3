@@ -240,12 +240,17 @@ class Context():
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		hist = self.Market.Get5D(payload["ticker"])
 
-		stock_date 	= []
-		stock_open 	= []
-		stock_close = []
-		stock_high 	= []
-		stock_low 	= []
-		stock_vol 	= []
+		stock_date 			= []
+		stock_open 			= []
+		stock_close 		= []
+		stock_high 			= []
+		stock_low 			= []
+		stock_vol 			= []
+		stock_regression 	= []
+		w_slope, w_b, w_r2 = self.Market.GetRegressionLineStatistics(hist)
+		for idx in range(len(hist)):
+			stock_regression.append(w_slope*idx+w_b)
+
 		for stock in hist:
 			stock_date.append(stock["date"])
 			stock_open.append(stock["open"])
@@ -266,6 +271,7 @@ class Context():
 				"high": stock_high,
 				"low": stock_low,
 				"vol": stock_vol,
+				"regression": stock_regression,
 				"hist_open": {
 					"x": hist_open_x,
 					"y": hist_open_y
