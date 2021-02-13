@@ -48,6 +48,7 @@ class Context():
 			'upload_file':				self.Request_UploadFileHandler,
 			'load_csv':					self.LoadCSVHandler,
 			'download_stock_history':	self.DownloadStockHistoryHandler,
+			'get_db_stocks':			self.GetDBStocksHandler,
 			'undefined':				self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -66,6 +67,12 @@ class Context():
 	
 	def FullLoopPerformedEvent(self):
 		pass
+
+	def GetDBStocksHandler(self, sock, packet):
+		db_stocks = self.SQL.GetPortfolioStocks(0)
+		return {
+			"stocks": db_stocks
+		}
 
 	def LoadCSVHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)

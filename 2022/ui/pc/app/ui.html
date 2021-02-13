@@ -172,6 +172,7 @@
 		<script src="/mksdk-js/widgets/basic_uploader.js"></script>
 		<script src="/mksdk-js/widgets/basic_table.js"></script>
 		<script src="/mksdk-js/widgets/progress_bar.js"></script>
+		<script src="/mksdk-js/widgets/block_table.js"></script>
         
         [SCRIPTS]
 
@@ -304,6 +305,7 @@
 				return this;
 			}
 
+			NodeUI.prototype.Portofolios = [];
 			NodeUI.prototype.ImportData = [];
 			NodeUI.prototype.ImportDataCreatePortfolioChecked = [];
 			NodeUI.prototype.OnUploadCompleteHandler = function (file) {
@@ -509,6 +511,49 @@
 					self.Modal.SetFooter(footer);
 					self.Modal.Build("lg");
 					self.Modal.Show();
+
+					
+					node.API.SendCustomCommand(NodeUUID, "get_db_stocks", {
+					}, function(res) {
+						var payload = res.data.payload;
+						var stockTable = new MksBlockTable();
+						var tableData = []
+						var portofoliosCheckboxes = "";
+						for (key in ui.Portofolios) {
+							portfolio = ui.Portofolios[key];
+							portofoliosCheckboxes += `
+								<a class="dropdown-item" href="#">
+									<div class="custom-control custom-checkbox">
+										<input type="checkbox" class="custom-control-input" onclick="alert("hello");" id="id_portfolio_stock_list_`+portfolio.id+`">
+										<label class="custom-control-label" for="d_portfolio_stock_list_`+portfolio.id+`">` + portfolio.name + `</label>
+									</div>
+								</a>
+							`;
+						}
+						for (key in payload.stocks) {
+							stock = payload.stocks[key];
+							tableData.push({
+								"item1": stock.ticker,
+								"item2": stock.name,
+								"item3": `
+									<div class="row">
+										<div class="col">
+											<div class="dropdown">
+												<button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+													Portfolios
+												</button>
+												<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+													` + portofoliosCheckboxes + `
+												</div>
+											</div>
+										</div>
+									</div>
+								`
+							});
+						}
+						stockTable.SetData(tableData);
+						stockTable.Build(document.getElementById("id_m_stock_append_stock_table"));
+					});
 				});
 			}
 
@@ -807,6 +852,7 @@
 					var obj = document.getElementById("id_selected_portfolio");
 
 					console.log(payload.portfolios);
+					ui.Portofolios = payload.portfolios;
 					obj.innerHTML = "<option value='0'>All</option>";
 					for (key in payload.portfolios) {
 						item = payload.portfolios[key];
@@ -901,16 +947,6 @@
 				});
 				ui = new NodeUI(node.API);
 				// User Code #1 - Start
-				/*
-				node.API.SendCustomCommand(NodeUUID, "download_stock_history", {
-					"ticker": "T",
-					"period": "5D",
-					"interval": "5M"
-				}, function(res) {
-					var payload = res.data.payload;
-					console.log(payload);
-				});
-				*/
 				ui.UpdatePortfolioList();
 				ui.GetStocks();
 				// User Code #1 - End
