@@ -179,6 +179,28 @@ class StockMarket():
 			"low": low
 		}
 	
+	def GetStock(self, ticker, period, interval):
+		'''
+			Open,High,Low,Close,Volume,Dividends,Stock Splits
+		'''
+		hist = []
+		objtk = yf.Ticker(ticker)
+		'''
+			Valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
+			Valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
+		'''
+		data = objtk.history(period=period, interval=interval)
+		for idx, row in data.iterrows():
+			hist.append({
+				"date": "{0}".format(idx),
+				"open": row['Open'],
+				"close": row['Close'],
+				"high": row['High'],
+				"low": row['Low'],
+				"vol": row['Volume']
+			})
+		return hist
+
 	def Get5D(self, ticker):
 		'''
 			Open,High,Low,Close,Volume,Dividends,Stock Splits
@@ -198,33 +220,36 @@ class StockMarket():
 		return hist
 	
 	def CreateHistogram(self, buffer, hist_bin_size):
-		hist_len = len(buffer)
-		hist_buffer_y = []
-		hist_buffer_x = []
 		ret_hist_buffer_y = []
 		ret_hist_buffer_x = []
-		if hist_len > 0:
-			pmax = 0		
-			pmin = buffer[0]
-			for item in buffer:
-				if pmax < item:
-					pmax = item
-				if pmin > item:
-					pmin = item
-			normal = 1.0 / (pmax - pmin)
+		try:
+			hist_len = len(buffer)
+			hist_buffer_y = []
+			hist_buffer_x = []
+			if hist_len > 0:
+				pmax = 0		
+				pmin = buffer[0]
+				for item in buffer:
+					if pmax < item:
+						pmax = item
+					if pmin > item:
+						pmin = item
+				normal = 1.0 / (pmax - pmin)
 
-			hist_buffer_y = [0]*hist_len # [0]*(int(pmax - pmin) + 2)
-			hist_buffer_x = [0]*hist_len
-			for sample in buffer:
-				index = int((sample-pmin)*normal*hist_len) - 1
-				#print(hist_len,index)
-				hist_buffer_y[index] += 1
-				hist_buffer_x[index] = float("{0:.3f}".format(sample))
-			
-			for idx, sample in enumerate(hist_buffer_y):
-				if sample > 0:
-					ret_hist_buffer_y.append(sample)
-					ret_hist_buffer_x.append(hist_buffer_x[idx])
+				hist_buffer_y = [0]*hist_len # [0]*(int(pmax - pmin) + 2)
+				hist_buffer_x = [0]*hist_len
+				for sample in buffer:
+					index = int((sample-pmin)*normal*hist_len) - 1
+					#print(hist_len,index)
+					hist_buffer_y[index] += 1
+					hist_buffer_x[index] = float("{0:.3f}".format(sample))
+				
+				for idx, sample in enumerate(hist_buffer_y):
+					if sample > 0:
+						ret_hist_buffer_y.append(sample)
+						ret_hist_buffer_x.append(hist_buffer_x[idx])
+		except:
+			pass
 		return ret_hist_buffer_y, ret_hist_buffer_x
 
 	def Get1MO(self, ticker):

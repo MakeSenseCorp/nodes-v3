@@ -557,6 +557,172 @@
 				});
 			}
 
+			NodeUI.prototype.ShowStockAppendCheckbox = function(obj) {
+				if (obj.checked == true) {
+					document.getElementById("id_m_stock_append_stock_table").classList.remove("d-none");
+				} else {
+					document.getElementById("id_m_stock_append_stock_table").classList.add("d-none");
+				}
+			}
+
+			NodeUI.prototype.DownloadStockHistory = function(ticker, period, interval, callback) {
+				node.API.SendCustomCommand(NodeUUID, "download_stock_history", {
+					"ticker": ticker,
+					"period": period,
+					"interval": interval
+				}, function(res) {
+					var payload = res.data.payload;
+					callback(payload);
+				});
+			}
+
+			NodeUI.prototype.BuildHistoryGraph = function(data) {
+				if (window.StockHistory !== undefined) {
+					window.StockHistory.destroy();
+				}
+				var chartColors = {
+					red: 'rgb(255, 99, 132)',
+					orange: 'rgb(255, 159, 64)',
+					yellow: 'rgb(255, 205, 86)',
+					green: 'rgb(75, 192, 192)',
+					blue: 'rgb(54, 162, 235)',
+					purple: 'rgb(153, 102, 255)',
+					grey: 'rgb(201, 203, 207)'
+				};
+				var ctx = document.getElementById('id_history_stock_data').getContext('2d');
+				var config = {
+					type: 'line',
+					data: {
+						labels: data.data.date,
+						datasets: [{
+							label: 'Open',
+							fill: false,
+							backgroundColor: chartColors.red,
+							borderColor: chartColors.red,
+							data: data.data.open,
+							pointRadius: 0,
+						},
+						{
+							label: 'Regression',
+							fill: false,
+							backgroundColor: chartColors.blue,
+							borderColor: chartColors.blue,
+							data: data.data.regression,
+							pointRadius: 0,
+						}]
+					},
+					options: {
+						responsive: true,
+						title: {
+							display: false,
+							text: 'Stock Price'
+						},
+						tooltips: {
+							mode: 'index',
+							intersect: false,
+						},
+						hover: {
+							mode: 'nearest',
+							intersect: true
+						},
+						scales: {
+							xAxes: [{
+								display: false,
+								scaleLabel: {
+									display: true,
+									labelString: 'Days'
+								}
+							}],
+							yAxes: [{
+								display: true,
+								scaleLabel: {
+									display: true,
+									labelString: 'Price'
+								}
+							}]
+						}
+					}
+				};
+				window.StockHistory = new Chart(ctx, config);
+			}
+
+			NodeUI.prototype.BuilsHistogrameGraph = function(data) {
+				if (window.StockHistograme !== undefined) {
+					window.StockHistograme.destroy();
+				}
+
+				if (data.data.hist_open.x == undefined || data.data.hist_open.y == undefined) {
+					return;
+				}
+
+				if (data.data.hist_open.x.length == 0 || data.data.hist_open.y.length == 0) {
+					return;
+				}
+
+				var chartColors = {
+					red: 'rgb(255, 99, 132)',
+					orange: 'rgb(255, 159, 64)',
+					yellow: 'rgb(255, 205, 86)',
+					green: 'rgb(75, 192, 192)',
+					blue: 'rgb(54, 162, 235)',
+					purple: 'rgb(153, 102, 255)',
+					grey: 'rgb(201, 203, 207)'
+				};
+				var ctx = document.getElementById('id_histograme_stock_data').getContext('2d');
+				var config = {
+					type: 'bar',
+					data: {
+						labels: data.data.hist_open.x,
+						datasets: [{
+							label: 'Price Histograme',
+							fill: false,
+							backgroundColor: chartColors.blue,
+							borderColor: chartColors.orange,
+							data: data.data.hist_open.y,
+						}]
+					},
+					options: {
+						responsive: true,
+						title: {
+							display: false,
+							text: 'Stock Price'
+						},
+						tooltips: {
+							mode: 'index',
+							intersect: false,
+						},
+						hover: {
+							mode: 'nearest',
+							intersect: true
+						},
+						scales: {
+							xAxes: [{
+								display: true,
+								scaleLabel: {
+									display: true,
+									labelString: 'Price'
+								}
+							}],
+							yAxes: [{
+								display: true,
+								scaleLabel: {
+									display: true,
+									labelString: 'Count'
+								}
+							}]
+						}
+					}
+				};
+				window.StockHistograme = new Chart(ctx, config);
+			}
+
+			NodeUI.prototype.GetStockData = function(ticker, period, interval) {
+				ui.DownloadStockHistory(ticker, period, interval, function(download) {
+					ui.BuildHistoryGraph(download);
+					ui.BuilsHistogrameGraph(download);
+				});
+			}
+
 			NodeUI.prototype.OpenModalStockDetails = function(ticker) {
 				var self = this;
 
@@ -564,11 +730,12 @@
 					"file_path": "modules/html/m_stock_details.html"
 				}, function(res) {
 					var payload = res.data.payload;
-					htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
+					html = MkSGlobal.ConvertHEXtoString(payload.content);
 
+					html = html.split("[TICKER]").join(ticker);
 					self.Modal.Remove();
 					self.Modal.SetTitle("Details");
-					self.Modal.SetContent(htmlContainer);
+					self.Modal.SetContent(html);
 					self.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
 					self.Modal.Build("lg");
 					self.Modal.Show();
@@ -603,136 +770,8 @@
 						"interval": "5M"
 					}, function(res) {
 						var payload = res.data.payload;
-						console.log(payload);
-						var chartColors = {
-							red: 'rgb(255, 99, 132)',
-							orange: 'rgb(255, 159, 64)',
-							yellow: 'rgb(255, 205, 86)',
-							green: 'rgb(75, 192, 192)',
-							blue: 'rgb(54, 162, 235)',
-							purple: 'rgb(153, 102, 255)',
-							grey: 'rgb(201, 203, 207)'
-						};
-
-						var config = {
-							type: 'line',
-							data: {
-								labels: payload.data.date,
-								datasets: [{
-									label: 'Open',
-									fill: false,
-									backgroundColor: chartColors.red,
-									borderColor: chartColors.red,
-									data: payload.data.open,
-									pointRadius: 0,
-								},
-								{
-									label: 'Regression',
-									fill: false,
-									backgroundColor: chartColors.blue,
-									borderColor: chartColors.blue,
-									data: payload.data.regression,
-									pointRadius: 0,
-								},
-								{
-									label: 'High',
-									fill: false,
-									backgroundColor: chartColors.green,
-									borderColor: chartColors.green,
-									data: payload.data.high,
-									pointRadius: 0,
-								},
-								{
-									label: 'low',
-									fill: false,
-									backgroundColor: chartColors.purple,
-									borderColor: chartColors.purple,
-									data: payload.data.low,
-									pointRadius: 0,
-								}]
-							},
-							options: {
-								responsive: true,
-								title: {
-									display: false,
-									text: 'Stock Price'
-								},
-								tooltips: {
-									mode: 'index',
-									intersect: false,
-								},
-								hover: {
-									mode: 'nearest',
-									intersect: true
-								},
-								scales: {
-									xAxes: [{
-										display: false,
-										scaleLabel: {
-											display: true,
-											labelString: 'Days'
-										}
-									}],
-									yAxes: [{
-										display: true,
-										scaleLabel: {
-											display: true,
-											labelString: 'Price'
-										}
-									}]
-								}
-							}
-						};
-												
-						var ctx = document.getElementById('id_history_stock_data').getContext('2d');
-						window.StockHistory = new Chart(ctx, config);
-
-						config = {
-							type: 'bar',
-							data: {
-								labels: payload.data.hist_open.x,
-								datasets: [{
-									label: 'Price Histograme',
-									fill: false,
-									backgroundColor: chartColors.blue,
-									borderColor: chartColors.orange,
-									data: payload.data.hist_open.y,
-								}]
-							},
-							options: {
-								responsive: true,
-								title: {
-									display: false,
-									text: 'Stock Price'
-								},
-								tooltips: {
-									mode: 'index',
-									intersect: false,
-								},
-								hover: {
-									mode: 'nearest',
-									intersect: true
-								},
-								scales: {
-									xAxes: [{
-										display: true,
-										scaleLabel: {
-											display: true,
-											labelString: 'Price'
-										}
-									}],
-									yAxes: [{
-										display: true,
-										scaleLabel: {
-											display: true,
-											labelString: 'Count'
-										}
-									}]
-								}
-							}
-						};
-						var ctx = document.getElementById('id_histograme_stock_data').getContext('2d');
-						window.StockHistograme = new Chart(ctx, config);
+						ui.BuildHistoryGraph(payload);
+						ui.BuilsHistogrameGraph(payload);
 					});
 				});
 			}

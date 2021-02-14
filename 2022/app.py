@@ -245,7 +245,7 @@ class Context():
 	
 	def DownloadStockHistoryHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		hist = self.Market.Get5D(payload["ticker"])
+		hist = self.Market.GetStock(payload["ticker"], payload["period"], payload["interval"])
 
 		stock_date 			= []
 		stock_open 			= []
@@ -267,8 +267,6 @@ class Context():
 			stock_vol.append(stock["vol"])
 		
 		hist_open_y, hist_open_x = self.Market.CreateHistogram(stock_open, 1.0)
-		#print(hist_open_y, hist_open_x)
-
 		return {
 			"ticker": payload["ticker"],
 			"data": {
