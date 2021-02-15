@@ -144,6 +144,10 @@ class StockMarket():
 			price = "0"
 		return float(price)
 	
+	def GetStockInfoRaw(self, ticker):
+		objtk = yf.Ticker(ticker)
+		return objtk.info
+
 	def GetStockInfo(self, ticker):
 		objtk = yf.Ticker(ticker)
 

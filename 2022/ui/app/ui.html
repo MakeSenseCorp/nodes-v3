@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="">
+        <meta name="author" content="">
+
+        <title>TDD Executor</title>
+
+		[CSS]
+
+        <link rel="stylesheet" href="/static/lib/bootstrap/css/bootstrap.min.css" crossorigin="anonymous">
+		<link rel="stylesheet" href="/static/lib/bootstrap/css/docs.min.css">
+     
+        <style>
+            body {
+              font-size: .875rem;
+            }
+            .feather {
+              width: 16px;
+              height: 16px;
+              vertical-align: text-bottom;
+            }
+            html {
+              position: relative;
+              min-height: 100%;
+            }
+            body {
+              /* Margin bottom by footer height */
+              margin-bottom: 60px;
+            }
+            .footer {
+              position: absolute;
+              bottom: 0;
+              width: 100%;
+              /* Set the fixed height of the footer here */
+              height: 60px;
+              line-height: 60px; /* Vertically center the text there */
+              background-color: #f5f5f5;
+            }
+            body > .container {
+              padding: 60px 15px 0;
+            }
+            .footer > .container {
+              padding-right: 15px;
+              padding-left: 15px;
+            }
+            code {
+              font-size: 80%;
+            }
+        </style>
+
+        <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+        <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+        <!--[if lt IE 9]>
+          <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+          <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+        <![endif]-->
+    </head>
+    <body>
+        <main role="main" class="container">
+        	<div class="row">
+				<div class="col-xl-1"></div>
+				<div class="col-xl-10">
+					<div class="bd-example">
+						<div class="card">
+							<div class="card-body">
+								<div class="row text-center">
+									<div class="col-xl-2">
+										<a href="#" onclick="ui.OpenModalPortfolio();"><strong>Portfolios</strong></a>
+									</div>
+									<div class="col-xl-2">
+										<a href="#" onclick="ui.OpenModalAppendNewStock();"><strong>Stocks</strong></a>
+									</div>
+									<div class="col-xl-2">
+										<a href="#"><strong>Export</strong></a>
+									</div>
+									<div class="col-xl-2">
+										<a href="#" onclick="ui.OpenModalImportStocks();"><strong>Import</strong></a>
+									</div>
+									<div class="col-xl-4">
+										<a href="#"><strong>Settings</strong></a>
+									</div>
+								</div>
+							</div>
+						</div>
+						<br>
+						<div class="row">
+							<div class="col-xl-12">
+								<h5 class="mt-0"><strong>Choose Portfolio</strong></h5>
+								<div class="card">
+									<div class="card-body">
+										<select class="custom-select d-block w-100" id="id_selected_portfolio" onchange="portfolioOnChangeHandler(this);" required>
+											<option value='0'>Show All</option>
+										</select>
+									</div>
+								</div>
+							</div>
+						</div>
+						<br>
+						<div class="row">
+							<div class="col-xl-12">
+								<h5 class="mt-0"><strong>Summary</strong></h5>
+								<div class="card">
+									<div class="card-body">
+										<div class="row">
+											<div class="col-xl-6">
+												<div class="row text-center">
+													<div class="col-xl-12">
+														<div class="card mb-4 shadow-sm">
+															<div class="card-header">
+															  	<h6 class="my-0 fw-normal">Earnings Vs. Investment</h6>
+															</div>
+															<div class="card-body">
+															  	<h4 class="card-title pricing-card-title"><span id="id_portfolio_earnings">0</span> (<strong class="text-muted" id="id_portfolio_investment">0</strong>)</h4>
+															</div>
+														</div>
+													</div>
+												</div>
+											</div>
+											<div class="col-xl-6">
+												<div class="row text-center">
+													<div class="col-xl-12">
+														<div class="card mb-4 shadow-sm">
+															<div class="card-header">
+															  	<h6 class="my-0 fw-normal">Stocks Vs. Companes</h6>
+															</div>
+															<div class="card-body">
+															  	<h4 class="card-title pricing-card-title"><strong class="text-muted" id="id_portfolio_number_of_stocks">0</strong> (<strong class="text-muted" id="id_portfolio_stocks_count"></strong>)</h4>
+															</div>
+														</div>
+													</div>
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+							<div class="col-xl-12">
+								<div id="id_stocks_loading_progressbar"></div>
+							</div>
+						</div>
+						<br>
+						<div class="row" id="id_stocks_list">
+							<div class="col-lg-4">
+							</div>
+							<div class="col-lg-1" style="text-align: right;">
+								<span class="spinner-grow spinner-grow-lg" role="status" aria-hidden="true"></span>
+							</div>
+							<div class="col-lg-3" style="text-align:left;">
+								<h4>Loading...</h4>
+							</div>
+							<div class="col-lg-4">
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-xl-1"></div>
+			</div>
+		</main>
+
+		<script src="/static/lib/nodes/js/jquery_3_3_1/jquery.min.js"></script>
+		<script src="/static/lib/nodes/js/popper_1_14_7/popper.min.js" crossorigin="anonymous"></script>
+		<script src="/static/lib/bootstrap/js/bootstrap.min.js" crossorigin="anonymous"></script>
+		<script src="/static/lib/bootstrap/js/bootstrap-slider.js" crossorigin="anonymous"></script>
+		<script src="/static/lib/nodes/js/feather_4_19/feather.min.js"></script>
+		<script src="/static/lib/nodes/map/feather_4_19/feather.min.js.map"></script>
+		<script src="/static/lib/chartjs/current/Chart.min.js"></script>
+		<script src="/mksdk-js/widgets/basic_modal.js"></script>
+		<script src="/mksdk-js/widgets/basic_uploader.js"></script>
+		<script src="/mksdk-js/widgets/basic_table.js"></script>
+		<script src="/mksdk-js/widgets/progress_bar.js"></script>
+		<script src="/mksdk-js/widgets/block_table.js"></script>
+		<script src="/mksdk-js/widgets/basic_graph.js"></script>
+        
+        [SCRIPTS]
+
+        <script>
+			/*
+			[GATEWAY]
+			[NODE_UUID]
+			[CUSTOM_VARS]
+			*/
+
+			[CONFIGURATION]
+
+			console.log("Gateway IP address - " + GatewayIP);
+
+			var g_portfolio_id 	 = 0;
+			var g_portfolio_name = "";
+			
+			// User Code #1 - Start
+			var portfolioOnChangeHandler = function(obj) {
+				g_portfolio_id   = obj.value;
+				g_portfolio_name = obj.options[obj.value].text;
+				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
+					"portfolio_id": parseInt(obj.value),
+					"portfolio_name": g_portfolio_name
+				}, function(res) {
+					var payload = res.data.payload;
+					ui.RebuildPortfolioEarnings(payload.portfolio);
+					ui.RebuildStockTable(payload.stocks);
+				});
+			};
+			// User Code #1 - End
+
+			$(document).ready(function() {
+				// User Code #1 - Start
+				
+				// User Code #1 - End
+			});
+
+			function StockLine() {
+				self = this;
+
+				this.Middle = `
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [LEFT]%"></div>
+					<div class="progress-bar bg-info" data-toggle="tooltip" title="[TOOLTIP_PRICE]" role="progressbar" style="width: [PRICE_HIST_LEFT]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-warning" role="progressbar" style="width: [PRICE]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-info" data-toggle="tooltip" title="[TOOLTIP_PRICE]" role="progressbar" style="width: [PRICE_HIST_RIGHT]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [RIGHT]%"></div>
+				`;
+
+				this.Right = `
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [LEFT]%"></div>
+					<div class="progress-bar bg-info" data-toggle="tooltip" title="[TOOLTIP_PRICE]" role="progressbar" style="width: [PRICE_HIST]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [DELIMITER]%"></div>
+					<div class="progress-bar bg-success" role="progressbar" style="width: [PRICE]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [RIGHT]%"></div>
+				`;
+
+				this.Left = `
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [LEFT]%"></div>
+					<div class="progress-bar bg-danger" role="progressbar" style="width: [PRICE]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [DELIMITER]%"></div>
+					<div class="progress-bar bg-info" data-toggle="tooltip" title="[TOOLTIP_PRICE]" role="progressbar" style="width: [PRICE_HIST]%" aria-valuemin="0" aria-valuemax="100"></div>
+					<div class="progress-bar bg-transparent" role="progressbar" style="width: [RIGHT]%"></div>
+				`;
+
+				return this;
+			}
+
+			StockLine.prototype.Build = function(data) {
+				var html = "";
+
+				if (data.min < data.price && data.max > data.price) {
+					// MIDDLE
+					html = this.Middle;
+					html = html.split("[LEFT]").join(10);
+					html = html.split("[RIGHT]").join(10);
+					html = html.split("[PRICE]").join(5);
+					html = html.split("[PRICE_HIST_LEFT]").join(37.5);
+					html = html.split("[PRICE_HIST_RIGHT]").join(37.5);
+					html = html.split("[TOOLTIP_PRICE]").join(data.min + " - " + data.max);
+				} else if (data.min > data.price) {
+					// LEFT
+					html = this.Left;
+					html = html.split("[LEFT]").join(10);
+					html = html.split("[RIGHT]").join(10);
+					html = html.split("[DELIMITER]").join(10);
+					html = html.split("[PRICE]").join(5);
+					html = html.split("[PRICE_HIST]").join(65);
+					html = html.split("[TOOLTIP_PRICE]").join(data.min + " - " + data.max);
+				} else if (data.max < data.price) {
+					// RIGHT
+					html = this.Right;
+					html = html.split("[LEFT]").join(10);
+					html = html.split("[RIGHT]").join(10);
+					html = html.split("[DELIMITER]").join(10);
+					html = html.split("[PRICE]").join(5);
+					html = html.split("[PRICE_HIST]").join(65);
+					html = html.split("[TOOLTIP_PRICE]").join(data.min + " - " + data.max);
+				} else  {
+
+				}
+				return html;
+			}
+
+			function NodeUI(api) {
+				this.API = api;
+
+				this.Uploader = MksBasicUploaderBuilder.GetInstance();
+				this.Uploader.SetAPI(this.API);
+				this.Uploader.SetFileType(["ms-excel","csv"])
+				this.Uploader.OnUploadCompete = this.OnUploadCompleteHandler;
+
+				this.StockLoaderProgressBar	= new MksBasicProgressBar("StockLoaderProgressBar");
+				this.StockLoaderProgressBar.EnableInnerPercentageText(false);
+				this.StockLoaderProgressBar.Build(document.getElementById("id_stocks_loading_progressbar"));
+				this.StockLoaderProgressBar.Show();
+
+				this.Modal = new MksBasicModal();
+				this.objStockTable = document.getElementById("id_stocks_list");
+				this.objPortfolioEarnings = document.getElementById("id_portfolio_earnings");
+				this.objPortfolioStocksNumber = document.getElementById("id_portfolio_number_of_stocks");
+				this.objPortfolioInvestment = document.getElementById("id_portfolio_investment");
+				this.objPortfolioStocksCount = document.getElementById("id_portfolio_stocks_count");
+
+				this.ConfirmFooter = `
+					<button type="button" class="btn [COLOR]" onclick="[FUNC]">[NAME]</button>
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
+				`;
+
+				return this;
+			}
+
+			NodeUI.prototype.Portofolios 						= [];
+			NodeUI.prototype.ImportData 						= [];
+			NodeUI.prototype.ImportDataCreatePortfolioChecked 	= [];
+			NodeUI.prototype.HistoryGraph 						= null;
+			NodeUI.prototype.HistogrameGraph 					= null;
+			NodeUI.prototype.StockGraph		 					= null;
+			NodeUI.prototype.OnUploadCompleteHandler = function (file) {
+				console.log("OnUploadCompleteHandler");
+				// Load CSV file and send stocks information.
+				node.API.SendCustomCommand(NodeUUID, "load_csv", {
+					"file_name": file
+				}, function(res) {
+					var payload = res.data.payload;
+					var table = new MksBasicTable();
+					table.SetSchema(["", "Date", "Ticker", "Price", "Amount", "Fee", "Action", "Exist"]);
+					var data = [];
+					var importData = [];
+					for (key in payload.stocks) {
+						stock = payload.stocks[key];
+						row = [];
+						row.push(stock.date);
+						row.push(stock.ticker);
+						row.push(stock.price);
+						row.push(stock.amount);
+						row.push(stock.fee);
+						if (stock.action == "Buy") {
+							row.push("<strong><span style='color:RED'>BUY</span></strong>");
+						} else {
+							row.push("<strong><span style='color:GREEN'>SELL</span></strong>");
+						}
+						if (stock.exists == 1) {
+							row.push("");
+						} else {
+							row.push("<strong><span style='color:GREEN'>New Stock</span></strong>");
+						}
+						
+						data.push(row);
+
+						action = (stock.action.toLowerCase() == "buy") ? -1 : 1;
+						fee = stock.fee.replace("$","")
+						fee = (fee == "") ? "0.0" : fee;
+						importData.push({
+							'date': stock.date,
+							'ticker': stock.ticker,
+							'price': stock.price.replace("$",""),
+							'amount': stock.amount,
+							'fee': fee,
+							'action': action
+						})
+					}
+					table.SetData(data);
+					table.Build(document.getElementById("id_import_stocks_table"));
+					ui.ImportData = Array.from(importData);
+					document.getElementById("id_m_ipmort_stocks_block").classList.remove("d-none");
+				});
+			}
+
+			NodeUI.prototype.ImportStocks = function() {
+				var self = this;
+				
+				if (this.ImportDataCreatePortfolioChecked == true && document.getElementById("id_m_ipmort_stocks_portfolio_name").value == "") {
+					alert("Portfolio name is empty");
+					return;
+				}
+
+				node.API.SendCustomCommand(NodeUUID, "import_stocks", {
+					"stocks": this.ImportData,
+					"portfolio_checked": this.ImportDataCreatePortfolioChecked,
+					"portfolio_name": document.getElementById("id_m_ipmort_stocks_portfolio_name").value
+				}, function(res) {
+					var payload = res.data.payload;
+					self.Modal.Hide();
+					self.Modal.Remove();
+					self.ImportData = [];
+				});
+			}
+
+			NodeUI.prototype.ImportStocksCreateNewPortfolio = function(obj) {
+				this.ImportDataCreatePortfolioChecked = obj.checked;
+				if (obj.checked == true) {
+					document.getElementById("id_m_ipmort_stocks_portfolio_name_block").classList.remove("d-none");
+				} else {
+					document.getElementById("id_m_ipmort_stocks_portfolio_name_block").classList.add("d-none");
+				}
+			}
+
+			NodeUI.prototype.OpenModalImportStocks = function() {
+				var self = this;
+				node.API.GetFileContent(NodeUUID, {
+					"file_path": "modules/html/m_import_stocks.html"
+				}, function(res) {
+					var payload = res.data.payload;
+					htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
+
+					var footer = self.ConfirmFooter;
+					footer = footer.split("[NAME]").join("Import");
+					footer = footer.split("[COLOR]").join("btn-success");
+					footer = footer.split("[FUNC]").join("ui.ImportStocks();");
+					
+					self.Modal.Remove();
+					self.Modal.SetTitle("Import Stocks From CSV");
+					self.Modal.SetContent(htmlContainer);
+					self.Modal.SetFooter(footer);
+					self.Modal.Build("lg");
+					self.Modal.Show();
+
+					var objUploader = document.getElementById("id-basic-uploader-installer");
+					// Build DOM UI for Uploader
+					self.Uploader.Build(objUploader, "Upload");
+				});
+			}
+
+			NodeUI.prototype.CreatePortfolio = function() {
+				var self = this;
+				node.API.SendCustomCommand(NodeUUID, "create_new_portfolio", {
+					"name": document.getElementById("id_m_portfolio_name").value 
+				}, function(res) {
+					var payload = res.data.payload;
+					self.UpdatePortfolioList();
+					self.Modal.Hide();
+					self.Modal.Remove();
+				});
+			}
+
+			NodeUI.prototype.OpenModalPortfolio = function() {
+				var self = this;
+				node.API.GetFileContent(NodeUUID, {
+					"file_path": "modules/html/m_potfolio.html"
+				}, function(res) {
+					var payload = res.data.payload;
+					htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
+
+					var footer = self.ConfirmFooter;
+					footer = footer.split("[NAME]").join("Create");
+					footer = footer.split("[COLOR]").join("btn-success");
+					footer = footer.split("[FUNC]").join("ui.CreatePortfolio();");
+					
+					self.Modal.Remove();
+					self.Modal.SetTitle("Create portfolio");
+					self.Modal.SetContent(htmlContainer);
+					self.Modal.SetFooter(footer);
+					self.Modal.Build("sm");
+					self.Modal.Show();
+				});
+			}
+
+			NodeUI.prototype.AppendAction = function(ticker, action) {
+				var self = this;
+				node.API.SendCustomCommand(NodeUUID, "append_new_action", {
+					"ticker": ticker,
+					"price": document.getElementById("id_m_append_action_price").value,
+					"action": action,
+					"amount": document.getElementById("id_m_append_action_amount").value,
+					"fee": (document.getElementById("id_m_append_action_fee").value == "") ? "0.0" : document.getElementById("id_m_append_action_fee").value
+				}, function(res) {
+					var payload = res.data.payload;
+					self.Modal.Hide();
+					self.Modal.Remove();
+				});
+			}
+
+			NodeUI.prototype.OpenModalAction = function(ticker, action) {
+				var self = this;
+				node.API.GetFileContent(NodeUUID, {
+					"file_path": "modules/html/m_stock_append_action.html"
+				}, function(res) {
+					var payload = res.data.payload;
+					htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
+
+					var footer = self.ConfirmFooter;
+					htmlContainer = htmlContainer.split("[ACTION]").join(action);
+					htmlContainer = htmlContainer.split("[TICKER]").join(ticker);
+					footer = footer.split("[NAME]").join(action);
+					
+					if (action == "SELL") {
+						footer = footer.split("[COLOR]").join("btn-success");
+						footer = footer.split("[FUNC]").join("ui.AppendAction('"+ticker+"',1);");
+					} else {
+						footer = footer.split("[COLOR]").join("btn-danger");
+						footer = footer.split("[FUNC]").join("ui.AppendAction('"+ticker+"',-1);");
+					}
+					
+					self.Modal.Remove();
+					self.Modal.SetTitle(action);
+					self.Modal.SetContent(htmlContainer);
+					self.Modal.SetFooter(footer);
+					self.Modal.Build("lg");
+					self.Modal.Show();
+				});
+			}
+
+			NodeUI.prototype.FindStockInMarket = function(ticker) {
+				node.API.SendCustomCommand(NodeUUID, "download_stock_history", {
+					"ticker": ticker,
+					"period": "1mo",
+					"interval": "30m"
+				}, function(res) {
+					var payload = res.data.payload;
+					ui.StockGraph.Configure({
+						"type": "line",
+						"title": "Stock Price",
+						"x": {
+							"title": "Days"
+						},
+						"y": {
+							"title": "Price"
+						}
+					});
+					ui.StockGraph.CleanConfigure();
+					ui.StockGraph.AddDataSet({
+						"x": payload.data.date,
+						"y": payload.data.open,
+						"color": ui.StockGraph.Colors.red,
+						"bk_color": ui.StockGraph.Colors.red,
+						"title": "Open"
+					});
+					ui.StockGraph.AddDataSet({
+						"x": payload.data.date,
+						"y": payload.data.regression,
+						"color": ui.StockGraph.Colors.blue,
+						"bk_color": ui.StockGraph.Colors.blue,
+						"title": "Regression"
+					});
+					ui.StockGraph.Build(document.getElementById("d_m_stock_append_stock_graph"));
+				});
+
+				node.API.SendCustomCommand(NodeUUID, "download_stock_info", {
+					"ticker": ticker,
+					"period": "1mo",
+					"interval": "30m"
+				}, function(res) {
+					var payload = res.data.payload;
+					console.log(payload);
+					document.getElementById("id_m_stock_append_stock_company_name").innerHTML = payload.info.shortName;
+					document.getElementById("id_m_stock_append_stock_company_country").innerHTML = payload.info.country;
+					document.getElementById("id_m_stock_append_stock_company_sector").innerHTML = payload.info.sector;
+					document.getElementById("id_m_stock_append_stock_company_industry").innerHTML = payload.info.industry;
+				});
+			}
+
+			NodeUI.prototype.OpenModalAppendNewStock = function() {
+				var self = this;
+				node.API.GetFileContent(NodeUUID, {
+					"file_path": "modules/html/m_stock_append.html"
+				}, function(res) {
+					var payload = res.data.payload;
+					htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
+
+					var footer = self.ConfirmFooter;
+					footer = footer.split("[NAME]").join("Confirm");
+					footer = footer.split("[COLOR]").join("btn-primary");
+					footer = footer.split("[FUNC]").join("");
+					self.Modal.Remove();
+					self.Modal.SetTitle("Append New Stock");
+					self.Modal.SetContent(htmlContainer);
+					self.Modal.SetFooter(footer);
+					self.Modal.Build("lg");
+					self.Modal.Show();
+					
+					node.API.SendCustomCommand(NodeUUID, "get_db_stocks", {
+					}, function(res) {
+						var payload = res.data.payload;
+						var stockTable = new MksBlockTable();
+						var tableData = []
+						var portofoliosCheckboxes = "";
+						for (key in ui.Portofolios) {
+							portfolio = ui.Portofolios[key];
+							portofoliosCheckboxes += `
+								<a class="dropdown-item" href="#">
+									<div class="custom-control custom-checkbox">
+										<input type="checkbox" class="custom-control-input" onclick="alert("hello");" id="id_portfolio_stock_list_`+portfolio.id+`">
+										<label class="custom-control-label" for="d_portfolio_stock_list_`+portfolio.id+`">` + portfolio.name + `</label>
+									</div>
+								</a>
+							`;
+						}
+						for (key in payload.stocks) {
+							stock = payload.stocks[key];
+							tableData.push({
+								"item1": stock.ticker,
+								"item2": stock.name,
+								"item3": `
+									<div class="row">
+										<div class="col">
+											<div class="dropdown">
+												<button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+													Portfolios
+												</button>
+												<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+													` + portofoliosCheckboxes + `
+												</div>
+											</div>
+										</div>
+									</div>
+								`
+							});
+						}
+						stockTable.SetData(tableData);
+						stockTable.Build(document.getElementById("id_m_stock_append_stock_table"));
+						ui.StockGraph = new MksBasicGraph("stock_market");
+
+						document.getElementById('d_m_stock_append_stock_find_ticker').addEventListener('keyup', function(event) {
+							if (event.code === 'Enter') {
+								event.preventDefault();
+								ui.FindStockInMarket(document.getElementById('d_m_stock_append_stock_find_ticker').value);
+							}
+						});
+					});
+				});
+			}
+
+			NodeUI.prototype.ShowStockAppendCheckbox = function(obj) {
+				if (obj.checked == true) {
+					document.getElementById("id_m_stock_append_stock_table").classList.remove("d-none");
+				} else {
+					document.getElementById("id_m_stock_append_stock_table").classList.add("d-none");
+				}
+			}
+
+			NodeUI.prototype.DownloadStockHistory = function(ticker, period, interval, callback) {
+				node.API.SendCustomCommand(NodeUUID, "download_stock_history", {
+					"ticker": ticker,
+					"period": period,
+					"interval": interval
+				}, function(res) {
+					var payload = res.data.payload;
+					callback(payload);
+				});
+			}
+
+			NodeUI.prototype.BuildHistoryGraph = function(data) {
+				ui.HistoryGraph.Configure({
+					"type": "line",
+					"title": "Stock Price",
+					"x": {
+						"title": "Days"
+					},
+					"y": {
+						"title": "Price"
+					}
+				});
+				ui.HistoryGraph.CleanConfigure();
+				ui.HistoryGraph.AddDataSet({
+					"x": data.data.date,
+					"y": data.data.open,
+					"color": ui.HistoryGraph.Colors.red,
+					"bk_color": ui.HistoryGraph.Colors.red,
+					"title": "Open"
+				});
+				ui.HistoryGraph.AddDataSet({
+					"x": data.data.date,
+					"y": data.data.regression,
+					"color": ui.HistoryGraph.Colors.blue,
+					"bk_color": ui.HistoryGraph.Colors.blue,
+					"title": "Regression"
+				});
+				ui.HistoryGraph.Build(document.getElementById("id_history_stock_data"));
+			}
+
+			NodeUI.prototype.BuilsHistogrameGraph = function(data) {
+				ui.HistogrameGraph.Configure({
+					"type": "bar",
+					"title": "Price Histograme",
+					"x": {
+						"title": "Count"
+					},
+					"y": {
+						"title": "Price"
+					}
+				});
+				ui.HistogrameGraph.CleanConfigure();
+				ui.HistogrameGraph.AddDataSet({
+					"x": data.data.hist_open.x,
+					"y": data.data.hist_open.y,
+					"color": ui.HistoryGraph.Colors.orange,
+					"bk_color": ui.HistoryGraph.Colors.blue,
+					"title": "Price Histograme"
+				});
+				ui.HistogrameGraph.Build(document.getElementById("id_histograme_stock_data"));
+			}
+
+			NodeUI.prototype.GetStockData = function(ticker, period, interval) {
+				ui.DownloadStockHistory(ticker, period, interval, function(download) {
+					ui.BuildHistoryGraph(download);
+					//ui.BuilsHistogrameGraph(download);
+				});
+			}
+
+			NodeUI.prototype.OpenModalStockDetails = function(ticker) {
+				var self = this;
+
+				node.API.GetFileContent(NodeUUID, {
+					"file_path": "modules/html/m_stock_details.html"
+				}, function(res) {
+					var payload = res.data.payload;
+					html = MkSGlobal.ConvertHEXtoString(payload.content);
+
+					html = html.split("[TICKER]").join(ticker);
+					self.Modal.Remove();
+					self.Modal.SetTitle("Details");
+					self.Modal.SetContent(html);
+					self.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+					self.Modal.Build("lg");
+					self.Modal.Show();
+
+					node.API.SendCustomCommand(NodeUUID, "get_stock_history", {
+						"ticker": ticker,
+					}, function(res) {
+						var payload = res.data.payload;
+						var table = new MksBasicTable();
+						table.SetSchema(["","Date","Price", "Amount", "Action"]);
+						var data = [];
+						for (key in payload.history) {
+							stock = payload.history[key];
+							row = [];
+							row.push(stock.date);
+							row.push(stock.price);
+							row.push(stock.amount);
+							if (stock.action < 0) {
+								row.push("<span style='color:RED'>BUY</span>");
+							} else {
+								row.push("<span style='color:GREEN'>SELL</span>");
+							}
+							data.push(row);
+						}
+						table.SetData(data);
+						table.Build(document.getElementById("id_stock_history_list"));
+					});
+
+					node.API.SendCustomCommand(NodeUUID, "download_stock_history", {
+						"ticker": ticker,
+						"period": "5D",
+						"interval": "5M"
+					}, function(res) {
+						var payload = res.data.payload;
+
+						ui.HistoryGraph 	= new MksBasicGraph("history");
+						ui.HistogrameGraph 	= new MksBasicGraph("histograme");
+						ui.BuildHistoryGraph(payload);
+						ui.BuilsHistogrameGraph(payload);
+					});
+				});
+			}
+
+			NodeUI.prototype.RebuildPortfolioEarnings = function(portfolio) {
+				this.objPortfolioInvestment.innerHTML = portfolio.investment;
+				this.objPortfolioStocksCount.innerHTML = portfolio.stocks_count;
+				this.objPortfolioEarnings.innerHTML = portfolio.earnings;
+				if (portfolio.earnings < 0) {
+					this.objPortfolioEarnings.style.color = "RED";
+				} else {
+					this.objPortfolioEarnings.style.color = "GREEN";
+				}
+			}
+
+			NodeUI.prototype.UpdateStocksPrice = function() {
+				self = this;
+				console.log("UpdateStocksPrice");
+				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
+					"portfolio_id": parseInt(g_portfolio_id),
+					"portfolio_name": g_portfolio_name
+				}, function(res) {
+					var payload = res.data.payload;
+					var portfolio = payload.portfolio;
+
+					for (key in payload.stocks) {
+						var stock = payload.stocks[key];
+						var obj = document.getElementById("id_stock_table_price_" + stock.ticker);
+						obj.innerHTML = stock.market_price;
+						obj = document.getElementById("id_stock_table_earnings_" + stock.ticker);
+						obj.innerHTML = "(" + stock.earnings + ")";
+					}
+					
+					ui.objPortfolioEarnings.innerHTML = portfolio.earnings;
+					if (portfolio.earnings < 0) {
+						ui.objPortfolioEarnings.style.color = "RED";
+					} else {
+						ui.objPortfolioEarnings.style.color = "GREEN";
+					}
+				});
+			}
+
+			NodeUI.prototype.RebuildStockTable = function(stocks) {
+				var self = this;
+
+				var stockUIBlock = "modules/html/m_stock_block.html";
+				var stocksCount = stocks.length;
+				if (stocksCount > 30) {
+					stockUIBlock = "modules/html/m_stock_row.html";
+				}
+
+				node.API.GetFileContent(NodeUUID, {
+					"file_path": stockUIBlock
+				}, function(res) {
+					var payload = res.data.payload;
+					var htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
+
+					var tableContent = "";
+					var portfolioStocksCount = 0.0;
+					var line = new StockLine();
+					for (key in stocks) {
+						var stock = stocks[key];
+						var html  = htmlContainer;
+
+						html = html.split("[STOCK_LINE]").join(line.Build({
+							price: stock.market_price,
+							min: stock.hist_price_min,
+							max: stock.hist_price_max
+						}));
+						html = html.split("[TICKER]").join(stock.ticker);
+						html = html.split("[PRICE]").join(stock.market_price);
+						html = html.split("[EARNINGS]").join(stock.earnings);
+						html = html.split("[AMMOUNT]").join(stock.number);
+						html = html.split("[PRICE_COLOR]").join("BLUE");
+						console.log(stock.warning);
+						if (stock.warning == 1) {
+							html = html.split("[TICKER_COLOR]").join("ORANGE");
+						} else {
+							html = html.split("[TICKER_COLOR]").join("");
+						}
+						if (stock.earnings < 0) {
+							html = html.split("[EARNINGS_COLOR]").join("RED");
+							html = html.split("[BORDER_COLOR]").join("danger");
+						} else {
+							html = html.split("[EARNINGS_COLOR]").join("GREEN");
+							html = html.split("[BORDER_COLOR]").join("success");
+						}
+						html = html.split("[WEEK_MIN]").join(stock.statistics.weekly.min);
+						html = html.split("[WEEK_MAX]").join(stock.statistics.weekly.max);
+						html = html.split("[WEEK_SLOPE]").join(stock.statistics.weekly.slope);
+						html = html.split("[MONTH_MIN]").join(stock.statistics.monthly.min);
+						html = html.split("[MONTH_MAX]").join(stock.statistics.monthly.max);
+						html = html.split("[MONTH_SLOPE]").join(stock.statistics.monthly.slope);
+						if (stock.statistics.weekly.slope < 0) {
+							html = html.split("[WEEKLY_SLOPE_COLOR]").join("RED");
+						} else {
+							html = html.split("[WEEKLY_SLOPE_COLOR]").join("GREEN");
+						}
+						if (stock.statistics.monthly.slope < 0) {
+							html = html.split("[MONTHLY_SLOPE_COLOR]").join("RED");
+						} else {
+							html = html.split("[MONTHLY_SLOPE_COLOR]").join("GREEN");
+						}
+						tableContent += html;
+						portfolioStocksCount += stock.number;
+					}
+					
+					self.objStockTable.innerHTML = tableContent;
+					self.objPortfolioStocksNumber.innerHTML = portfolioStocksCount;
+					$('[data-toggle="tooltip"]').tooltip();
+				});
+			}
+
+			NodeUI.prototype.UpdatePortfolioList = function() {
+				node.API.SendCustomCommand(NodeUUID, "get_portfolios", {}, function(res) {
+					var payload = res.data.payload;
+					var obj = document.getElementById("id_selected_portfolio");
+
+					console.log(payload.portfolios);
+					ui.Portofolios = payload.portfolios;
+					obj.innerHTML = "<option value='0'>All</option>";
+					for (key in payload.portfolios) {
+						item = payload.portfolios[key];
+						obj.innerHTML += "<option value='" + item.id + "'>" + item.name + "</option>";
+					}
+					console.log(obj.innerHTML);
+				});
+			}
+
+			NodeUI.prototype.GetStocks = function() {
+				var self = this;
+				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
+					"portfolio_id": 0,
+					"portfolio_name": "All"
+				}, function(res) {
+					var payload = res.data.payload;
+					if (payload.status.local_stock_market_ready == false) {
+						ui.StockLoaderProgressBar.UpdateProgress({
+							'precentage': payload.status.percentage,
+							'message': "Loading (" + payload.status.percentage + "%)"
+						});
+						setTimeout(ui.GetStocks, 2500);
+						return;
+					}
+
+					ui.StockLoaderProgressBar.Hide();
+					ui.RebuildPortfolioEarnings(payload.portfolio);
+					ui.RebuildStockTable(payload.stocks);
+					node.GetStocksTimerHndl = setInterval(ui.UpdateStocksPrice, 10000);
+				});
+			}
+
+			function Node() {
+				var self = this;
+
+				// Get makesense api instanse.
+				this.API 		= MkSAPIBuilder.GetInstance();
+				// Update gateway IP address
+				this.API.SetGlobalGatewayIP(GatewayIP);
+				this.API.SetLocalWebsockIP(LocalWSIP);
+				this.API.SetLocalWebsockPort(LocalWSPORT);
+				// Default handler
+				this.API.OnUnexpectedDataArrived = function (packet) {
+					console.log(packet);
+				}
+				// User Code #1 - Start
+				this.GetStocksTimerHndl = null;
+				// User Code #1 - End
+
+				return this;
+			}
+
+			Node.prototype.Init = function() {
+				// User Code #1 - Start
+				
+				// User Code #1 - End
+			}
+
+			Node.prototype.OnChangeEvent = function(packet) {
+				console.log("OnNodeChangeEvent", packet, packet.data.payload.event);
+				data = packet.data.payload.data
+				switch(packet.data.payload.event) {
+					case "upload_progress": {
+						ui.Uploader.UpdateProgress(data);
+					}
+					// User Code #1 - End
+				}
+			}
+
+			Node.prototype.Connect = function() {
+				var self = this;
+				console.log("Connect Gateway");
+				self.API.OnNodeChangeCallback = self.OnChangeEvent.bind(self);
+				this.API.ConnectGateway(function() {
+					console.log("Connection to Gateway was established.");
+					self.API.GetNodeInfo(NodeUUID, function(res) {
+						UserGetNodeSensorInfoHandler(res);
+					});
+				});
+			}
+  
+			var ui = null;
+			// Self-genrated area
+			var node = new Node();
+			node.Init();
+			node.Connect();
+			var UserGetNodeSensorInfoHandler = function(res) {
+				var payload = res.data.payload;
+				[RESOURCES]
+				node.API.ConnectLocalWS(NodeUUID, function(res) {
+					console.log("Connected to local websocket", res);
+				});
+				ui = new NodeUI(node.API);
+				// User Code #1 - Start
+				ui.UpdatePortfolioList();
+				ui.GetStocks();
+				// User Code #1 - End
+				node.API.RegisterOnNodeChange(NodeUUID, function(res) {
+					console.log("UI have registered NODE successfuly", res);
+				});
+			}
+			// Self-generated area
+          
+        </script>
+    </body>
+</html>

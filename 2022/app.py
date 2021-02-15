@@ -48,6 +48,7 @@ class Context():
 			'upload_file':				self.Request_UploadFileHandler,
 			'load_csv':					self.LoadCSVHandler,
 			'download_stock_history':	self.DownloadStockHistoryHandler,
+			'download_stock_info':		self.DownloadStockInfoHandler,
 			'get_db_stocks':			self.GetDBStocksHandler,
 			'undefined':				self.UndefindHandler
 		}
@@ -243,6 +244,14 @@ class Context():
 			"portfolios": self.SQL.GetPortfolios()
 		}
 	
+	def DownloadStockInfoHandler(self, sock, packet):
+		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetStockHistoryHandler]".format(classname=self.ClassName),5)
+		
+		return {
+			"info": self.Market.GetStockInfoRaw(payload["ticker"])
+		}
+
 	def DownloadStockHistoryHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		hist = self.Market.GetStock(payload["ticker"], payload["period"], payload["interval"])
