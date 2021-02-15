@@ -533,16 +533,21 @@
 				});
 
 				node.API.SendCustomCommand(NodeUUID, "download_stock_info", {
-					"ticker": ticker,
-					"period": "1mo",
-					"interval": "30m"
+					"ticker": ticker
 				}, function(res) {
-					var payload = res.data.payload;
-					console.log(payload);
-					document.getElementById("id_m_stock_append_stock_company_name").innerHTML = payload.info.shortName;
-					document.getElementById("id_m_stock_append_stock_company_country").innerHTML = payload.info.country;
-					document.getElementById("id_m_stock_append_stock_company_sector").innerHTML = payload.info.sector;
-					document.getElementById("id_m_stock_append_stock_company_industry").innerHTML = payload.info.industry;
+					var dataPayload = res.data.payload;
+					console.log(dataPayload);
+					node.API.GetFileContent(NodeUUID, {
+						"file_path": "modules/html/m_stock_info.html"
+					}, function(res) {
+						var payload = res.data.payload;
+						htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
+						document.getElementById("id_m_stock_append_info_container").innerHTML 			= htmlContainer;
+						document.getElementById("id_m_stock_append_stock_company_name").innerHTML 		= dataPayload.info.shortName;
+						document.getElementById("id_m_stock_append_stock_company_country").innerHTML 	= dataPayload.info.country;
+						document.getElementById("id_m_stock_append_stock_company_sector").innerHTML 	= dataPayload.info.sector;
+						document.getElementById("id_m_stock_append_stock_company_industry").innerHTML 	= dataPayload.info.industry;
+					});
 				});
 			}
 
@@ -743,9 +748,27 @@
 						var payload = res.data.payload;
 
 						ui.HistoryGraph 	= new MksBasicGraph("history");
-						ui.HistogrameGraph 	= new MksBasicGraph("histograme");
+						// ui.HistogrameGraph 	= new MksBasicGraph("histograme");
 						ui.BuildHistoryGraph(payload);
-						ui.BuilsHistogrameGraph(payload);
+						// ui.BuilsHistogrameGraph(payload);
+					});
+
+					node.API.SendCustomCommand(NodeUUID, "download_stock_info", {
+						"ticker": ticker
+					}, function(res) {
+						var dataPayload = res.data.payload;
+						console.log(dataPayload);
+						node.API.GetFileContent(NodeUUID, {
+							"file_path": "modules/html/m_stock_info.html"
+						}, function(res) {
+							var payload = res.data.payload;
+							htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
+							document.getElementById("id_m_stock_details_info_container").innerHTML 			= htmlContainer;
+							document.getElementById("id_m_stock_append_stock_company_name").innerHTML 		= dataPayload.info.shortName;
+							document.getElementById("id_m_stock_append_stock_company_country").innerHTML 	= dataPayload.info.country;
+							document.getElementById("id_m_stock_append_stock_company_sector").innerHTML 	= dataPayload.info.sector;
+							document.getElementById("id_m_stock_append_stock_company_industry").innerHTML 	= dataPayload.info.industry;
+						});
 					});
 				});
 			}
