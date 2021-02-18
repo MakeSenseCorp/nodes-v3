@@ -186,6 +186,10 @@
 
 			[CONFIGURATION]
 
+			require ModuleStockLine
+			require ModuleStockInfo
+			require ModuleRowStock
+
 			console.log("Gateway IP address - " + GatewayIP);
 
 			var g_portfolio_id 	 = 0;
@@ -210,73 +214,7 @@
 				// User Code #1 - Start
 				
 				// User Code #1 - End
-			});
-
-			function StockLine() {
-				self = this;
-
-				this.Middle = `
-					<div class="progress-bar bg-transparent" role="progressbar" style="width: [LEFT]%"></div>
-					<div class="progress-bar bg-info" data-toggle="tooltip" title="[TOOLTIP_PRICE]" role="progressbar" style="width: [PRICE_HIST_LEFT]%" aria-valuemin="0" aria-valuemax="100"></div>
-					<div class="progress-bar bg-warning" role="progressbar" style="width: [PRICE]%" aria-valuemin="0" aria-valuemax="100"></div>
-					<div class="progress-bar bg-info" data-toggle="tooltip" title="[TOOLTIP_PRICE]" role="progressbar" style="width: [PRICE_HIST_RIGHT]%" aria-valuemin="0" aria-valuemax="100"></div>
-					<div class="progress-bar bg-transparent" role="progressbar" style="width: [RIGHT]%"></div>
-				`;
-
-				this.Right = `
-					<div class="progress-bar bg-transparent" role="progressbar" style="width: [LEFT]%"></div>
-					<div class="progress-bar bg-info" data-toggle="tooltip" title="[TOOLTIP_PRICE]" role="progressbar" style="width: [PRICE_HIST]%" aria-valuemin="0" aria-valuemax="100"></div>
-					<div class="progress-bar bg-transparent" role="progressbar" style="width: [DELIMITER]%"></div>
-					<div class="progress-bar bg-success" role="progressbar" style="width: [PRICE]%" aria-valuemin="0" aria-valuemax="100"></div>
-					<div class="progress-bar bg-transparent" role="progressbar" style="width: [RIGHT]%"></div>
-				`;
-
-				this.Left = `
-					<div class="progress-bar bg-transparent" role="progressbar" style="width: [LEFT]%"></div>
-					<div class="progress-bar bg-danger" role="progressbar" style="width: [PRICE]%" aria-valuemin="0" aria-valuemax="100"></div>
-					<div class="progress-bar bg-transparent" role="progressbar" style="width: [DELIMITER]%"></div>
-					<div class="progress-bar bg-info" data-toggle="tooltip" title="[TOOLTIP_PRICE]" role="progressbar" style="width: [PRICE_HIST]%" aria-valuemin="0" aria-valuemax="100"></div>
-					<div class="progress-bar bg-transparent" role="progressbar" style="width: [RIGHT]%"></div>
-				`;
-
-				return this;
-			}
-
-			StockLine.prototype.Build = function(data) {
-				var html = "";
-
-				if (data.min < data.price && data.max > data.price) {
-					// MIDDLE
-					html = this.Middle;
-					html = html.split("[LEFT]").join(10);
-					html = html.split("[RIGHT]").join(10);
-					html = html.split("[PRICE]").join(5);
-					html = html.split("[PRICE_HIST_LEFT]").join(37.5);
-					html = html.split("[PRICE_HIST_RIGHT]").join(37.5);
-					html = html.split("[TOOLTIP_PRICE]").join(data.min + " - " + data.max);
-				} else if (data.min > data.price) {
-					// LEFT
-					html = this.Left;
-					html = html.split("[LEFT]").join(10);
-					html = html.split("[RIGHT]").join(10);
-					html = html.split("[DELIMITER]").join(10);
-					html = html.split("[PRICE]").join(5);
-					html = html.split("[PRICE_HIST]").join(65);
-					html = html.split("[TOOLTIP_PRICE]").join(data.min + " - " + data.max);
-				} else if (data.max < data.price) {
-					// RIGHT
-					html = this.Right;
-					html = html.split("[LEFT]").join(10);
-					html = html.split("[RIGHT]").join(10);
-					html = html.split("[DELIMITER]").join(10);
-					html = html.split("[PRICE]").join(5);
-					html = html.split("[PRICE_HIST]").join(65);
-					html = html.split("[TOOLTIP_PRICE]").join(data.min + " - " + data.max);
-				} else  {
-
-				}
-				return html;
-			}
+			});		
 
 			function NodeUI(api) {
 				this.API = api;
@@ -313,7 +251,7 @@
 			NodeUI.prototype.HistogrameGraph 					= null;
 			NodeUI.prototype.StockGraph		 					= null;
 			NodeUI.prototype.OnUploadCompleteHandler = function (file) {
-				console.log("OnUploadCompleteHandler");
+				// console.log("OnUploadCompleteHandler");
 				// Load CSV file and send stocks information.
 				node.API.SendCustomCommand(NodeUUID, "load_csv", {
 					"file_name": file
@@ -532,22 +470,10 @@
 					ui.StockGraph.Build(document.getElementById("d_m_stock_append_stock_graph"));
 				});
 
-				node.API.SendCustomCommand(NodeUUID, "download_stock_info", {
-					"ticker": ticker
-				}, function(res) {
-					var dataPayload = res.data.payload;
-					console.log(dataPayload);
-					node.API.GetFileContent(NodeUUID, {
-						"file_path": "modules/html/m_stock_info.html"
-					}, function(res) {
-						var payload = res.data.payload;
-						htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
-						document.getElementById("id_m_stock_append_info_container").innerHTML 			= htmlContainer;
-						document.getElementById("id_m_stock_append_stock_company_name").innerHTML 		= dataPayload.info.shortName;
-						document.getElementById("id_m_stock_append_stock_company_country").innerHTML 	= dataPayload.info.country;
-						document.getElementById("id_m_stock_append_stock_company_sector").innerHTML 	= dataPayload.info.sector;
-						document.getElementById("id_m_stock_append_stock_company_industry").innerHTML 	= dataPayload.info.industry;
-					});
+				var info = new ModuleStockInfo();
+				info.SetHostingID("id_m_stock_append_info_container");
+				info.Build(null, function(module) {
+					module.GetStockInfo(ticker);
 				});
 			}
 
@@ -753,22 +679,10 @@
 						// ui.BuilsHistogrameGraph(payload);
 					});
 
-					node.API.SendCustomCommand(NodeUUID, "download_stock_info", {
-						"ticker": ticker
-					}, function(res) {
-						var dataPayload = res.data.payload;
-						console.log(dataPayload);
-						node.API.GetFileContent(NodeUUID, {
-							"file_path": "modules/html/m_stock_info.html"
-						}, function(res) {
-							var payload = res.data.payload;
-							htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
-							document.getElementById("id_m_stock_details_info_container").innerHTML 			= htmlContainer;
-							document.getElementById("id_m_stock_append_stock_company_name").innerHTML 		= dataPayload.info.shortName;
-							document.getElementById("id_m_stock_append_stock_company_country").innerHTML 	= dataPayload.info.country;
-							document.getElementById("id_m_stock_append_stock_company_sector").innerHTML 	= dataPayload.info.sector;
-							document.getElementById("id_m_stock_append_stock_company_industry").innerHTML 	= dataPayload.info.industry;
-						});
+					var info = new ModuleStockInfo();
+					info.SetHostingID("id_m_stock_details_info_container");
+					info.Build(null, function(module) {
+						module.GetStockInfo(ticker);
 					});
 				});
 			}
@@ -786,7 +700,6 @@
 
 			NodeUI.prototype.UpdateStocksPrice = function() {
 				self = this;
-				console.log("UpdateStocksPrice");
 				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
 					"portfolio_id": parseInt(g_portfolio_id),
 					"portfolio_name": g_portfolio_name
@@ -812,74 +725,25 @@
 			}
 
 			NodeUI.prototype.RebuildStockTable = function(stocks) {
-				var self = this;
+				var tableContent = "";
+				var portfolioStocksCount = 0.0;
 
-				var stockUIBlock = "modules/html/m_stock_block.html";
-				var stocksCount = stocks.length;
-				if (stocksCount > 30) {
-					stockUIBlock = "modules/html/m_stock_row.html";
+				var ui_size = "lg";
+				if (stocks.length > 30) {
+					ui_size = "sm";
 				}
 
-				node.API.GetFileContent(NodeUUID, {
-					"file_path": stockUIBlock
-				}, function(res) {
-					var payload = res.data.payload;
-					var htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
-
-					var tableContent = "";
-					var portfolioStocksCount = 0.0;
-					var line = new StockLine();
-					for (key in stocks) {
-						var stock = stocks[key];
-						var html  = htmlContainer;
-
-						html = html.split("[STOCK_LINE]").join(line.Build({
-							price: stock.market_price,
-							min: stock.hist_price_min,
-							max: stock.hist_price_max
-						}));
-						html = html.split("[TICKER]").join(stock.ticker);
-						html = html.split("[PRICE]").join(stock.market_price);
-						html = html.split("[EARNINGS]").join(stock.earnings);
-						html = html.split("[AMMOUNT]").join(stock.number);
-						html = html.split("[PRICE_COLOR]").join("BLUE");
-						console.log(stock.warning);
-						if (stock.warning == 1) {
-							html = html.split("[TICKER_COLOR]").join("ORANGE");
-						} else {
-							html = html.split("[TICKER_COLOR]").join("");
-						}
-						if (stock.earnings < 0) {
-							html = html.split("[EARNINGS_COLOR]").join("RED");
-							html = html.split("[BORDER_COLOR]").join("danger");
-						} else {
-							html = html.split("[EARNINGS_COLOR]").join("GREEN");
-							html = html.split("[BORDER_COLOR]").join("success");
-						}
-						html = html.split("[WEEK_MIN]").join(stock.statistics.weekly.min);
-						html = html.split("[WEEK_MAX]").join(stock.statistics.weekly.max);
-						html = html.split("[WEEK_SLOPE]").join(stock.statistics.weekly.slope);
-						html = html.split("[MONTH_MIN]").join(stock.statistics.monthly.min);
-						html = html.split("[MONTH_MAX]").join(stock.statistics.monthly.max);
-						html = html.split("[MONTH_SLOPE]").join(stock.statistics.monthly.slope);
-						if (stock.statistics.weekly.slope < 0) {
-							html = html.split("[WEEKLY_SLOPE_COLOR]").join("RED");
-						} else {
-							html = html.split("[WEEKLY_SLOPE_COLOR]").join("GREEN");
-						}
-						if (stock.statistics.monthly.slope < 0) {
-							html = html.split("[MONTHLY_SLOPE_COLOR]").join("RED");
-						} else {
-							html = html.split("[MONTHLY_SLOPE_COLOR]").join("GREEN");
-						}
-						tableContent += html;
-						portfolioStocksCount += stock.number;
-					}
-					
-					self.objStockTable.innerHTML = tableContent;
-					self.objPortfolioStocksNumber.innerHTML = portfolioStocksCount;
-					$('[data-toggle="tooltip"]').tooltip();
-				});
+				var row = new ModuleRowStock();
+				for (key in stocks) {
+					var stock 	  = stocks[key];
+					stock.ui_size = ui_size;
+					tableContent += row.Build(stock);
+					portfolioStocksCount += stock.number;
+				}
+				
+				this.objStockTable.innerHTML = tableContent;
+				this.objPortfolioStocksNumber.innerHTML = portfolioStocksCount;
+				$('[data-toggle="tooltip"]').tooltip();
 			}
 
 			NodeUI.prototype.UpdatePortfolioList = function() {
@@ -887,14 +751,14 @@
 					var payload = res.data.payload;
 					var obj = document.getElementById("id_selected_portfolio");
 
-					console.log(payload.portfolios);
+					// console.log(payload.portfolios);
 					ui.Portofolios = payload.portfolios;
 					obj.innerHTML = "<option value='0'>All</option>";
 					for (key in payload.portfolios) {
 						item = payload.portfolios[key];
 						obj.innerHTML += "<option value='" + item.id + "'>" + item.name + "</option>";
 					}
-					console.log(obj.innerHTML);
+					// console.log(obj.innerHTML);
 				});
 			}
 
@@ -930,6 +794,7 @@
 				this.API.SetGlobalGatewayIP(GatewayIP);
 				this.API.SetLocalWebsockIP(LocalWSIP);
 				this.API.SetLocalWebsockPort(LocalWSPORT);
+				this.API.SetNodeUUID(NodeUUID);
 				// Default handler
 				this.API.OnUnexpectedDataArrived = function (packet) {
 					console.log(packet);
@@ -948,7 +813,7 @@
 			}
 
 			Node.prototype.OnChangeEvent = function(packet) {
-				console.log("OnNodeChangeEvent", packet, packet.data.payload.event);
+				// console.log("OnNodeChangeEvent", packet, packet.data.payload.event);
 				data = packet.data.payload.data
 				switch(packet.data.payload.event) {
 					case "upload_progress": {
@@ -972,12 +837,15 @@
   
 			var ui = null;
 			// Self-genrated area
-			var node = new Node();
+			var node = new Node(NodeUUID);
 			node.Init();
 			node.Connect();
 			var UserGetNodeSensorInfoHandler = function(res) {
 				var payload = res.data.payload;
+				
+				[MODULES]
 				[RESOURCES]
+
 				node.API.ConnectLocalWS(NodeUUID, function(res) {
 					console.log("Connected to local websocket", res);
 				});
