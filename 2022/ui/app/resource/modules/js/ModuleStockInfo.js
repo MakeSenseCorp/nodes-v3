@@ -31,6 +31,11 @@ ModuleStockInfo.prototype.Build = function(data, callback) {
         self.CompanyCountryObject   = document.getElementById("id_m_stock_info_stock_company_country");
         self.CompanySectorObject    = document.getElementById("id_m_info_stock_stock_company_sector");
         self.CompanyIndustryObject  = document.getElementById("id_m_info_stock_stock_company_industry");
+        self.Price                  = document.getElementById("id_m_stock_info_stock_price");
+        self.Volume                 = document.getElementById("id_m_stock_info_stock_volume");
+        self.Divident               = document.getElementById("id_m_stock_info_stock_divident");
+        self.Beta                   = document.getElementById("id_m_info_stock_stock_beta");
+        self.FloatShares            = document.getElementById("id_m_stock_info_stock_float_shares");
         self.ComponentObject        = document.getElementById("id_m_stock_info_"+self.HostingID);
         self.Hide();
         callback(self);
@@ -51,6 +56,11 @@ ModuleStockInfo.prototype.GetStockInfo = function(ticker) {
         self.CompanyCountryObject.innerHTML 	= payload.info.country;
         self.CompanySectorObject.innerHTML 	    = payload.info.sector;
         self.CompanyIndustryObject.innerHTML 	= payload.info.industry;
+        self.Price.innerHTML                    = payload.info.ask;
+        self.Volume.innerHTML                   = payload.info.volume;
+        self.Divident.innerHTML                 = payload.info.dividendRate;
+        self.Beta.innerHTML                     = payload.info.beta;
+        self.FloatShares.innerHTML              = payload.info.floatShares;
         self.Show();
         return true;
     });

@@ -189,6 +189,8 @@
 			require ModuleStockLine
 			require ModuleStockInfo
 			require ModuleRowStock
+			require ModuleStockHistoryGraph
+			require ModuleStockDetails
 
 			console.log("Gateway IP address - " + GatewayIP);
 
@@ -567,35 +569,6 @@
 				});
 			}
 
-			NodeUI.prototype.BuildHistoryGraph = function(data) {
-				ui.HistoryGraph.Configure({
-					"type": "line",
-					"title": "Stock Price",
-					"x": {
-						"title": "Days"
-					},
-					"y": {
-						"title": "Price"
-					}
-				});
-				ui.HistoryGraph.CleanConfigure();
-				ui.HistoryGraph.AddDataSet({
-					"x": data.data.date,
-					"y": data.data.open,
-					"color": ui.HistoryGraph.Colors.red,
-					"bk_color": ui.HistoryGraph.Colors.red,
-					"title": "Open"
-				});
-				ui.HistoryGraph.AddDataSet({
-					"x": data.data.date,
-					"y": data.data.regression,
-					"color": ui.HistoryGraph.Colors.blue,
-					"bk_color": ui.HistoryGraph.Colors.blue,
-					"title": "Regression"
-				});
-				ui.HistoryGraph.Build(document.getElementById("id_history_stock_data"));
-			}
-
 			NodeUI.prototype.BuilsHistogrameGraph = function(data) {
 				ui.HistogrameGraph.Configure({
 					"type": "bar",
@@ -620,7 +593,7 @@
 
 			NodeUI.prototype.GetStockData = function(ticker, period, interval) {
 				ui.DownloadStockHistory(ticker, period, interval, function(download) {
-					ui.BuildHistoryGraph(download);
+					//ui.BuildHistoryGraph(download);
 					//ui.BuilsHistogrameGraph(download);
 				});
 			}
@@ -628,62 +601,17 @@
 			NodeUI.prototype.OpenModalStockDetails = function(ticker) {
 				var self = this;
 
-				node.API.GetFileContent(NodeUUID, {
-					"file_path": "modules/html/m_stock_details.html"
-				}, function(res) {
-					var payload = res.data.payload;
-					html = MkSGlobal.ConvertHEXtoString(payload.content);
-
-					html = html.split("[TICKER]").join(ticker);
+				window.StockDetails = new ModuleStockDetails();
+				window.StockDetails.SetHostingID("details_modal");
+				window.StockDetails.SetObjectDOMName("window.StockDetails");
+				window.StockDetails.Build(null, function(module) {
 					self.Modal.Remove();
 					self.Modal.SetTitle("Details");
-					self.Modal.SetContent(html);
+					self.Modal.SetContent(module.HTML);
 					self.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
 					self.Modal.Build("lg");
 					self.Modal.Show();
-
-					node.API.SendCustomCommand(NodeUUID, "get_stock_history", {
-						"ticker": ticker,
-					}, function(res) {
-						var payload = res.data.payload;
-						var table = new MksBasicTable();
-						table.SetSchema(["","Date","Price", "Amount", "Action"]);
-						var data = [];
-						for (key in payload.history) {
-							stock = payload.history[key];
-							row = [];
-							row.push(stock.date);
-							row.push(stock.price);
-							row.push(stock.amount);
-							if (stock.action < 0) {
-								row.push("<span style='color:RED'>BUY</span>");
-							} else {
-								row.push("<span style='color:GREEN'>SELL</span>");
-							}
-							data.push(row);
-						}
-						table.SetData(data);
-						table.Build(document.getElementById("id_stock_history_list"));
-					});
-
-					node.API.SendCustomCommand(NodeUUID, "download_stock_history", {
-						"ticker": ticker,
-						"period": "5D",
-						"interval": "5M"
-					}, function(res) {
-						var payload = res.data.payload;
-
-						ui.HistoryGraph 	= new MksBasicGraph("history");
-						// ui.HistogrameGraph 	= new MksBasicGraph("histograme");
-						ui.BuildHistoryGraph(payload);
-						// ui.BuilsHistogrameGraph(payload);
-					});
-
-					var info = new ModuleStockInfo();
-					info.SetHostingID("id_m_stock_details_info_container");
-					info.Build(null, function(module) {
-						module.GetStockInfo(ticker);
-					});
+					module.GetDetails(ticker);
 				});
 			}
 
