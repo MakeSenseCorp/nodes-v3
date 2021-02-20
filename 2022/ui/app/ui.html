@@ -186,11 +186,14 @@
 
 			[CONFIGURATION]
 
+			require ModuleStocksAdaptor
 			require ModuleStockLine
 			require ModuleStockInfo
 			require ModuleRowStock
 			require ModuleStockHistoryGraph
 			require ModuleStockDetails
+			require ModulePortfolio
+			require ModuleAction
 
 			console.log("Gateway IP address - " + GatewayIP);
 
@@ -231,7 +234,7 @@
 				this.StockLoaderProgressBar.Build(document.getElementById("id_stocks_loading_progressbar"));
 				this.StockLoaderProgressBar.Show();
 
-				this.Modal = new MksBasicModal();
+				window.Modal = new MksBasicModal();
 				this.objStockTable = document.getElementById("id_stocks_list");
 				this.objPortfolioEarnings = document.getElementById("id_portfolio_earnings");
 				this.objPortfolioStocksNumber = document.getElementById("id_portfolio_number_of_stocks");
@@ -317,8 +320,8 @@
 					"portfolio_name": document.getElementById("id_m_ipmort_stocks_portfolio_name").value
 				}, function(res) {
 					var payload = res.data.payload;
-					self.Modal.Hide();
-					self.Modal.Remove();
+					window.Modal.Hide();
+					window.Modal.Remove();
 					self.ImportData = [];
 				});
 			}
@@ -345,12 +348,12 @@
 					footer = footer.split("[COLOR]").join("btn-success");
 					footer = footer.split("[FUNC]").join("ui.ImportStocks();");
 					
-					self.Modal.Remove();
-					self.Modal.SetTitle("Import Stocks From CSV");
-					self.Modal.SetContent(htmlContainer);
-					self.Modal.SetFooter(footer);
-					self.Modal.Build("lg");
-					self.Modal.Show();
+					window.Modal.Remove();
+					window.Modal.SetTitle("Import Stocks From CSV");
+					window.Modal.SetContent(htmlContainer);
+					window.Modal.SetFooter(footer);
+					window.Modal.Build("lg");
+					window.Modal.Show();
 
 					var objUploader = document.getElementById("id-basic-uploader-installer");
 					// Build DOM UI for Uploader
@@ -358,83 +361,53 @@
 				});
 			}
 
-			NodeUI.prototype.CreatePortfolio = function() {
-				var self = this;
-				node.API.SendCustomCommand(NodeUUID, "create_new_portfolio", {
-					"name": document.getElementById("id_m_portfolio_name").value 
-				}, function(res) {
-					var payload = res.data.payload;
-					self.UpdatePortfolioList();
-					self.Modal.Hide();
-					self.Modal.Remove();
-				});
-			}
-
 			NodeUI.prototype.OpenModalPortfolio = function() {
 				var self = this;
-				node.API.GetFileContent(NodeUUID, {
-					"file_path": "modules/html/m_potfolio.html"
-				}, function(res) {
-					var payload = res.data.payload;
-					htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
-
-					var footer = self.ConfirmFooter;
-					footer = footer.split("[NAME]").join("Create");
-					footer = footer.split("[COLOR]").join("btn-success");
-					footer = footer.split("[FUNC]").join("ui.CreatePortfolio();");
-					
-					self.Modal.Remove();
-					self.Modal.SetTitle("Create portfolio");
-					self.Modal.SetContent(htmlContainer);
-					self.Modal.SetFooter(footer);
-					self.Modal.Build("sm");
-					self.Modal.Show();
-				});
-			}
-
-			NodeUI.prototype.AppendAction = function(ticker, action) {
-				var self = this;
-				node.API.SendCustomCommand(NodeUUID, "append_new_action", {
-					"ticker": ticker,
-					"price": document.getElementById("id_m_append_action_price").value,
-					"action": action,
-					"amount": document.getElementById("id_m_append_action_amount").value,
-					"fee": (document.getElementById("id_m_append_action_fee").value == "") ? "0.0" : document.getElementById("id_m_append_action_fee").value
-				}, function(res) {
-					var payload = res.data.payload;
-					self.Modal.Hide();
-					self.Modal.Remove();
+				window.Portfolio.SetHostingID("portfolio_modal");
+				window.Portfolio.SetObjectDOMName("window.Portfolio");
+				window.Portfolio.Build(null, function(module) {
+					window.Modal.Remove();
+					window.Modal.SetTitle("Create portfolio");
+					window.Modal.SetContent(module.HTML);
+					window.Modal.SetFooter(`
+						<button type="button" class="btn btn-success" onclick="window.Portfolio.CreatePortfolio();">Create</button>
+						<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
+					`);
+					window.Modal.Build("sm");
+					window.Modal.Show();
 				});
 			}
 
 			NodeUI.prototype.OpenModalAction = function(ticker, action) {
 				var self = this;
-				node.API.GetFileContent(NodeUUID, {
-					"file_path": "modules/html/m_stock_append_action.html"
-				}, function(res) {
-					var payload = res.data.payload;
-					htmlContainer = MkSGlobal.ConvertHEXtoString(payload.content);
 
-					var footer = self.ConfirmFooter;
-					htmlContainer = htmlContainer.split("[ACTION]").join(action);
-					htmlContainer = htmlContainer.split("[TICKER]").join(ticker);
-					footer = footer.split("[NAME]").join(action);
-					
-					if (action == "SELL") {
-						footer = footer.split("[COLOR]").join("btn-success");
-						footer = footer.split("[FUNC]").join("ui.AppendAction('"+ticker+"',1);");
-					} else {
-						footer = footer.split("[COLOR]").join("btn-danger");
-						footer = footer.split("[FUNC]").join("ui.AppendAction('"+ticker+"',-1);");
-					}
-					
-					self.Modal.Remove();
-					self.Modal.SetTitle(action);
-					self.Modal.SetContent(htmlContainer);
-					self.Modal.SetFooter(footer);
-					self.Modal.Build("lg");
-					self.Modal.Show();
-				});
+				window.Action = new ModuleAction();
+				window.Action.SetObjectDOMName("window.Action");
+				window.Action.SetHostingID("module_action");
+				window.Action.Build({
+					"ticker": ticker,
+					"action": action
+				}, null);
+
+				var footer = `
+					<button type="button" class="btn [COLOR]" onclick="[FUNC]">[NAME]</button>
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
+				`;
+				footer = footer.split("[NAME]").join(action);
+				if (action == "SELL") {
+					footer = footer.split("[COLOR]").join("btn-success");
+					footer = footer.split("[FUNC]").join("window.Action.AppendStockAction('"+ticker+"',1);");
+				} else {
+					footer = footer.split("[COLOR]").join("btn-danger");
+					footer = footer.split("[FUNC]").join("window.Action.AppendStockAction('"+ticker+"',-1);");
+				}
+
+				window.Modal.Remove();
+				window.Modal.SetTitle(action);
+				window.Modal.SetContent(window.Action.HTML);
+				window.Modal.SetFooter(footer);
+				window.Modal.Build("lg");
+				window.Modal.Show();
 			}
 
 			NodeUI.prototype.FindStockInMarket = function(ticker) {
@@ -491,12 +464,12 @@
 					footer = footer.split("[NAME]").join("Confirm");
 					footer = footer.split("[COLOR]").join("btn-primary");
 					footer = footer.split("[FUNC]").join("");
-					self.Modal.Remove();
-					self.Modal.SetTitle("Append New Stock");
-					self.Modal.SetContent(htmlContainer);
-					self.Modal.SetFooter(footer);
-					self.Modal.Build("lg");
-					self.Modal.Show();
+					window.Modal.Remove();
+					window.Modal.SetTitle("Append New Stock");
+					window.Modal.SetContent(htmlContainer);
+					window.Modal.SetFooter(footer);
+					window.Modal.Build("lg");
+					window.Modal.Show();
 					
 					node.API.SendCustomCommand(NodeUUID, "get_db_stocks", {
 					}, function(res) {
@@ -558,46 +531,6 @@
 				}
 			}
 
-			NodeUI.prototype.DownloadStockHistory = function(ticker, period, interval, callback) {
-				node.API.SendCustomCommand(NodeUUID, "download_stock_history", {
-					"ticker": ticker,
-					"period": period,
-					"interval": interval
-				}, function(res) {
-					var payload = res.data.payload;
-					callback(payload);
-				});
-			}
-
-			NodeUI.prototype.BuilsHistogrameGraph = function(data) {
-				ui.HistogrameGraph.Configure({
-					"type": "bar",
-					"title": "Price Histograme",
-					"x": {
-						"title": "Count"
-					},
-					"y": {
-						"title": "Price"
-					}
-				});
-				ui.HistogrameGraph.CleanConfigure();
-				ui.HistogrameGraph.AddDataSet({
-					"x": data.data.hist_open.x,
-					"y": data.data.hist_open.y,
-					"color": ui.HistoryGraph.Colors.orange,
-					"bk_color": ui.HistoryGraph.Colors.blue,
-					"title": "Price Histograme"
-				});
-				ui.HistogrameGraph.Build(document.getElementById("id_histograme_stock_data"));
-			}
-
-			NodeUI.prototype.GetStockData = function(ticker, period, interval) {
-				ui.DownloadStockHistory(ticker, period, interval, function(download) {
-					//ui.BuildHistoryGraph(download);
-					//ui.BuilsHistogrameGraph(download);
-				});
-			}
-
 			NodeUI.prototype.OpenModalStockDetails = function(ticker) {
 				var self = this;
 
@@ -605,12 +538,12 @@
 				window.StockDetails.SetHostingID("details_modal");
 				window.StockDetails.SetObjectDOMName("window.StockDetails");
 				window.StockDetails.Build(null, function(module) {
-					self.Modal.Remove();
-					self.Modal.SetTitle("Details");
-					self.Modal.SetContent(module.HTML);
-					self.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
-					self.Modal.Build("lg");
-					self.Modal.Show();
+					window.Modal.Remove();
+					window.Modal.SetTitle("Details");
+					window.Modal.SetContent(module.HTML);
+					window.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+					window.Modal.Build("lg");
+					window.Modal.Show();
 					module.GetDetails(ticker);
 				});
 			}
@@ -674,22 +607,6 @@
 				$('[data-toggle="tooltip"]').tooltip();
 			}
 
-			NodeUI.prototype.UpdatePortfolioList = function() {
-				node.API.SendCustomCommand(NodeUUID, "get_portfolios", {}, function(res) {
-					var payload = res.data.payload;
-					var obj = document.getElementById("id_selected_portfolio");
-
-					// console.log(payload.portfolios);
-					ui.Portofolios = payload.portfolios;
-					obj.innerHTML = "<option value='0'>All</option>";
-					for (key in payload.portfolios) {
-						item = payload.portfolios[key];
-						obj.innerHTML += "<option value='" + item.id + "'>" + item.name + "</option>";
-					}
-					// console.log(obj.innerHTML);
-				});
-			}
-
 			NodeUI.prototype.GetStocks = function() {
 				var self = this;
 				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
@@ -713,81 +630,43 @@
 				});
 			}
 
-			function Node() {
-				var self = this;
+			var UserInit = function() {
+				// User Code #1 - Start
 
-				// Get makesense api instanse.
-				this.API 		= MkSAPIBuilder.GetInstance();
-				// Update gateway IP address
-				this.API.SetGlobalGatewayIP(GatewayIP);
-				this.API.SetLocalWebsockIP(LocalWSIP);
-				this.API.SetLocalWebsockPort(LocalWSPORT);
-				this.API.SetNodeUUID(NodeUUID);
-				// Default handler
-				this.API.OnUnexpectedDataArrived = function (packet) {
-					console.log(packet);
-				}
+				// User Code #1 - End
+			}
+
+			var UserPostInit = function() {
+				// User Code #1 - Start
+
+				// User Code #1 - End
+			}
+
+			var UserNodeLoaded = function() {
 				// User Code #1 - Start
 				this.GetStocksTimerHndl = null;
-				// User Code #1 - End
-
-				return this;
-			}
-
-			Node.prototype.Init = function() {
-				// User Code #1 - Start
-				
+				ui = new NodeUI(node.API);
+				window.Portfolio = new ModulePortfolio();
+				window.Portfolio.UpdatePortfolioList("id_selected_portfolio");
+				ui.GetStocks();
 				// User Code #1 - End
 			}
 
-			Node.prototype.OnChangeEvent = function(packet) {
+			var UserEventRecieved = function(event, data) {
 				// console.log("OnNodeChangeEvent", packet, packet.data.payload.event);
-				data = packet.data.payload.data
-				switch(packet.data.payload.event) {
+				// User Code #1 - Start
+				switch(event) {
 					case "upload_progress": {
 						ui.Uploader.UpdateProgress(data);
 					}
-					// User Code #1 - End
 				}
-			}
-
-			Node.prototype.Connect = function() {
-				var self = this;
-				console.log("Connect Gateway");
-				self.API.OnNodeChangeCallback = self.OnChangeEvent.bind(self);
-				this.API.ConnectGateway(function() {
-					console.log("Connection to Gateway was established.");
-					self.API.GetNodeInfo(NodeUUID, function(res) {
-						UserGetNodeSensorInfoHandler(res);
-					});
-				});
-			}
-  
-			var ui = null;
-			// Self-genrated area
-			var node = new Node(NodeUUID);
-			node.Init();
-			node.Connect();
-			var UserGetNodeSensorInfoHandler = function(res) {
-				var payload = res.data.payload;
-				
-				[MODULES]
-				[RESOURCES]
-
-				node.API.ConnectLocalWS(NodeUUID, function(res) {
-					console.log("Connected to local websocket", res);
-				});
-				ui = new NodeUI(node.API);
-				// User Code #1 - Start
-				ui.UpdatePortfolioList();
-				ui.GetStocks();
 				// User Code #1 - End
-				node.API.RegisterOnNodeChange(NodeUUID, function(res) {
-					console.log("UI have registered NODE successfuly", res);
-				});
 			}
+
 			// Self-generated area
-          
-        </script>
-    </body>
+			[NODE_INSTANCE]
+			// Self-generated area
+			var ui = null;
+		</script>
+	</body>
 </html>

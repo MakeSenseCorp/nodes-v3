@@ -113,6 +113,27 @@ ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
             "title": "Regression"
         });
         self.GraphHistoryCtx.Build(document.getElementById("id_m_stock_history_graph_"+self.HostingID+"_"+self.Name));
+        /*
+        self.GraphHistogramCtx.Configure({
+            "type": "bar",
+            "title": "Price Histograme",
+            "x": {
+                "title": "Count"
+            },
+            "y": {
+                "title": "Price"
+            }
+        });
+        self.GraphHistogramCtx.CleanConfigure();
+        self.GraphHistogramCtx.AddDataSet({
+            "x": data.data.hist_open.x,
+            "y": data.data.hist_open.y,
+            "color": self.GraphHistogramCtx.Colors.orange,
+            "bk_color": self.GraphHistogramCtx.Colors.blue,
+            "title": "Price Histograme"
+        });
+        self.GraphHistogramCtx.Build(document.getElementById("id_m_stock_histogram_graph_"+self.HostingID+"_"+self.Name));
+        */
     });
 }
 

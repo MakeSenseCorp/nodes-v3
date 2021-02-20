@@ -32,11 +32,6 @@ ModuleStockDetails.prototype.Build = function(data, callback) {
     }, function(res) {
         var payload = res.data.payload;
         self.HTML = MkSGlobal.ConvertHEXtoString(payload.content).replace("[ID]", self.HostingID);
-        
-        // document.getElementById(self.HostingID).innerHTML = self.HTML;
-        // self.HistoryDataGraphObject     = document.getElementById("id_history_stock_data");
-        // self.HistogrameDataGraphObject  = document.getElementById("id_histograme_stock_data");
-
         if (callback !== undefined && callback != null) {
             callback(self);
         }
