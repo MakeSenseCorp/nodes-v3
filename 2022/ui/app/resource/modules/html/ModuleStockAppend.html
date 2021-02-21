@@ -10,7 +10,7 @@
                             <div class="input-group-append">
                                 <button class="btn btn-secondary" onclick="">
                                     <span class="spinner-grow spinner-grow-sm d-none" role="status" aria-hidden="true"></span>
-                                    <span onclick="ui.FindStockInMarket(document.getElementById('d_m_stock_append_stock_find_ticker').value);">Find</span>
+                                    <span onclick="window.StockAppend.FindStockInMarket();">Find</span>
                                 </button>
                             </div>
                         </div>
@@ -30,7 +30,7 @@
             </div>
             <hr class="mb-4">
             <div class="custom-control custom-checkbox">
-                <input type="checkbox" class="custom-control-input" id="id_m_stock_append_show_mystocks_checkbox" onclick="ui.ShowStockAppendCheckbox(this);">
+                <input type="checkbox" class="custom-control-input" id="id_m_stock_append_show_mystocks_checkbox" onclick="window.StockAppend.ShowStockAppendCheckbox(this);">
                 <label class="custom-control-label" for="id_m_stock_append_show_mystocks_checkbox">Show my stocks</label>
             </div>
             <div class="d-none" id="id_m_stock_append_stock_table"></div>

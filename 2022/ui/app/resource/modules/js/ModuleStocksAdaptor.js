@@ -17,9 +17,18 @@ ModuleStocksAdaptor.prototype.GetPotrfolioStocks = function(id, name, callback) 
     });
 }
 
-ModuleStocksAdaptor.prototype.GetPotrfolioStocks = function(id, name) {
+ModuleStocksAdaptor.prototype.GetPotrfolioStocks = function(callback) {
     node.API.SendCustomCommand(NodeUUID, "get_portfolios", {}, function(res) {
         var payload = res.data.payload;
         callback(payload.portfolios);
     });
 }
+
+ModuleStocksAdaptor.prototype.GetDataBaseStocks = function(callback) {
+    node.API.SendCustomCommand(NodeUUID, "get_db_stocks", {
+    }, function(res) {
+        var payload = res.data.payload;
+        callback(payload.stocks);
+    });
+}
+
