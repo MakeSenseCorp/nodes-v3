@@ -87,83 +87,7 @@
 							</div>
 						</div>
 						<br>
-						<div class="row">
-							<div class="col-xl-12">
-								<h5 class="mt-0"><strong>Choose Portfolio</strong></h5>
-								<div class="card">
-									<div class="card-body">
-										<select class="custom-select d-block w-100" id="id_selected_portfolio" onchange="portfolioOnChangeHandler(this);" required>
-											<option value='0'>Show All</option>
-										</select>
-									</div>
-								</div>
-							</div>
-						</div>
-						<br>
-						<div class="row">
-							<div class="col-xl-12">
-								<h5 class="mt-0"><strong>Summary</strong></h5>
-								<div class="card">
-									<div class="card-body">
-										<div class="row">
-											<div class="col-xl-6">
-												<div class="row text-center">
-													<div class="col-xl-12">
-														<div class="card mb-4 shadow-sm">
-															<div class="card-header">
-															  	<h6 class="my-0 fw-normal">Earnings Vs. Investment</h6>
-															</div>
-															<div class="card-body">
-															  	<h4 class="card-title pricing-card-title"><span id="id_portfolio_earnings">0</span> (<strong class="text-muted" id="id_portfolio_investment">0</strong>)</h4>
-															</div>
-														</div>
-													</div>
-												</div>
-											</div>
-											<div class="col-xl-6">
-												<div class="row text-center">
-													<div class="col-xl-12">
-														<div class="card mb-4 shadow-sm">
-															<div class="card-header">
-															  	<h6 class="my-0 fw-normal">Stocks Vs. Companes</h6>
-															</div>
-															<div class="card-body">
-															  	<h4 class="card-title pricing-card-title"><strong class="text-muted" id="id_portfolio_number_of_stocks">0</strong> (<strong class="text-muted" id="id_portfolio_stocks_count"></strong>)</h4>
-															</div>
-														</div>
-													</div>
-												</div>
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-							<div class="col-xl-12">
-								<div id="id_stocks_loading_progressbar"></div>
-							</div>
-						</div>
-						<br>
-						<div class="row">
-							<div class="col-xl-12">
-								<h5 class="mt-0"><strong>My Stocks</strong></h5>
-								<div class="card">
-									<div class="card-body">
-										<div class="row" id="id_stocks_list">
-											<div class="col-lg-4">
-											</div>
-											<div class="col-lg-1" style="text-align: right;">
-												<span class="spinner-grow spinner-grow-lg" role="status" aria-hidden="true"></span>
-											</div>
-											<div class="col-lg-3" style="text-align:left;">
-												<h4>Loading...</h4>
-											</div>
-											<div class="col-lg-4">
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
+						<div id="id_stocks_view"></div>
 					</div>
 				</div>
 				<div class="col-xl-1"></div>
@@ -195,6 +119,9 @@
 
 			[CONFIGURATION]
 
+			console.log("Gateway IP address - " + GatewayIP);
+
+			// User Code #1 - Start
 			require ModuleStocksAdaptor
 			require ModuleStockLine
 			require ModuleStockInfo
@@ -205,25 +132,6 @@
 			require ModuleAction
 			require ModuleStockAppend
 			require ModuleImportActions
-
-			console.log("Gateway IP address - " + GatewayIP);
-
-			var g_portfolio_id 	 = 0;
-			var g_portfolio_name = "";
-			
-			// User Code #1 - Start
-			var portfolioOnChangeHandler = function(obj) {
-				g_portfolio_id   = obj.value;
-				g_portfolio_name = obj.options[obj.value].text;
-				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
-					"portfolio_id": parseInt(obj.value),
-					"portfolio_name": g_portfolio_name
-				}, function(res) {
-					var payload = res.data.payload;
-					ui.RebuildPortfolioEarnings(payload.portfolio);
-					ui.RebuildStockTable(payload.stocks);
-				});
-			};
 			// User Code #1 - End
 
 			$(document).ready(function() {
@@ -365,88 +273,6 @@
 					window.Modal.Build("lg");
 					window.Modal.Show();
 					module.GetDetails(ticker);
-				});
-			}
-
-			NodeUI.prototype.RebuildPortfolioEarnings = function(portfolio) {
-				this.objPortfolioInvestment.innerHTML = portfolio.investment;
-				this.objPortfolioStocksCount.innerHTML = portfolio.stocks_count;
-				this.objPortfolioEarnings.innerHTML = portfolio.earnings;
-				if (portfolio.earnings < 0) {
-					this.objPortfolioEarnings.style.color = "RED";
-				} else {
-					this.objPortfolioEarnings.style.color = "GREEN";
-				}
-			}
-
-			NodeUI.prototype.UpdateStocksPrice = function() {
-				self = this;
-				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
-					"portfolio_id": parseInt(g_portfolio_id),
-					"portfolio_name": g_portfolio_name
-				}, function(res) {
-					var payload = res.data.payload;
-					var portfolio = payload.portfolio;
-
-					for (key in payload.stocks) {
-						var stock = payload.stocks[key];
-						var obj = document.getElementById("id_stock_table_price_" + stock.ticker);
-						obj.innerHTML = stock.market_price;
-						obj = document.getElementById("id_stock_table_earnings_" + stock.ticker);
-						obj.innerHTML = "(" + stock.earnings + ")";
-					}
-					
-					ui.objPortfolioEarnings.innerHTML = portfolio.earnings;
-					if (portfolio.earnings < 0) {
-						ui.objPortfolioEarnings.style.color = "RED";
-					} else {
-						ui.objPortfolioEarnings.style.color = "GREEN";
-					}
-				});
-			}
-
-			NodeUI.prototype.RebuildStockTable = function(stocks) {
-				var tableContent = "";
-				var portfolioStocksCount = 0.0;
-
-				var ui_size = "lg";
-				if (stocks.length > 30) {
-					ui_size = "sm";
-				}
-
-				var row = new ModuleRowStock();
-				for (key in stocks) {
-					var stock 	  = stocks[key];
-					stock.ui_size = ui_size;
-					tableContent += row.Build(stock);
-					portfolioStocksCount += stock.number;
-				}
-				
-				this.objStockTable.innerHTML = tableContent;
-				this.objPortfolioStocksNumber.innerHTML = portfolioStocksCount;
-				$('[data-toggle="tooltip"]').tooltip();
-			}
-
-			NodeUI.prototype.GetStocks = function() {
-				var self = this;
-				node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
-					"portfolio_id": 0,
-					"portfolio_name": "All"
-				}, function(res) {
-					var payload = res.data.payload;
-					if (payload.status.local_stock_market_ready == false) {
-						ui.StockLoaderProgressBar.UpdateProgress({
-							'precentage': payload.status.percentage,
-							'message': "Loading (" + payload.status.percentage + "%)"
-						});
-						setTimeout(ui.GetStocks, 2500);
-						return;
-					}
-
-					ui.StockLoaderProgressBar.Hide();
-					ui.RebuildPortfolioEarnings(payload.portfolio);
-					ui.RebuildStockTable(payload.stocks);
-					node.GetStocksTimerHndl = setInterval(ui.UpdateStocksPrice, 10000);
 				});
 			}
 
