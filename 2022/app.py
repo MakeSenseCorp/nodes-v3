@@ -295,7 +295,7 @@ class Context():
 
 	def GetPortfolioStocksHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		# self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload["portfolio_id"], classname=self.ClassName),5)
+		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload, classname=self.ClassName),5)
 
 		potrfolio_id 	= payload["portfolio_id"]
 		db_stocks  		= self.SQL.GetPortfolioStocks(potrfolio_id)

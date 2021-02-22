@@ -69,6 +69,9 @@
 							<div class="card-body">
 								<div class="row text-center">
 									<div class="col-xl-2">
+										<a href="#" onclick="ui.ViewDashboard();"><strong>Dasboard</strong></a>
+									</div>
+									<div class="col-xl-2">
 										<a href="#" onclick="ui.OpenModalPortfolio();"><strong>Portfolios</strong></a>
 									</div>
 									<div class="col-xl-2">
@@ -80,14 +83,14 @@
 									<div class="col-xl-2">
 										<a href="#" onclick="ui.OpenModalImportStocks();"><strong>Import</strong></a>
 									</div>
-									<div class="col-xl-4">
+									<div class="col-xl-2">
 										<a href="#"><strong>Settings</strong></a>
 									</div>
 								</div>
 							</div>
 						</div>
 						<br>
-						<div id="id_stocks_view"></div>
+						<div id="id_application_view_module"></div>
 					</div>
 				</div>
 				<div class="col-xl-1"></div>
@@ -123,6 +126,7 @@
 
 			// User Code #1 - Start
 			require ModuleStocksAdaptor
+			require ModuleStockView
 			require ModuleStockLine
 			require ModuleStockInfo
 			require ModuleRowStock
@@ -142,30 +146,22 @@
 
 			function NodeUI(api) {
 				this.API = api;
-				
-				this.Uploader = MksBasicUploaderBuilder.GetInstance();
-				this.Uploader.SetAPI(this.API);
-				this.Uploader.SetFileType(["ms-excel","csv"])
-				this.Uploader.OnUploadCompete = window.ImportActions.OnUploadCompleteHandler;
-
-				this.StockLoaderProgressBar	= new MksBasicProgressBar("StockLoaderProgressBar");
-				this.StockLoaderProgressBar.EnableInnerPercentageText(false);
-				this.StockLoaderProgressBar.Build(document.getElementById("id_stocks_loading_progressbar"));
-				this.StockLoaderProgressBar.Show();
-
 				window.Modal = new MksBasicModal();
-				this.objStockTable = document.getElementById("id_stocks_list");
-				this.objPortfolioEarnings = document.getElementById("id_portfolio_earnings");
-				this.objPortfolioStocksNumber = document.getElementById("id_portfolio_number_of_stocks");
-				this.objPortfolioInvestment = document.getElementById("id_portfolio_investment");
-				this.objPortfolioStocksCount = document.getElementById("id_portfolio_stocks_count");
-
-				this.ConfirmFooter = `
-					<button type="button" class="btn [COLOR]" onclick="[FUNC]">[NAME]</button>
-					<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
-				`;
 
 				return this;
+			}
+
+			NodeUI.prototype.OpenModalAppendNewStock = function() {
+				window.StockAppend.Build(null, function(module) {
+					window.StockAppend.GetDataBaseStocks();
+				});
+			}
+
+			NodeUI.prototype.ViewDashboard = function() {
+				window.StockView.Build(null, function(module) {
+					window.Portfolio.UpdatePortfolioList("id_selected_portfolio");
+					window.StockView.GetStocks();
+				});
 			}
 
 			NodeUI.prototype.OpenModalImportStocks = function() {
@@ -183,10 +179,7 @@
 					`);
 					window.Modal.Build("lg");
 					window.Modal.Show();
-
-					var objUploader = document.getElementById("id-basic-uploader-installer");
-					// Build DOM UI for Uploader
-					self.Uploader.Build(objUploader, "Upload");
+					module.BuildUploader();
 				});
 			}
 
@@ -239,26 +232,6 @@
 				window.Modal.Show();
 			}
 
-			NodeUI.prototype.OpenModalAppendNewStock = function() {
-				var self = this;
-
-				window.StockAppend = new ModuleStockAppend();
-				window.StockAppend.SetObjectDOMName("window.StockAppend");
-				window.StockAppend.SetHostingID("module_stock_append");
-				window.StockAppend.Build(null, function(module){
-					window.Modal.Remove();
-					window.Modal.SetTitle("Append New Stock");
-					window.Modal.SetContent(window.StockAppend.HTML);
-					window.Modal.SetFooter(`
-						<button type="button" class="btn btn-primary" onclick="">Confirm</button>
-						<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
-					`);
-					window.Modal.Build("lg");
-					window.Modal.Show();
-					window.StockAppend.GetDataBaseStocks();
-				});
-			}
-
 			NodeUI.prototype.OpenModalStockDetails = function(ticker) {
 				var self = this;
 
@@ -292,11 +265,19 @@
 				// User Code #1 - Start
 				window.Portfolio 		= new ModulePortfolio();
 				window.ImportActions 	= new ModuleImportActions();
+				window.StockView 		= new ModuleStockView();
 				
-				this.GetStocksTimerHndl = null;
-				ui = new NodeUI(node.API);
-				window.Portfolio.UpdatePortfolioList("id_selected_portfolio");
-				ui.GetStocks();
+				window.StockView.SetHostingID("id_application_view_module");
+				window.StockView.SetObjectDOMName("window.StockView");
+				window.StockView.Build(null, function(module) {
+					ui = new NodeUI(node.API);
+					window.Portfolio.UpdatePortfolioList("id_selected_portfolio");
+					window.StockView.GetStocks();
+				});
+
+				window.StockAppend = new ModuleStockAppend();
+				window.StockAppend.SetHostingID("id_application_view_module");
+				window.StockAppend.SetObjectDOMName("window.StockAppend");
 				// User Code #1 - End
 			}
 
@@ -305,7 +286,7 @@
 				// User Code #1 - Start
 				switch(event) {
 					case "upload_progress": {
-						ui.Uploader.UpdateProgress(data);
+						window.ImportActions.Uploader.UpdateProgress(data);
 					}
 				}
 				// User Code #1 - End

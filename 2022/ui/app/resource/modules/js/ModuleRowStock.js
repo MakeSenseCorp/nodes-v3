@@ -104,14 +104,10 @@ ModuleRowStock.prototype.Build = function(data, callback=null) {
     } else if (data.ui_size === "lg") {
         html = this.BlockHTML;
     } else if (data.ui_size === "xl") {
-        console.log("DEBUG #2");
         return "";
     } else {
-        console.log("DEBUG #3");
         return "";
     }
-
-    console.log("DEBUG #1");
     
     var line = new StockLine();
     html = html.split("[STOCK_LINE]").join(line.Build({

@@ -6,6 +6,7 @@ function ModuleStockAppend() {
     this.HostingID                  = "";
     this.DOMName                    = "";
     // Objects section
+    this.HostingObject              = null;
     this.ComponentObject            = null;
     this.StockGraph                 = null;
 
@@ -28,6 +29,12 @@ ModuleStockAppend.prototype.Build = function(data, callback) {
     }, function(res) {
         var payload = res.data.payload;
         self.HTML = MkSGlobal.ConvertHEXtoString(payload.content).replace("[ID]", self.HostingID);
+
+        self.HostingObject = document.getElementById(self.HostingID);
+        if (self.HostingObject !== undefined && self.HostingObject != null) {
+            self.HostingObject.innerHTML = self.HTML;
+        }
+       
         if (callback !== undefined && callback != null) {
             callback(self);
         }
@@ -107,6 +114,10 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
             }
         });
     });
+}
+
+ModuleStockAppend.prototype.AppendStock = function(ticker) {
+
 }
 
 ModuleStockAppend.prototype.Hide = function() {

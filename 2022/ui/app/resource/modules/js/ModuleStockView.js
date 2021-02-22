@@ -8,26 +8,28 @@ function ModuleStockView() {
     this.DOMName                    = "";
     this.PortfolioListID            = "";
     this.PortfolioList              = [];
+    this.GetStocksTimerHndl         = 0;
+    this.StockLoaderProgressBar	    = null;
+    this.PortfolioID 	            = 0;
+    this.PortfolioName              = "";
     // Objects section
     this.ComponentObject            = null;
-    this.HistoryDataGraphObject 	= null;
 
     return this;
 }
 
-var g_portfolio_id 	 = 0;
-var g_portfolio_name = "";
-
 ModuleStockView.prototype.PortfolioOnChangeHandler = function(obj) {
-    g_portfolio_id   = obj.value;
-    g_portfolio_name = obj.options[obj.value].text;
+    var self = this;
+
+    this.PortfolioID   = obj.value;
+    this.PortfolioName = obj.options[obj.value].text;
     node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
         "portfolio_id": parseInt(obj.value),
-        "portfolio_name": g_portfolio_name
+        "portfolio_name": this.PortfolioName
     }, function(res) {
         var payload = res.data.payload;
-        ui.RebuildPortfolioEarnings(payload.portfolio);
-        ui.RebuildStockTable(payload.stocks);
+        self.RebuildPortfolioEarnings(payload.portfolio);
+        self.RebuildStockTable(payload.stocks);
     });
 };
 
@@ -47,7 +49,20 @@ ModuleStockView.prototype.Build = function(data, callback) {
     }, function(res) {
         var payload = res.data.payload;
         self.HTML = MkSGlobal.ConvertHEXtoString(payload.content).replace("[ID]", self.HostingID);
-        // this.ComponentObject = document.getElementById("id_m_portfolio_"+this.HostingID);
+        self.ComponentObject = document.getElementById("id_m_stocks_view_"+this.HostingID);
+        document.getElementById(self.HostingID).innerHTML = self.HTML;
+
+        self.objStockTable              = document.getElementById("id_stocks_list");
+        self.objPortfolioEarnings       = document.getElementById("id_portfolio_earnings");
+        self.objPortfolioStocksNumber   = document.getElementById("id_portfolio_number_of_stocks");
+        self.objPortfolioInvestment     = document.getElementById("id_portfolio_investment");
+        self.objPortfolioStocksCount    = document.getElementById("id_portfolio_stocks_count");
+
+        self.StockLoaderProgressBar	= new MksBasicProgressBar("StockLoaderProgressBar");
+        self.StockLoaderProgressBar.EnableInnerPercentageText(false);
+        self.StockLoaderProgressBar.Build(document.getElementById("id_stocks_loading_progressbar"));
+        self.StockLoaderProgressBar.Show();
+
         if (callback !== undefined && callback != null) {
             callback(self);
         }
@@ -66,10 +81,11 @@ ModuleStockView.prototype.RebuildPortfolioEarnings = function(portfolio) {
 }
 
 ModuleStockView.prototype.UpdateStocksPrice = function() {
-    self = this;
+    var self = this;
+
     node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
-        "portfolio_id": parseInt(g_portfolio_id),
-        "portfolio_name": g_portfolio_name
+        "portfolio_id": parseInt(this.PortfolioID),
+        "portfolio_name": this.PortfolioName
     }, function(res) {
         var payload = res.data.payload;
         var portfolio = payload.portfolio;
@@ -82,11 +98,11 @@ ModuleStockView.prototype.UpdateStocksPrice = function() {
             obj.innerHTML = "(" + stock.earnings + ")";
         }
         
-        ui.objPortfolioEarnings.innerHTML = portfolio.earnings;
+        self.objPortfolioEarnings.innerHTML = portfolio.earnings;
         if (portfolio.earnings < 0) {
-            ui.objPortfolioEarnings.style.color = "RED";
+            self.objPortfolioEarnings.style.color = "RED";
         } else {
-            ui.objPortfolioEarnings.style.color = "GREEN";
+            self.objPortfolioEarnings.style.color = "GREEN";
         }
     });
 }
@@ -121,18 +137,18 @@ ModuleStockView.prototype.GetStocks = function() {
     }, function(res) {
         var payload = res.data.payload;
         if (payload.status.local_stock_market_ready == false) {
-            ui.StockLoaderProgressBar.UpdateProgress({
+            self.StockLoaderProgressBar.UpdateProgress({
                 'precentage': payload.status.percentage,
                 'message': "Loading (" + payload.status.percentage + "%)"
             });
-            setTimeout(ui.GetStocks, 2500);
+            setTimeout(self.GetStocks.bind(self), 2500);
             return;
         }
 
-        ui.StockLoaderProgressBar.Hide();
-        ui.RebuildPortfolioEarnings(payload.portfolio);
-        ui.RebuildStockTable(payload.stocks);
-        node.GetStocksTimerHndl = setInterval(ui.UpdateStocksPrice, 10000);
+        self.StockLoaderProgressBar.Hide();
+        self.RebuildPortfolioEarnings(payload.portfolio);
+        self.RebuildStockTable(payload.stocks);
+        self.GetStocksTimerHndl = setInterval(self.UpdateStocksPrice.bind(self), 10000);
     });
 }
 

@@ -7,6 +7,7 @@ function ModuleImportActions() {
     this.DOMName                            = "";
     this.ImportDataCreatePortfolioChecked   = false;
     this.ImportData                         = [];
+    this.Uploader                           = null;
     // Objects section
     this.ComponentObject                    = null;
 
@@ -33,6 +34,16 @@ ModuleImportActions.prototype.Build = function(data, callback) {
             callback(self);
         }
     });
+}
+
+ModuleImportActions.prototype.BuildUploader = function() {
+    var objUploader = document.getElementById("id-basic-uploader-installer");
+    this.Uploader = MksBasicUploaderBuilder.GetInstance();
+    this.Uploader.SetAPI(node.API);
+    this.Uploader.SetFileType(["ms-excel","csv"])
+    this.Uploader.OnUploadCompete = this.OnUploadCompleteHandler;
+    // Build DOM UI for Uploader
+    this.Uploader.Build(objUploader, "Upload");
 }
 
 ModuleImportActions.prototype.ImportStocksCreateNewPortfolio = function(id) {
