@@ -152,6 +152,10 @@ ModuleStockView.prototype.GetStocks = function() {
     });
 }
 
+ModuleStockView.prototype.Clean = function() {
+    clearInterval(this.GetStocksTimerHndl);
+}
+
 ModuleStockView.prototype.Hide = function() {
     var self = this;
     this.ComponentObject.classList.add("d-none")

@@ -9,6 +9,7 @@ import threading
 import base64
 import datetime
 from datetime import date
+import queue
 
 import yfinance as yf
 import pandas as pd
@@ -26,6 +27,20 @@ class StockMarket():
 		self.Logger						= None
 
 		self.FullLoopPerformedCallback 	= None
+
+		# Threading section
+		self.ThreadCount				= 5
+		self.Signal 					= threading.Event()
+		self.Queues		    			= []
+		self.ThreadPool 				= []
+		self.ThreadPoolStatus 			= []
+		self.ThreadPoolLocker			= threading.Lock()
+		self.JoblessMinions 			= 0
+
+		# Init thread minion queues
+		self.Signal.set()
+		for idx in range(self.ThreadCount):
+			self.Queues.append(queue.Queue())
 	
 	def SetLogger(self, logger):
 		self.Logger	= logger
@@ -45,90 +60,99 @@ class StockMarket():
 		self.WorkerRunning = False
 		self.LogMSG("({classname})# Stop".format(classname=self.ClassName), 5)
 	
-	def StockMonitorWorker(self):
-		self.MarketPollingInterval = 0
+	def IsMarketOpen(self):
+		currTime = datetime.datetime.now().time()
+		return (currTime > datetime.time(16,25) and currTime < datetime.time(23,5))
+	
+	def StockMinion(self, index):
+		self.LogMSG("({classname})# [MINION] Reporting for duty ({0})".format(index,classname=self.ClassName), 5)
+		# Update jobless minons
+		self.ThreadPoolLocker.acquire()
+		self.JoblessMinions += 1
+		self.ThreadPoolLocker.release()
+
 		while self.WorkerRunning is True:
 			try:
-				access_stocks_database = False
-				currTime = datetime.datetime.now().time()
-				if (currTime > datetime.time(16,25) and currTime < datetime.time(23,5)):
-					self.MarketOpen = True
-				else:
-					self.MarketOpen = False
-				self.MarketOpen = True
+				item = self.Queues[index].get(block=True,timeout=None)
+				self.ThreadPoolStatus[index] = True
+				ticker = item["ticker"]
+				stock = self.CacheDB[ticker]
+				self.LogMSG("({classname})# [MINION] Update stock ({0}) ({1})".format(index,ticker,classname=self.ClassName), 5)
+				# Update local stock DB
+				stock["price"] 	 			= self.GetStockCurrentPrice(ticker)
+				stock["1D"]					= self.Get1D(ticker)
+				stock["5D"] 	 			= self.Get5D(ticker)
+				stock["1MO"] 	 			= self.Get1MO(ticker)
+				stock["updated"] 			= True
+				stock["ts_last_updated"] 	= time.time()
+				# Free to accept new job
+				self.ThreadPoolStatus[index] = False
+				# Signal master in case he waits on signal
+				self.Signal.set()
+			except Exception as e:
+				self.LogMSG("({classname})# [EXCEPTION] MINION {0} {1}".format(index,str(e),classname=self.ClassName), 5)
+	
+	def StockMonitorWorker(self):
+		self.MarketPollingInterval = 0
+		# Start your minions
+		for idx in range(self.ThreadCount):
+			self.ThreadPoolStatus.append(False)
+			self.LogMSG("({classname})# [MASTER] Minion ({0}) report for duty".format(idx,classname=self.ClassName), 5)
+			self.ThreadPool.append(_thread.start_new_thread(self.StockMinion, (idx,)))
+		
+		# Wait untill minions will report for duty
+		while self.JoblessMinions < self.ThreadCount:
+			time.sleep(1)
+
+		d_ticker = ""
+		while self.WorkerRunning is True:
+			try:
+				self.MarketOpen = self.IsMarketOpen()
 				if self.MarketOpen is True or self.FirstStockUpdateRun is False:
 					for ticker in self.CacheDB:
-						self.Locker.acquire()
 						stock = self.CacheDB[ticker]
-						if stock["updated"] is False:
-							self.LogMSG("({classname})# Update stock ({0})".format(ticker,classname=self.ClassName), 5)
-							access_stocks_database = True
-							# Update stock info
-							stock["price"] 	 			= self.GetStockCurrentPrice(ticker)
-							stock["1MO"] 	 			= self.Get1MO(ticker)
-							stock["5D"] 	 			= self.Get5D(ticker)
-							stock["1D"]					= self.Get1D(ticker)
-							stock["updated"] 			= True
-							stock["ts_last_updated"] 	= time.time()
-							self.Locker.release()
-							break
-						self.Locker.release()
-					if access_stocks_database is False:
-						self.LogMSG("({classname})# Iterration ended".format(classname=self.ClassName), 5)
-						self.MarketPollingInterval = 1
-						self.FirstStockUpdateRun = True
-						if self.FullLoopPerformedCallback is not None:
-							self.FullLoopPerformedCallback()
-						self.Locker.acquire()
+						d_ticker = ticker
 						ts = time.time()
-						for ticker in self.CacheDB:
-							stock = self.CacheDB[ticker]
-							updated = True
+						if stock["updated"] is True:
 							vol = stock["1D"][0]["vol"]
-							
-							'''
-								10		10000[sec]
-								100		1000[sec]
-								1000 	100[sec]
-								10000	10[sec]
-								100000  5[sec]
-								1000000	1[sec]
-							'''
-							
 							if vol > 1000000:
-								updated = False
-							elif vol > 100000:
+								stock["updated"] = False
+							elif vol > 500000:
 								if ts - stock["ts_last_updated"] > 5.0:
-									updated = False
-							elif vol > 10000:
+									stock["updated"] = False
+							elif vol > 100000:
 								if ts - stock["ts_last_updated"] > 10.0:
-									updated = False
-							elif vol > 1000:
-								if ts - stock["ts_last_updated"] > 100.0:
-									updated = False
-							elif vol > 100:
-								if ts - stock["ts_last_updated"] > 1000.0:
-									updated = False
-							elif vol > 10:
-								if ts - stock["ts_last_updated"] > 100000.0:
-									updated = False
+									stock["updated"] = False
 							else:
-								if ts - stock["ts_last_updated"] > 1000000.0:
-									updated = False
-							
-							self.LogMSG("({classname})# {0} {1} {2}".format(updated,vol,(ts - stock["ts_last_updated"]),classname=self.ClassName), 5)
-							stock["updated"] = updated
-						self.Locker.release()
-				time.sleep(self.MarketPollingInterval)
+								if ts - stock["ts_last_updated"] > 30.0:
+									stock["updated"] = False
+						
+						# Find free queue
+						jobless_minion_found = False
+						while jobless_minion_found is False:
+							for idx, item in enumerate(self.ThreadPoolStatus):
+								if item is False:
+									# Send job to minion
+									self.Queues[idx].put({
+										"ticker": ticker
+									})
+									time.sleep(0.1)
+									jobless_minion_found = True
+									break
+							if jobless_minion_found is False:
+								# self.LogMSG("({classname})# [MASTER] Wait...".format(classname=self.ClassName), 5)
+								self.Signal.clear()
+								# free minion not found, wait
+								self.Signal.wait()
+					self.FirstStockUpdateRun = True
 			except Exception as e:
-				self.Locker.release()
-				self.LogMSG("({classname})# [Exeption] ({0})".format(e,classname=self.ClassName), 5)
+				self.LogMSG("({classname})# [Exeption] MASTER ({0}) ({1})".format(d_ticker,e,classname=self.ClassName), 5)
 
 	def AppendStock(self, stock):
 		self.Locker.acquire()
 		try:
-			stock["ts_last_updated"] = 0
-			self.CacheDB[stock["ticker"]] = stock
+			stock["ts_last_updated"] 		= 0
+			self.CacheDB[stock["ticker"]] 	= stock
 		except:
 			pass
 		self.Locker.release()

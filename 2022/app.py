@@ -319,88 +319,91 @@ class Context():
 		portfolio_earnings = 0.0
 		portfolio_investment = 0.0
 		if len(db_stocks) > 0:
-			for db_stock in db_stocks:
-				ticker = db_stock["ticker"]
-				stock = self.Market.GetStockInformation(ticker)
+			try:
+				for db_stock in db_stocks:
+					ticker = db_stock["ticker"]
+					stock = self.Market.GetStockInformation(ticker)
 
-				if stock is not None:
-					warning = 0
-					price = stock["price"]
-					if price > 0:
-						earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
-						portfolio_earnings += earnings
-						portfolio_investment += price * db_stock["amount_sum"]
+					if stock is not None:
+						warning = 0
+						price = stock["price"]
+						if price > 0:
+							earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
+							portfolio_earnings += earnings
+							portfolio_investment += price * db_stock["amount_sum"]
 
-					w_min = w_max = w_slope = w_b = w_r2 = w_var = w_std = 0
-					data = stock["5D"]
-					if len(data) > 0:
-						w_min, w_max = self.Market.CalculateMinMax(data)
-						w_slope, w_b, w_r2 = self.Market.GetRegressionLineStatistics(data)
-						w_var, w_std = self.Market.GetBasicStatistics(data)
-					else:
-						warning = 1
+						w_min = w_max = w_slope = w_b = w_r2 = w_var = w_std = 0
+						data = stock["5D"]
+						if len(data) > 0:
+							w_min, w_max = self.Market.CalculateMinMax(data)
+							w_slope, w_b, w_r2 = self.Market.GetRegressionLineStatistics(data)
+							w_var, w_std = self.Market.GetBasicStatistics(data)
+						else:
+							warning = 1
 
-					m_min = m_max = m_slope = m_b = m_r2 = m_var = m_std = 0
-					data = stock["1MO"]
-					if len(data) > 0:
-						m_min, m_max = self.Market.CalculateMinMax(data)
-						m_slope, m_b, m_r2 = self.Market.GetRegressionLineStatistics(data)
-						m_var, m_std = self.Market.GetBasicStatistics(data)
+						m_min = m_max = m_slope = m_b = m_r2 = m_var = m_std = 0
+						data = stock["1MO"]
+						if len(data) > 0:
+							m_min, m_max = self.Market.CalculateMinMax(data)
+							m_slope, m_b, m_r2 = self.Market.GetRegressionLineStatistics(data)
+							m_var, m_std = self.Market.GetBasicStatistics(data)
 
-						if math.isnan(m_min) is True:
+							if math.isnan(m_min) is True:
+								warning = 1
+								m_min = 0
+							if math.isnan(m_max) is True:
+								warning = 1
+								m_max = 0
+							if math.isnan(m_slope) is True:
+								warning = 1
+								m_slope = 0
+							if math.isnan(m_b) is True:
+								warning = 1
+								m_b = 0
+							if math.isnan(m_r2) is True:
+								warning = 1
+								m_r2 = 0
+							if math.isnan(m_var) is True:
+								warning = 1
+								m_var = 0
+							if math.isnan(m_std) is True:
+								warning = 1
+								m_std = 0
+						else:
 							warning = 1
-							m_min = 0
-						if math.isnan(m_max) is True:
-							warning = 1
-							m_max = 0
-						if math.isnan(m_slope) is True:
-							warning = 1
-							m_slope = 0
-						if math.isnan(m_b) is True:
-							warning = 1
-							m_b = 0
-						if math.isnan(m_r2) is True:
-							warning = 1
-							m_r2 = 0
-						if math.isnan(m_var) is True:
-							warning = 1
-							m_var = 0
-						if math.isnan(m_std) is True:
-							warning = 1
-							m_std = 0
-					else:
-						warning = 1
-					
-					stocks.append({
-						"ticker":ticker,
-						"name": db_stock["name"],
-						"number": db_stock["amount_sum"],
-						"earnings": earnings,
-						"market_price": price,
-						"hist_price_min": db_stock["hist_min"],
-						"hist_price_max": db_stock["hist_max"],
-						"warning": warning,
-						"statistics": {
-							"weekly": {
-								"min": float("{0:.2f}".format(w_min)),
-								"max": float("{0:.2f}".format(w_max)),
-								"slope": float("{0:.2f}".format(w_slope)),
-								"std": float("{0:.2f}".format(w_std)),
-								"slope_offset": float("{0:.2f}".format(w_b)),
-								"r_value": float("{0:.2f}".format(w_r2)),
-								"varience": float("{0:.2f}".format(w_var))
-							},
-							"monthly": {
-								"min": float("{0:.2f}".format(m_min)),
-								"max": float("{0:.2f}".format(m_max)),
-								"slope": float("{0:.2f}".format(m_slope)),
-								"std": float("{0:.2f}".format(m_std)),
-								"slope_offset": float("{0:.2f}".format(m_b)),
-								"r_value": float("{0:.2f}".format(m_r2)),
-								"varience": float("{0:.2f}".format(m_var))
+						
+						stocks.append({
+							"ticker":ticker,
+							"name": db_stock["name"],
+							"number": db_stock["amount_sum"],
+							"earnings": earnings,
+							"market_price": price,
+							"hist_price_min": db_stock["hist_min"],
+							"hist_price_max": db_stock["hist_max"],
+							"warning": warning,
+							"statistics": {
+								"weekly": {
+									"min": float("{0:.2f}".format(w_min)),
+									"max": float("{0:.2f}".format(w_max)),
+									"slope": float("{0:.2f}".format(w_slope)),
+									"std": float("{0:.2f}".format(w_std)),
+									"slope_offset": float("{0:.2f}".format(w_b)),
+									"r_value": float("{0:.2f}".format(w_r2)),
+									"varience": float("{0:.2f}".format(w_var))
+								},
+								"monthly": {
+									"min": float("{0:.2f}".format(m_min)),
+									"max": float("{0:.2f}".format(m_max)),
+									"slope": float("{0:.2f}".format(m_slope)),
+									"std": float("{0:.2f}".format(m_std)),
+									"slope_offset": float("{0:.2f}".format(m_b)),
+									"r_value": float("{0:.2f}".format(m_r2)),
+									"varience": float("{0:.2f}".format(m_var))
+								}
 							}
-						}
-					})
+						})
+			except Exception as e:
+				self.Node.LogMSG("({classname})# [Exeption] ({0})".format(e,classname=self.ClassName), 5)
 		portfolio_earnings   = float("{0:.3f}".format(portfolio_earnings))
 		portfolio_investment = float("{0:.3f}".format(portfolio_investment))
 		return {

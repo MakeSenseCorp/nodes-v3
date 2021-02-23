@@ -155,6 +155,7 @@
 				window.StockAppend.Build(null, function(module) {
 					window.StockAppend.GetDataBaseStocks();
 				});
+				window.StockView.Clean();
 			}
 
 			NodeUI.prototype.ViewDashboard = function() {
@@ -168,12 +169,14 @@
 				window.ImportActions.Build(null, function(module) {
 					module.BuildUploader();
 				});
+				window.StockView.Clean();
 			}
 
 			NodeUI.prototype.OpenModalPortfolio = function() {
 				window.Portfolio.Build(null, function(module) {
 					window.Portfolio.GetDataBaseStocks();
 				});
+				window.StockView.Clean();
 			}
 
 			NodeUI.prototype.OpenModalAction = function(ticker, action) {
