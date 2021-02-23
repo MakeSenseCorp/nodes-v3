@@ -55,19 +55,21 @@ class StockMarket():
 					self.MarketOpen = True
 				else:
 					self.MarketOpen = False
+				self.MarketOpen = True
 				if self.MarketOpen is True or self.FirstStockUpdateRun is False:
 					for ticker in self.CacheDB:
 						self.Locker.acquire()
 						stock = self.CacheDB[ticker]
-						if stock["pulled"] is False:
+						if stock["updated"] is False:
 							self.LogMSG("({classname})# Update stock ({0})".format(ticker,classname=self.ClassName), 5)
 							access_stocks_database = True
 							# Update stock info
-							stock["price"] 	 = self.GetStockCurrentPrice(ticker)
-							stock["1MO"] 	 = self.Get1MO(ticker)
-							stock["5D"] 	 = self.Get5D(ticker)
-							stock["pulled"]  = True
-							stock["updated"] = True
+							stock["price"] 	 			= self.GetStockCurrentPrice(ticker)
+							stock["1MO"] 	 			= self.Get1MO(ticker)
+							stock["5D"] 	 			= self.Get5D(ticker)
+							stock["1D"]					= self.Get1D(ticker)
+							stock["updated"] 			= True
+							stock["ts_last_updated"] 	= time.time()
 							self.Locker.release()
 							break
 						self.Locker.release()
@@ -78,18 +80,54 @@ class StockMarket():
 						if self.FullLoopPerformedCallback is not None:
 							self.FullLoopPerformedCallback()
 						self.Locker.acquire()
+						ts = time.time()
 						for ticker in self.CacheDB:
 							stock = self.CacheDB[ticker]
-							stock["pulled"] = False
+							updated = True
+							vol = stock["1D"][0]["vol"]
+							
+							'''
+								10		10000[sec]
+								100		1000[sec]
+								1000 	100[sec]
+								10000	10[sec]
+								100000  5[sec]
+								1000000	1[sec]
+							'''
+							
+							if vol > 1000000:
+								updated = False
+							elif vol > 100000:
+								if ts - stock["ts_last_updated"] > 5.0:
+									updated = False
+							elif vol > 10000:
+								if ts - stock["ts_last_updated"] > 10.0:
+									updated = False
+							elif vol > 1000:
+								if ts - stock["ts_last_updated"] > 100.0:
+									updated = False
+							elif vol > 100:
+								if ts - stock["ts_last_updated"] > 1000.0:
+									updated = False
+							elif vol > 10:
+								if ts - stock["ts_last_updated"] > 100000.0:
+									updated = False
+							else:
+								if ts - stock["ts_last_updated"] > 1000000.0:
+									updated = False
+							
+							self.LogMSG("({classname})# {0} {1} {2}".format(updated,vol,(ts - stock["ts_last_updated"]),classname=self.ClassName), 5)
+							stock["updated"] = updated
 						self.Locker.release()
 				time.sleep(self.MarketPollingInterval)
 			except Exception as e:
 				self.Locker.release()
-				print("({classname})# [Exeption] ({0})".format(e,classname=self.ClassName))
+				self.LogMSG("({classname})# [Exeption] ({0})".format(e,classname=self.ClassName), 5)
 
 	def AppendStock(self, stock):
 		self.Locker.acquire()
 		try:
+			stock["ts_last_updated"] = 0
 			self.CacheDB[stock["ticker"]] = stock
 		except:
 			pass
@@ -105,22 +143,12 @@ class StockMarket():
 		return self.CacheDB
 
 	def GetStockInformation(self, ticker):
-		# self.LogMSG("({classname})# [GetStockInformation] ({0})".format(ticker,classname=self.ClassName), 5)
-		#self.Locker.acquire()
 		try:
 			if ticker in self.CacheDB:
 				stock = self.CacheDB[ticker]
-				#if stock["updated"] is False:
-				#	stock["price"]   = self.GetStockCurrentPrice(ticker)
-				#	stock["1MO"] 	 = self.Get1MO(ticker)
-				#	stock["5D"] 	 = self.Get5D(ticker)
-				#	stock["updated"] = True
-				#	stock["pulled"]  = True
-				#self.Locker.release()
 				return stock
 		except:
 			pass
-		#self.Locker.release()
 		return None
 
 	def RemoveStock(self, ticker):
@@ -197,6 +225,24 @@ class StockMarket():
 		for idx, row in data.iterrows():
 			hist.append({
 				"date": "{0}".format(idx),
+				"open": row['Open'],
+				"close": row['Close'],
+				"high": row['High'],
+				"low": row['Low'],
+				"vol": row['Volume']
+			})
+		return hist
+
+	def Get1D(self, ticker):
+		'''
+			Open,High,Low,Close,Volume,Dividends,Stock Splits
+		'''
+		hist = []
+		objtk = yf.Ticker(ticker)
+		data = objtk.history(period="1d", interval="5m")
+		for idx, row in data.iterrows():
+			hist.append({
+				"date": "{0}".format(idx).replace("00:00:00",""),
 				"open": row['Open'],
 				"close": row['Close'],
 				"high": row['High'],

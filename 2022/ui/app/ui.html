@@ -165,38 +165,14 @@
 			}
 
 			NodeUI.prototype.OpenModalImportStocks = function() {
-				var self = this;
-
-				window.ImportActions.SetObjectDOMName("window.ImportActions");
-				window.ImportActions.SetHostingID("module_stock_append");
-				window.ImportActions.Build(null, function(module){
-					window.Modal.Remove();
-					window.Modal.SetTitle("Append New Stock");
-					window.Modal.SetContent(window.ImportActions.HTML);
-					window.Modal.SetFooter(`
-						<button type="button" class="btn btn-success" onclick="window.ImportActions.ImportStocks();">Import</button>
-						<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
-					`);
-					window.Modal.Build("lg");
-					window.Modal.Show();
+				window.ImportActions.Build(null, function(module) {
 					module.BuildUploader();
 				});
 			}
 
 			NodeUI.prototype.OpenModalPortfolio = function() {
-				var self = this;
-				window.Portfolio.SetHostingID("portfolio_modal");
-				window.Portfolio.SetObjectDOMName("window.Portfolio");
 				window.Portfolio.Build(null, function(module) {
-					window.Modal.Remove();
-					window.Modal.SetTitle("Create portfolio");
-					window.Modal.SetContent(module.HTML);
-					window.Modal.SetFooter(`
-						<button type="button" class="btn btn-success" onclick="window.Portfolio.CreatePortfolio();">Create</button>
-						<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
-					`);
-					window.Modal.Build("sm");
-					window.Modal.Show();
+					window.Portfolio.GetDataBaseStocks();
 				});
 			}
 
@@ -263,10 +239,7 @@
 
 			var UserNodeLoaded = function() {
 				// User Code #1 - Start
-				window.Portfolio 		= new ModulePortfolio();
-				window.ImportActions 	= new ModuleImportActions();
-				window.StockView 		= new ModuleStockView();
-				
+				window.StockView = new ModuleStockView();
 				window.StockView.SetHostingID("id_application_view_module");
 				window.StockView.SetObjectDOMName("window.StockView");
 				window.StockView.Build(null, function(module) {
@@ -278,6 +251,14 @@
 				window.StockAppend = new ModuleStockAppend();
 				window.StockAppend.SetHostingID("id_application_view_module");
 				window.StockAppend.SetObjectDOMName("window.StockAppend");
+
+				window.Portfolio = new ModulePortfolio();
+				window.Portfolio.SetHostingID("id_application_view_module");
+				window.Portfolio.SetObjectDOMName("window.Portfolio");
+
+				window.ImportActions = new ModuleImportActions();
+				window.ImportActions.SetHostingID("id_application_view_module");
+				window.ImportActions.SetObjectDOMName("window.ImportActions");
 				// User Code #1 - End
 			}
 

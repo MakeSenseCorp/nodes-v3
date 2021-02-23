@@ -30,6 +30,13 @@ ModuleImportActions.prototype.Build = function(data, callback) {
     }, function(res) {
         var payload = res.data.payload;
         self.HTML = MkSGlobal.ConvertHEXtoString(payload.content).replace("[ID]", self.HostingID);
+
+        self.HostingObject = document.getElementById(self.HostingID);
+        if (self.HostingObject !== undefined && self.HostingObject != null) {
+            // this.ComponentObject = document.getElementById("id_m_portfolio_"+this.HostingID);
+            self.HostingObject.innerHTML = self.HTML;
+        }
+
         if (callback !== undefined && callback != null) {
             callback(self);
         }
