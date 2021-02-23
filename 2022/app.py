@@ -298,8 +298,9 @@ class Context():
 		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload, classname=self.ClassName),5)
 
 		potrfolio_id 	= payload["portfolio_id"]
+		# Get portfolio stocks
 		db_stocks  		= self.SQL.GetPortfolioStocks(potrfolio_id)
-
+		# Get market class status
 		status = self.Market.GetMarketStatus()
 		if status["local_stock_market_ready"] is False:
 			mkt_stocks 		= self.Market.GetStocks()
@@ -315,9 +316,11 @@ class Context():
 				"status": status
 			}
 		
-		stocks = []
-		portfolio_earnings = 0.0
-		portfolio_investment = 0.0
+		stocks 					= []
+		portfolio_earnings 		= 0.0
+		portfolio_investment 	= 0.0
+		earnings 				= 0.0
+		
 		if len(db_stocks) > 0:
 			try:
 				for db_stock in db_stocks:
@@ -328,9 +331,14 @@ class Context():
 						warning = 0
 						price = stock["price"]
 						if price > 0:
-							earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
-							portfolio_earnings += earnings
-							portfolio_investment += price * db_stock["amount_sum"]
+							if db_stock["amount_sum"] is not None and db_stock["hist_price_sum"] is not None:
+								earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
+								portfolio_earnings += earnings
+								portfolio_investment += price * db_stock["amount_sum"]
+							else:
+								db_stock["amount_sum"] 	= 0.0
+								db_stock["hist_min"] 	= 0.0
+								db_stock["hist_max"]	= 0.0
 
 						w_min = w_max = w_slope = w_b = w_r2 = w_var = w_std = 0
 						data = stock["5D"]

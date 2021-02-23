@@ -99,12 +99,12 @@ class StockDB():
 		if 0 == id:
 			query = '''
 			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.portfolio_id, hist_max, hist_min FROM stocks_info 
-			INNER JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
-			INNER JOIN (
+			LEFT JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
+			LEFT JOIN (
 				SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum
 				FROM stocks_history 
 				GROUP BY ticker) as hist ON hist.ticker == stocks_info.ticker
-			INNER JOIN (
+			LEFT JOIN (
 				SELECT ticker, MAX(price) as hist_max, MIN(price) as hist_min
 				FROM stocks_history
 				WHERE action == -1
@@ -113,12 +113,12 @@ class StockDB():
 		else:
 			query = '''
 			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.portfolio_id, hist_max, hist_min FROM stocks_info 
-			INNER JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
-			INNER JOIN (
+			LEFT JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
+			LEFT JOIN (
 				SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum
 				FROM stocks_history 
 				GROUP BY ticker) as hist ON hist.ticker == stocks_info.ticker
-			INNER JOIN (
+			LEFT JOIN (
 				SELECT ticker, MAX(price) as hist_max, MIN(price) as hist_min
 				FROM stocks_history
 				WHERE action == -1
