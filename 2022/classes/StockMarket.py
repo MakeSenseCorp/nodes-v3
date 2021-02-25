@@ -79,10 +79,10 @@ class StockMarket():
 				stock = self.CacheDB[ticker]
 				self.LogMSG("({classname})# [MINION] Update stock ({0}) ({1})".format(index,ticker,classname=self.ClassName), 5)
 				# Update local stock DB
-				stock["price"] 	 			= self.GetStockCurrentPrice(ticker)
 				stock["1D"]					= self.Get1D(ticker)
 				stock["5D"] 	 			= self.Get5D(ticker)
 				stock["1MO"] 	 			= self.Get1MO(ticker)
+				stock["price"] 	 			= self.GetStockCurrentPrice(ticker)
 				stock["updated"] 			= True
 				stock["ts_last_updated"] 	= time.time()
 				# Free to accept new job
@@ -91,6 +91,8 @@ class StockMarket():
 				self.Signal.set()
 			except Exception as e:
 				self.LogMSG("({classname})# [EXCEPTION] MINION {0} {1}".format(index,str(e),classname=self.ClassName), 5)
+				self.ThreadPoolStatus[index] = False
+				self.Signal.set()
 	
 	def StockMonitorWorker(self):
 		self.MarketPollingInterval = 0
@@ -107,7 +109,7 @@ class StockMarket():
 		d_ticker = ""
 		while self.WorkerRunning is True:
 			try:
-				self.MarketOpen = self.IsMarketOpen()
+				self.MarketOpen = False # self.IsMarketOpen()
 				if self.MarketOpen is True or self.FirstStockUpdateRun is False:
 					for ticker in self.CacheDB:
 						stock = self.CacheDB[ticker]

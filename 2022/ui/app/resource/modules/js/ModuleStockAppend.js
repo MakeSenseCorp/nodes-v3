@@ -9,6 +9,7 @@ function ModuleStockAppend() {
     this.HostingObject              = null;
     this.ComponentObject            = null;
     this.StockGraph                 = null;
+    this.Selector                   = null;
 
     return this;
 }
@@ -64,6 +65,24 @@ ModuleStockAppend.prototype.FindStockInMarket = function() {
     });
 }
 
+ModuleStockAppend.prototype.OpenPortfolioSelectorModal = function(ticker) {
+    this.Selector = new ModulePortfolioSelectorView(ticker);
+    this.Selector.SetObjectDOMName(this.DOMName+".Selector");
+    this.Selector.Build(null, function(module) {
+        window.Modal.Remove();
+        window.Modal.SetTitle("Portfolios");
+        window.Modal.SetContent(module.HTML);
+        window.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+        window.Modal.Build("sm");
+        window.Modal.Show();
+    });
+}
+
+ModuleStockAppend.prototype.UpdateStockInfoView = function(ticker) {
+    document.getElementById('d_m_stock_append_stock_find_ticker').value = ticker;
+    this.FindStockInMarket();
+}
+
 ModuleStockAppend.prototype.GetDataBaseStocks = function() {
     var self = this;
     node.API.SendCustomCommand(NodeUUID, "get_db_stocks", {
@@ -71,37 +90,32 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
         var payload = res.data.payload;
         var stockTable = new MksBlockTable();
         var tableData = []
-        var portofoliosCheckboxes = "";
-        for (key in ui.Portofolios) {
-            portfolio = ui.Portofolios[key];
-            portofoliosCheckboxes += `
-                <a class="dropdown-item" href="#">
-                    <div class="custom-control custom-checkbox">
-                        <input type="checkbox" class="custom-control-input" onclick="alert("hello");" id="id_portfolio_stock_list_`+portfolio.id+`">
-                        <label class="custom-control-label" for="d_portfolio_stock_list_`+portfolio.id+`">` + portfolio.name + `</label>
-                    </div>
-                </a>
-            `;
-        }
+        
         for (key in payload.stocks) {
             stock = payload.stocks[key];
-            tableData.push({
-                "item1": stock.ticker,
-                "item2": stock.name,
-                "item3": `
-                    <div class="row">
-                        <div class="col">
-                            <div class="dropdown">
-                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                    Portfolios
-                                </button>
-                                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                                    ` + portofoliosCheckboxes + `
+            var ticker = `<a href="#" onclick="[DOM].UpdateStockInfoView('[TICKER]');">[TICKER]</a>`;
+            var options = `
+                            <div class="row">
+                                <div class="col">
+                                    <div class="dropdown">
+                                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                            Options
+                                        </button>
+                                        <div class="dropdown-menu text-center" aria-labelledby="dropdownMenuButton">
+                                            <span class="dropdown-item" style="color: BLUE; cursor:pointer" onclick="[DOM].OpenPortfolioSelectorModal('[TICKER]');">Portfolios</span>
+                                            <span class="dropdown-item" style="color: RED; cursor:pointer">Delete</span>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                `
+                            </div>`;
+            ticker = ticker.split("[DOM]").join(self.DOMName);
+            ticker = ticker.split("[TICKER]").join(stock.ticker);
+            options = options.split("[DOM]").join(self.DOMName);
+            options = options.split("[TICKER]").join(stock.ticker);
+            tableData.push({
+                "item1": ticker,
+                "item2": stock.name,
+                "item3": options
             });
         }
         stockTable.SetData(tableData);

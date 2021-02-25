@@ -246,10 +246,11 @@ class Context():
 	
 	def DownloadStockInfoHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		self.Node.LogMSG("({classname})# [GetStockHistoryHandler]".format(classname=self.ClassName),5)
-		
+		self.Node.LogMSG("({classname})# [GetStockHistoryHandler] ({0})".format(payload["ticker"],classname=self.ClassName),5)
+		info = self.Market.GetStockInfoRaw(payload["ticker"])
+
 		return {
-			"info": self.Market.GetStockInfoRaw(payload["ticker"])
+			"info": info
 		}
 
 	def DownloadStockHistoryHandler(self, sock, packet):

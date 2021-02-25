@@ -6,7 +6,6 @@ function ModuleStockView() {
     this.HostingID                  = "";
     this.GraphModule                = null;
     this.DOMName                    = "";
-    this.PortfolioListID            = "";
     this.PortfolioList              = [];
     this.GetStocksTimerHndl         = 0;
     this.StockLoaderProgressBar	    = null;
@@ -149,6 +148,21 @@ ModuleStockView.prototype.GetStocks = function() {
         self.RebuildPortfolioEarnings(payload.portfolio);
         self.RebuildStockTable(payload.stocks);
         self.GetStocksTimerHndl = setInterval(self.UpdateStocksPrice.bind(self), 10000);
+    });
+}
+
+ModuleStockView.prototype.UpdatePortfolioList = function() {
+    var self = this;
+    node.API.SendCustomCommand(NodeUUID, "get_portfolios", {}, function(res) {
+        var payload = res.data.payload;
+        var obj = document.getElementById("id_selected_portfolio");
+
+        self.PortfolioList = payload.portfolios;
+        obj.innerHTML = "<option value='0'>All</option>";
+        for (key in payload.portfolios) {
+            item = payload.portfolios[key];
+            obj.innerHTML += "<option value='" + item.id + "'>" + item.name + "</option>";
+        }
     });
 }
 

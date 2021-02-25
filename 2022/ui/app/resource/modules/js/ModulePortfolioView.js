@@ -1,4 +1,4 @@
-function ModulePortfolio() {
+function ModulePortfolioView() {
     var self = this;
 
     // Modules basic
@@ -6,7 +6,6 @@ function ModulePortfolio() {
     this.HostingID                  = "";
     this.GraphModule                = null;
     this.DOMName                    = "";
-    this.PortfolioListID            = "";
     this.PortfolioList              = [];
     // Objects section
     this.ComponentObject            = null;
@@ -15,19 +14,19 @@ function ModulePortfolio() {
     return this;
 }
 
-ModulePortfolio.prototype.SetObjectDOMName = function(name) {
+ModulePortfolioView.prototype.SetObjectDOMName = function(name) {
     this.DOMName = name;
 }
 
-ModulePortfolio.prototype.SetHostingID = function(id) {
+ModulePortfolioView.prototype.SetHostingID = function(id) {
     this.HostingID = id;
 }
 
-ModulePortfolio.prototype.Build = function(data, callback) {
+ModulePortfolioView.prototype.Build = function(data, callback) {
     var self = this;
 
     node.API.GetFileContent(NodeUUID, {
-        "file_path": "modules/html/ModulePortfolio.html"
+        "file_path": "modules/html/ModulePortfolioView.html"
     }, function(res) {
         var payload = res.data.payload;
         self.HTML = MkSGlobal.ConvertHEXtoString(payload.content).replace("[ID]", self.HostingID);
@@ -44,23 +43,31 @@ ModulePortfolio.prototype.Build = function(data, callback) {
     });
 }
 
-ModulePortfolio.prototype.UpdatePortfolioList = function(hosting_id) {
+ModulePortfolioView.prototype.UpdatePortfolioList = function() {
     var self = this;
     node.API.SendCustomCommand(NodeUUID, "get_portfolios", {}, function(res) {
         var payload = res.data.payload;
-        this.PortfolioListID = hosting_id;
-        var obj = document.getElementById(this.PortfolioListID);
+        var obj = document.getElementById("id_m_portfolio_name_list");
 
         self.PortfolioList = payload.portfolios;
-        obj.innerHTML = "<option value='0'>All</option>";
+        var table = new MksBasicTable();
+        table.SetSchema(["","Portfolio Name", "Edit", "Stocks", "Delete"]);
+        var data = [];
         for (key in payload.portfolios) {
-            item = payload.portfolios[key];
-            obj.innerHTML += "<option value='" + item.id + "'>" + item.name + "</option>";
+            portfolio = payload.portfolios[key];
+            row = [];
+            row.push(portfolio.name);
+            row.push("<a href='#' onclick='window.Portfolio.EditPortfolio("+portfolio.id+")'><span>Edit</span></a>");
+            row.push("<a href='#' onclick='window.Portfolio.OpenStockViewer("+portfolio.id+")'><span>View Stocks</span></a>");
+            row.push("<a href='#' onclick='window.Portfolio.DeletePortfolio("+portfolio.id+")'><span>Delete</span></a>");
+            data.push(row);
         }
+        table.SetData(data);
+        table.Build(obj);
     });
 }
 
-ModulePortfolio.prototype.CreatePortfolio = function() {
+ModulePortfolioView.prototype.CreatePortfolio = function() {
     var self = this;
     var portfolioName = document.getElementById("id_m_portfolio_name").value;
     if (portfolioName === undefined || portfolioName === null || portfolioName == "") {
@@ -71,18 +78,20 @@ ModulePortfolio.prototype.CreatePortfolio = function() {
         "name": document.getElementById("id_m_portfolio_name").value 
     }, function(res) {
         var payload = res.data.payload;
-        self.UpdatePortfolioList(self.PortfolioListID);
-        window.Modal.Hide();
-        window.Modal.Remove();
+        self.UpdatePortfolioList();
     });
 }
 
-ModulePortfolio.prototype.Hide = function() {
+ModulePortfolioView.prototype.DeletePortfolio = function(id) {
+    var self = this;
+}
+
+ModulePortfolioView.prototype.Hide = function() {
     var self = this;
     this.ComponentObject.classList.add("d-none")
 }
 
-ModulePortfolio.prototype.Show = function() {
+ModulePortfolioView.prototype.Show = function() {
     var self = this;
     this.ComponentObject.classList.remove("d-none")
 }

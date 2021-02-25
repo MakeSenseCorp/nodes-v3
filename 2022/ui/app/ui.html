@@ -132,10 +132,11 @@
 			require ModuleRowStock
 			require ModuleStockHistoryGraph
 			require ModuleStockDetails
-			require ModulePortfolio
+			require ModulePortfolioView
 			require ModuleAction
 			require ModuleStockAppend
 			require ModuleImportActions
+			require ModulePortfolioSelectorView
 			// User Code #1 - End
 
 			$(document).ready(function() {
@@ -160,7 +161,7 @@
 
 			NodeUI.prototype.ViewDashboard = function() {
 				window.StockView.Build(null, function(module) {
-					window.Portfolio.UpdatePortfolioList("id_selected_portfolio");
+					window.StockView.UpdatePortfolioList();
 					window.StockView.GetStocks();
 				});
 			}
@@ -174,7 +175,7 @@
 
 			NodeUI.prototype.OpenModalPortfolio = function() {
 				window.Portfolio.Build(null, function(module) {
-					window.Portfolio.GetDataBaseStocks();
+					window.Portfolio.UpdatePortfolioList()
 				});
 				window.StockView.Clean();
 			}
@@ -247,7 +248,7 @@
 				window.StockView.SetObjectDOMName("window.StockView");
 				window.StockView.Build(null, function(module) {
 					ui = new NodeUI(node.API);
-					window.Portfolio.UpdatePortfolioList("id_selected_portfolio");
+					window.StockView.UpdatePortfolioList();
 					window.StockView.GetStocks();
 				});
 
@@ -255,7 +256,7 @@
 				window.StockAppend.SetHostingID("id_application_view_module");
 				window.StockAppend.SetObjectDOMName("window.StockAppend");
 
-				window.Portfolio = new ModulePortfolio();
+				window.Portfolio = new ModulePortfolioView();
 				window.Portfolio.SetHostingID("id_application_view_module");
 				window.Portfolio.SetObjectDOMName("window.Portfolio");
 
