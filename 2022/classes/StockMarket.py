@@ -63,6 +63,51 @@ class StockMarket():
 	def IsMarketOpen(self):
 		currTime = datetime.datetime.now().time()
 		return (currTime > datetime.time(16,25) and currTime < datetime.time(23,5))
+
+	def CalculateBasicStatistics(self, data):
+		s_min = s_max = s_slope = s_b = s_r2 = s_var = s_std = 0
+		warning = False
+		if len(data) > 0:
+			s_min, s_max 		= self.CalculateMinMax(data)
+			s_slope, s_b, s_r2 	= self.GetRegressionLineStatistics(data)
+			s_var, s_std 		= self.GetBasicStatistics(data)
+
+			if math.isnan(s_min) is True:
+				warning = False
+				s_min = 0
+			if math.isnan(s_max) is True:
+				warning = False
+				s_max = 0
+			if math.isnan(s_slope) is True:
+				warning = False
+				s_slope = 0
+			if math.isnan(s_b) is True:
+				warning = False
+				s_b = 0
+			if math.isnan(s_r2) is True:
+				warning = False
+				s_r2 = 0
+			if math.isnan(s_var) is True:
+				warning = False
+				s_var = 0
+			if math.isnan(s_std) is True:
+				warning = False
+				s_std = 0
+		else:
+			warning = False
+		
+		return {
+			"warning": warning,
+			"statistics": {
+				"min": s_min,
+				"max": s_max,
+				"slope": s_slope,
+				"std": s_std,
+				"slope_offset": s_b,
+				"r_value": s_r2,
+				"varience": s_var
+			}
+		}
 	
 	def StockMinion(self, index):
 		self.LogMSG("({classname})# [MINION] Reporting for duty ({0})".format(index,classname=self.ClassName), 5)
@@ -70,9 +115,12 @@ class StockMarket():
 		self.ThreadPoolLocker.acquire()
 		self.JoblessMinions += 1
 		self.ThreadPoolLocker.release()
+		Interval = 0.1
 
 		while self.WorkerRunning is True:
 			try:
+				if self.FirstStockUpdateRun is True:
+					Interval = 0.5
 				item = self.Queues[index].get(block=True,timeout=None)
 				self.ThreadPoolStatus[index] = True
 				ticker = item["ticker"]
@@ -85,6 +133,10 @@ class StockMarket():
 				stock["price"] 	 			= self.GetStockCurrentPrice(ticker)
 				stock["updated"] 			= True
 				stock["ts_last_updated"] 	= time.time()
+				stock["1D_statistics"]  	= self.CalculateBasicStatistics(stock["1D"])
+				stock["5D_statistics"]  	= self.CalculateBasicStatistics(stock["5D"])
+				stock["1MO_statistics"] 	= self.CalculateBasicStatistics(stock["1MO"])
+				time.sleep(Interval)
 				# Free to accept new job
 				self.ThreadPoolStatus[index] = False
 				# Signal master in case he waits on signal
@@ -111,6 +163,8 @@ class StockMarket():
 			try:
 				self.MarketOpen = False # self.IsMarketOpen()
 				if self.MarketOpen is True or self.FirstStockUpdateRun is False:
+					if self.MarketOpen is False:
+						self.MarketPollingInterval = 10
 					for ticker in self.CacheDB:
 						stock = self.CacheDB[ticker]
 						d_ticker = ticker
@@ -147,6 +201,7 @@ class StockMarket():
 								# free minion not found, wait
 								self.Signal.wait()
 					self.FirstStockUpdateRun = True
+				time.sleep(self.MarketPollingInterval)
 			except Exception as e:
 				self.LogMSG("({classname})# [Exeption] MASTER ({0}) ({1})".format(d_ticker,e,classname=self.ClassName), 5)
 
@@ -154,6 +209,9 @@ class StockMarket():
 		self.Locker.acquire()
 		try:
 			stock["ts_last_updated"] 		= 0
+			stock["1D_statistics"] 			= {}
+			stock["5D_statistics"] 			= {}
+			stock["1MO_statistics"] 		= {}
 			self.CacheDB[stock["ticker"]] 	= stock
 		except:
 			pass

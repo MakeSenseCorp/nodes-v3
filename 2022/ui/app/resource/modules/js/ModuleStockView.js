@@ -89,12 +89,12 @@ ModuleStockView.prototype.UpdateStocksPrice = function() {
         var payload = res.data.payload;
         var portfolio = payload.portfolio;
 
+        var row = new ModuleRowStock();
         for (key in payload.stocks) {
             var stock = payload.stocks[key];
-            var obj = document.getElementById("id_stock_table_price_" + stock.ticker);
-            obj.innerHTML = stock.market_price;
-            obj = document.getElementById("id_stock_table_earnings_" + stock.ticker);
-            obj.innerHTML = "(" + stock.earnings + ")";
+            row.SetPrice(stock.ticker, stock.market_price);
+            row.SetAmomunt(stock.ticker, stock.number);
+            row.SetEarnings(stock.ticker, stock.earnings);
         }
         
         self.objPortfolioEarnings.innerHTML = portfolio.earnings;
@@ -103,6 +103,8 @@ ModuleStockView.prototype.UpdateStocksPrice = function() {
         } else {
             self.objPortfolioEarnings.style.color = "GREEN";
         }
+
+        self.RebuildPortfolioEarnings(payload.portfolio);
     });
 }
 
@@ -115,24 +117,36 @@ ModuleStockView.prototype.RebuildStockTable = function(stocks) {
         ui_size = "sm";
     }
 
+    this.objStockTable.innerHTML = "";
     var row = new ModuleRowStock();
     for (key in stocks) {
         var stock 	  = stocks[key];
         stock.ui_size = ui_size;
-        tableContent += row.Build(stock);
-        portfolioStocksCount += stock.number;
+        if (row.RowExist(stock.ticker) == false) {
+            this.objStockTable.innerHTML += row.Build(stock);
+            portfolioStocksCount += stock.number;
+        }
+
+        row.SetTicker(stock.ticker);
+        row.SetPrice(stock.ticker, stock.market_price);
+        row.SetAmomunt(stock.ticker, stock.number);
+        row.SetEarnings(stock.ticker, stock.earnings);
+        row.SetStockLine(stock);
     }
     
-    this.objStockTable.innerHTML = tableContent;
     this.objPortfolioStocksNumber.innerHTML = portfolioStocksCount;
     $('[data-toggle="tooltip"]').tooltip();
 }
 
 ModuleStockView.prototype.GetStocks = function() {
     var self = this;
+
+    this.PortfolioID = 0;
+    this.PortfolioName = "All"
+
     node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
-        "portfolio_id": 0,
-        "portfolio_name": "All"
+        "portfolio_id": this.PortfolioID,
+        "portfolio_name": this.PortfolioName
     }, function(res) {
         var payload = res.data.payload;
         if (payload.status.local_stock_market_ready == false) {

@@ -11,7 +11,7 @@ function ModulePortfolioSelectorView(ticker) {
                                         </div>`;
     this.PortofoliosCheckbox        = `
                                         <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input" onclick="[DOM].AppendStockToPortfolio(this,'[TICKER]','[PORTFOLIO_ID]');" id="id_portfolio_stock_list_[PORTFOLIO_ID]">
+                                            <input type="checkbox" class="custom-control-input" onclick="[DOM].SetStockPortfolio(this,[PORTFOLIO_ID]);" id="id_portfolio_stock_list_[PORTFOLIO_ID]">
                                             <label class="custom-control-label" for="id_portfolio_stock_list_[PORTFOLIO_ID]">[PORTFOLIO_NAME]</label>
                                         </div>
                                     `;
@@ -19,6 +19,7 @@ function ModulePortfolioSelectorView(ticker) {
     this.HostingObject              = null;
     this.ComponentObject            = null;
     this.PortfolioList              = [];
+    this.MyPortfolios               = [];
     this.Ticker                     = ticker;
 
     return this;
@@ -32,8 +33,30 @@ ModulePortfolioSelectorView.prototype.SetHostingID = function(id) {
     this.HostingID = id;
 }
 
-ModulePortfolioSelectorView.prototype.AppendStockToPortfolio = function(obj, ticker, portfolio_id) {
-    console.log(ticker, portfolio_id);
+ModulePortfolioSelectorView.prototype.SetStockPortfolio = function(obj, id) {
+    var self = this;
+    node.API.SendCustomCommand(NodeUUID, "set_stock_portfolios", {
+        "id": id,
+        "status": obj.checked,
+        "ticker": self.Ticker
+    }, function(res) {
+        var payload = res.data.payload;
+    });
+}
+
+ModulePortfolioSelectorView.prototype.GetStockPortfolios = function(ticker) {
+    var self = this;
+    node.API.SendCustomCommand(NodeUUID, "get_stock_portfolios", {
+        "ticker": ticker
+    }, function(res) {
+        var payload = res.data.payload;
+        self.MyPortfolios = payload.portfolios;
+        for (key in self.PortfolioList) {
+            portfolio = self.PortfolioList[key];
+            obj = document.getElementById("id_portfolio_stock_list_"+portfolio.id);
+            obj.checked = self.MyPortfolios.includes(portfolio.id);
+        }
+    });
 }
 
 ModulePortfolioSelectorView.prototype.Build = function(data, callback) {
@@ -62,6 +85,8 @@ ModulePortfolioSelectorView.prototype.Build = function(data, callback) {
         if (callback !== undefined && callback != null) {
             callback(self);
         }
+
+        self.GetStockPortfolios(self.Ticker);
     });
 }
 

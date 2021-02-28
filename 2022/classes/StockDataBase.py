@@ -66,8 +66,46 @@ class StockDB():
 				})
 		return portfolios
 	
+	def GetStockPortfolios(self, ticker):
+		query = "SELECT portfolio_id FROM stock_to_portfolio WHERE ticker='{0}'".format(ticker.upper())
+		self.CURS.execute(query)
+		
+		portfolios = []
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			for row in rows:
+				portfolios.append(row[0])
+		return portfolios
+	
 	def GetStocks(self):
 		query = "SELECT * FROM stocks_info"
+		self.CURS.execute(query)
+		
+		stocks = []
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			for row in rows:
+				stocks.append({
+					"name": row[0],
+					"ticker": row[1],
+					"sector": row[2],
+					"industry": row[3],
+					"market_price": row[4]
+				})
+		return stocks
+	
+	def GetStocksByProfile(self, id):
+		if 0 == id:
+			query = '''
+				SELECT * FROM stocks_info 
+				LEFT JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
+			'''
+		else:
+			query = '''
+				SELECT * FROM stocks_info 
+				LEFT JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
+				WHERE stock_to_portfolio.portfolio_id = {0}
+			'''.format(id)
 		self.CURS.execute(query)
 		
 		stocks = []
@@ -220,3 +258,22 @@ class StockDB():
 		self.CURS.execute(query)
 		self.DB.commit()
 		return self.CURS.lastrowid
+	
+	def InsertStockPortfolio(self, data):
+		query = '''
+			INSERT INTO stock_to_portfolio (ticker,portfolio_id)
+			VALUES ('{0}',{1})
+		'''.format(data["ticker"],data["id"])
+
+		self.CURS.execute(query)
+		self.DB.commit()
+		return self.CURS.lastrowid
+	
+	def DeleteStockPortfolio(self, data):
+		query = '''
+			DELETE FROM stock_to_portfolio
+			WHERE ticker = '{0}' AND portfolio_id = {1}
+		'''.format(data["ticker"],data["id"])
+
+		self.CURS.execute(query)
+		self.DB.commit()

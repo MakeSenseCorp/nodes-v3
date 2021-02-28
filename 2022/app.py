@@ -40,6 +40,7 @@ class Context():
 			'get_sensor_info':			self.GetSensorInfoHandler,
 			'get_portfolios':			self.GetPortfoliosHandler,
 			'get_portfolio_stocks':		self.GetPortfolioStocksHandler,
+			'get_portfolio_statistics':	self.GetPortfolioStatistics,
 			'get_stock_history':		self.GetStockHistoryHandler,
 			'append_new_action':		self.AppendNewActionHandler,
 			'create_new_portfolio':		self.CreateNewPortfolioHandler,
@@ -50,6 +51,8 @@ class Context():
 			'download_stock_history':	self.DownloadStockHistoryHandler,
 			'download_stock_info':		self.DownloadStockInfoHandler,
 			'get_db_stocks':			self.GetDBStocksHandler,
+			'get_stock_portfolios':		self.GetStockPortfolios,
+			'set_stock_portfolios':		self.SetStockPortfolios,
 			'undefined':				self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -68,6 +71,24 @@ class Context():
 	
 	def FullLoopPerformedEvent(self):
 		pass
+
+	def SetStockPortfolios(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [SetStockPortfolios] {0}".format(payload,classname=self.ClassName),5)
+		if payload["status"] is True:
+			self.SQL.InsertStockPortfolio(payload)
+		else:
+			self.SQL.DeleteStockPortfolio(payload)
+		return {
+			"portfolios": self.SQL.GetStockPortfolios(payload["ticker"])
+		}
+
+	def GetStockPortfolios(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetStockPortfolios] {0}".format(payload,classname=self.ClassName),5)
+		return {
+			"portfolios": self.SQL.GetStockPortfolios(payload["ticker"])
+		}
 
 	def GetDBStocksHandler(self, sock, packet):
 		db_stocks = self.SQL.GetPortfolioStocks(0)
@@ -294,6 +315,101 @@ class Context():
 			}
 		}
 
+	def GetPortfolioStatistics(self, sock, packet):
+		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload, classname=self.ClassName),5)
+
+		potrfolio_id 	= payload["portfolio_id"]
+		return {
+			"portfolio_id": potrfolio_id
+		}
+
+	def GetPortfolioStocksHandler(self, sock, packet):
+		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload, classname=self.ClassName),5)
+
+		potrfolio_id 			= payload["portfolio_id"]
+		portfolio_earnings		= 0.0
+		portfolio_investment	= 0.0
+		earnings 				= 0.0
+		db_stocks 				= []
+		stocks 					= []
+
+		# Stock market status
+		status 			= self.Market.GetMarketStatus()
+		mkt_stocks 		= self.Market.GetStocks()
+		if status["local_stock_market_ready"] is False:
+			updated_stocks 	= 0
+			# Get portfolio stocks
+			db_stocks  		= self.SQL.GetStocksByProfile(potrfolio_id)
+			for db_stock in db_stocks:
+				ticker = db_stock["ticker"]
+				if mkt_stocks[ticker]["updated"] is True:
+					updated_stocks += 1
+			status["percentage"] = float("{0:.1f}".format(float(updated_stocks) / float(len(db_stocks)) * 100.0)) 
+			return {
+				"portfolio": None,
+				"stocks": None,
+				"status": status
+			}
+		else:
+			# Get portfolio stocks
+			db_stocks  		= self.SQL.GetPortfolioStocks(potrfolio_id)
+			for db_stock in db_stocks:
+				# For each stock in DB
+				ticker = db_stock["ticker"]
+				# Get stock information from cache DB
+				stock = self.Market.GetStockInformation(ticker)
+				# self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(db_stock, classname=self.ClassName),5)
+				if stock is not None:
+					warning 	= 0
+					price 		= stock["price"]
+					earnings 	= 0.0
+					# Calculate actions min, max and summary
+					if price > 0:
+						if db_stock["amount_sum"] is not None and db_stock["hist_price_sum"] is not None:
+							earnings = float("{0:.3f}".format(db_stock["hist_price_sum"]))
+							if (price * db_stock["amount_sum"]) > 0:
+								earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
+							portfolio_earnings += earnings
+							portfolio_investment += price * db_stock["amount_sum"]
+						else:
+							db_stock["amount_sum"] 	= 0.0
+							db_stock["hist_min"] 	= 0.0
+							db_stock["hist_max"]	= 0.0
+					
+					if "warning" in stock["5D_statistics"] and "warning" in stock["1MO_statistics"]:
+						warning = stock["5D_statistics"]["warning"] & stock["1MO_statistics"]["warning"]
+
+					stocks.append({
+						"ticker":ticker,
+						"name": db_stock["name"],
+						"number": db_stock["amount_sum"],
+						"earnings": earnings,
+						"market_price": price,
+						"hist_price_min": db_stock["hist_min"],
+						"hist_price_max": db_stock["hist_max"],
+						"warning": warning,
+						"statistics": {
+							"weekly": stock["5D_statistics"],
+							"monthly": stock["1MO_statistics"]
+						}
+					})
+				else:
+					pass
+
+		return {
+			"portfolio": {
+				"name": payload["portfolio_name"],
+				"stocks_count": len(db_stocks),
+				"earnings": portfolio_earnings,
+				"investment": portfolio_investment
+			},
+			"stocks": stocks,
+			"status": status
+		}
+	
+	'''
 	def GetPortfolioStocksHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload, classname=self.ClassName),5)
@@ -321,7 +437,7 @@ class Context():
 		portfolio_earnings 		= 0.0
 		portfolio_investment 	= 0.0
 		earnings 				= 0.0
-		
+
 		if len(db_stocks) > 0:
 			try:
 				for db_stock in db_stocks:
@@ -425,6 +541,7 @@ class Context():
 			"stocks": stocks,
 			"status": status
 		}
+	'''
 	
 	def UndefindHandler(self, sock, packet):
 		print ("UndefindHandler")

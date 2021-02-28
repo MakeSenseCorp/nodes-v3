@@ -14,24 +14,22 @@ function ModuleRowStock() {
                     <div class="col-lg-9">
                         <div class="row">
                             <div class="col-lg-2">
-                                <h5><span style="color:[TICKER_COLOR]">[TICKER]</span></h5>
+                                <h5><span style="color: BLUE; cursor:pointer" id="id_m_row_stock_ticker_[TICKER]"></span></h5>
                             </div>
                             <div class="col-lg-1">
-                                <h5><span class="badge badge-secondary badge-pill" id="id_stock_table_stock_ammount_[TICKER]">[AMMOUNT]</span></h5>
+                                <h5><span class="badge badge-secondary badge-pill" id="id_m_row_stock_ammount_[TICKER]"></span></h5>
                             </div>
                             <div class="col-lg-2">
-                                <span id="id_stock_table_price_[TICKER]" style="color:[PRICE_COLOR]">[PRICE]</span>
+                                <h6 id="id_m_row_stock_price_[TICKER]"></h6>
                             </div>
                             <div class="col-lg-2">
-                                <span id="id_stock_table_earnings_[TICKER]" style="color:[EARNINGS_COLOR]">[EARNINGS]</span>
+                                <span>(</span><span style="font-weight: bold" id="id_m_row_stock_earnings_[TICKER]"></span><span>)</span>
                             </div>
                             <div class="col-lg-2">
-                                <span id="id_stock_table_weekly_max_min_slope_[TICKER]">[WEEK_MIN]-[WEEK_MAX]</span>
+                                <span id="id_stock_table_weekly_max_min_slope_[TICKER]"></span>
                             </div>
                             <div class="col-lg-3">
-                                <div class="progress">
-                                    [STOCK_LINE]
-                                </div>
+                                <div class="progress" id="id_m_row_stock_stock_line_[TICKER]"></div>
                             </div>
                         </div>
                     </div>
@@ -54,27 +52,25 @@ function ModuleRowStock() {
     `;
     this.BlockHTML = `
         <div class="col-sm-6 col-lg-4 mb-4 text-center">
-            <div class="card border-[BORDER_COLOR] mb-4 shadow-sm">
+            <div class="card mb-4 shadow-sm">
                 <div class="card-header">
                     <h4 class="d-flex justify-content-between align-items-center mb-3">
-                        <span style="color:[TICKER_COLOR]">[TICKER]</span>
-                        <small class="badge badge-secondary badge-pill" id="id_stock_table_stock_ammount_[TICKER]">[AMMOUNT]</small>
+                        <span style="color: BLUE; cursor:pointer" id="id_m_row_stock_ticker_[TICKER]">[TICKER]</span>
+                        <small class="badge badge-secondary badge-pill" id="id_m_row_stock_ammount_[TICKER]"></small>
                     </h4>
                 </div>
                 <div class="card-body">
                     <h3 class="card-title pricing-card-title">
-                        <small id="id_stock_table_price_[TICKER]" style="color:[PRICE_COLOR]">[PRICE]</small>
-                        <small id="id_stock_table_earnings_[TICKER]" style="color:[EARNINGS_COLOR]">([EARNINGS])</small>
+                        <small id="id_m_row_stock_price_[TICKER]"></small>
+                        <small>(</small><small style="font-weight: bold" id="id_m_row_stock_earnings_[TICKER]"></small><small>)</small>
                     </h3>
                     <ul class="list-unstyled mt-3 mb-4">
-                        <li id="id_stock_table_weekly_max_min_slope_[TICKER]">WE: [WEEK_MIN] - [WEEK_MAX]</li>
-                        <li id="id_stock_table_monthly_max_min_slope_[TICKER]">MO: [MONTH_MIN] - [MONTH_MAX]</li>
+                        <li id="id_stock_table_weekly_max_min_slope_[TICKER]"></li>
+                        <li id="id_stock_table_monthly_max_min_slope_[TICKER]"></li>
                         <li>
                             <div class="container mb-4">
                                 <hr class="mb-4">
-                                <div class="progress">
-                                    [STOCK_LINE]
-                                </div>
+                                <div class="progress" id="id_m_row_stock_stock_line_[TICKER]"></div>
                             </div>
                         </li>
                     </ul>
@@ -108,7 +104,12 @@ ModuleRowStock.prototype.Build = function(data, callback=null) {
     } else {
         return "";
     }
+
+    html = html.split("[TICKER]").join(data.ticker);
+
+    // border-[BORDER_COLOR]
     
+    /*
     var line = new StockLine();
     html = html.split("[STOCK_LINE]").join(line.Build({
         price: data.market_price,
@@ -149,8 +150,49 @@ ModuleRowStock.prototype.Build = function(data, callback=null) {
     } else {
         html = html.split("[MONTHLY_SLOPE_COLOR]").join("GREEN");
     }
+    */
 
     return html;
+}
+
+ModuleRowStock.prototype.RowExist = function(ticker) {
+    var objTicker = document.getElementById("id_m_row_stock_ticker_"+ticker);
+    return (objTicker !== undefined && objTicker !== null);
+}
+
+ModuleRowStock.prototype.SetTicker = function(ticker) {
+    var objTicker = document.getElementById("id_m_row_stock_ticker_"+ticker);
+    objTicker.innerHTML = ticker;
+}
+
+ModuleRowStock.prototype.SetPrice = function(ticker, price) {
+    var objPrice = document.getElementById("id_m_row_stock_price_"+ticker);
+    objPrice.innerHTML = price;
+}
+
+ModuleRowStock.prototype.SetAmomunt = function(ticker, ammount) {
+    var objAmmount = document.getElementById("id_m_row_stock_ammount_"+ticker);
+    objAmmount.innerHTML = ammount;
+}
+
+ModuleRowStock.prototype.SetEarnings = function(ticker, earnings) {
+    var objEarnings = document.getElementById("id_m_row_stock_earnings_"+ticker);
+    objEarnings.innerHTML = earnings;
+
+    objEarnings.style.color = "GREEN";
+    if (earnings < 0) {
+        objEarnings.style.color = "RED";
+    }
+}
+
+ModuleRowStock.prototype.SetStockLine = function(data) {
+    var objStockLine = document.getElementById("id_m_row_stock_stock_line_"+data.ticker);
+    var line = new StockLine();
+    objStockLine.innerHTML = line.Build({
+        price: data.market_price,
+        min: data.hist_price_min,
+        max: data.hist_price_max
+    });
 }
 
 ModuleRowStock.prototype.Hide = function() {
