@@ -53,7 +53,7 @@ ModuleImportActions.prototype.BuildUploader = function() {
     this.Uploader.Build(objUploader, "Upload");
 }
 
-ModuleImportActions.prototype.ImportStocksCreateNewPortfolio = function(id) {
+ModuleImportActions.prototype.ImportStocksCreateNewPortfolio = function(obj) {
     this.ImportDataCreatePortfolioChecked = obj.checked;
     if (obj.checked == true) {
         document.getElementById("id_m_ipmort_stocks_portfolio_name_block").classList.remove("d-none");

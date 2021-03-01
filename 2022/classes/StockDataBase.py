@@ -147,6 +147,7 @@ class StockDB():
 				FROM stocks_history
 				WHERE action == -1
 				GROUP BY ticker) as tbl_actions ON tbl_actions.ticker == stocks_info.ticker
+			GROUP BY stocks_info.ticker
 			'''
 		else:
 			query = '''
@@ -162,6 +163,7 @@ class StockDB():
 				WHERE action == -1
 				GROUP BY ticker) as tbl_actions ON tbl_actions.ticker == stocks_info.ticker
 			WHERE stock_to_portfolio.portfolio_id == {0}
+			GROUP BY stocks_info.ticker
 			'''.format(id)
 		self.CURS.execute(query)
 		rows = self.CURS.fetchall()
@@ -276,4 +278,17 @@ class StockDB():
 		'''.format(data["ticker"],data["id"])
 
 		self.CURS.execute(query)
+		self.DB.commit()
+	
+	def DeletePortfolio(self, id):
+		self.CURS.execute('''
+			DELETE FROM stock_to_portfolio
+			WHERE portfolio_id = {0}
+		'''.format(id))
+		self.DB.commit()
+
+		self.CURS.execute('''
+			DELETE FROM portfolios
+			WHERE id = {0}
+		'''.format(id))
 		self.DB.commit()

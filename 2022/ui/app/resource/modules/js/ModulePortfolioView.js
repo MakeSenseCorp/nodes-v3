@@ -84,6 +84,12 @@ ModulePortfolioView.prototype.CreatePortfolio = function() {
 
 ModulePortfolioView.prototype.DeletePortfolio = function(id) {
     var self = this;
+    node.API.SendCustomCommand(NodeUUID, "delete_portfolio", {
+        'id': id
+    }, function(res) {
+        var payload = res.data.payload;
+        self.UpdatePortfolioList();
+    });
 }
 
 ModulePortfolioView.prototype.Hide = function() {

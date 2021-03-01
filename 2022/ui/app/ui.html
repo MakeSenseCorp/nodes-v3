@@ -229,6 +229,7 @@
 					window.Modal.Show();
 					module.GetDetails(ticker);
 				});
+				window.StockView.Clean();
 			}
 
 			var UserInit = function() {
@@ -269,12 +270,17 @@
 			}
 
 			var UserEventRecieved = function(event, data) {
-				// console.log("OnNodeChangeEvent", packet, packet.data.payload.event);
+				console.log("OnNodeChangeEvent", event);
 				// User Code #1 - Start
 				switch(event) {
 					case "upload_progress": {
 						window.ImportActions.Uploader.UpdateProgress(data);
 					}
+					break;
+					case "stock_info": {
+						window.StockView.BuildStockAsync(data);
+					}
+					break;
 				}
 				// User Code #1 - End
 			}

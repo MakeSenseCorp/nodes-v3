@@ -11,6 +11,7 @@ function ModuleStockView() {
     this.StockLoaderProgressBar	    = null;
     this.PortfolioID 	            = 0;
     this.PortfolioName              = "";
+    this.PortfolioStocksCount       = 0;
     // Objects section
     this.ComponentObject            = null;
 
@@ -20,15 +21,16 @@ function ModuleStockView() {
 ModuleStockView.prototype.PortfolioOnChangeHandler = function(obj) {
     var self = this;
 
-    this.PortfolioID   = obj.value;
-    this.PortfolioName = obj.options[obj.value].text;
+    this.PortfolioID                = obj.value;
+    this.PortfolioName              = obj.options[obj.selectedIndex].text;
+    this.objStockTable.innerHTML    = "";
+    this.PortfolioStocksCount       = 0;
     node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
         "portfolio_id": parseInt(obj.value),
         "portfolio_name": this.PortfolioName
     }, function(res) {
         var payload = res.data.payload;
         self.RebuildPortfolioEarnings(payload.portfolio);
-        self.RebuildStockTable(payload.stocks);
     });
 };
 
@@ -69,14 +71,33 @@ ModuleStockView.prototype.Build = function(data, callback) {
 }
 
 ModuleStockView.prototype.RebuildPortfolioEarnings = function(portfolio) {
-    this.objPortfolioInvestment.innerHTML = portfolio.investment;
-    this.objPortfolioStocksCount.innerHTML = portfolio.stocks_count;
-    this.objPortfolioEarnings.innerHTML = portfolio.earnings;
+    this.objPortfolioInvestment.innerHTML   = portfolio.investment;
+    this.objPortfolioStocksCount.innerHTML  = portfolio.stocks_count;
+    this.objPortfolioEarnings.innerHTML     = portfolio.earnings;
     if (portfolio.earnings < 0) {
         this.objPortfolioEarnings.style.color = "RED";
     } else {
         this.objPortfolioEarnings.style.color = "GREEN";
     }
+}
+
+ModuleStockView.prototype.BuildStockAsync = function(stock) {
+    var row = new ModuleRowStock();
+    document.getElementById("id_m_stock_view_loader_ui").classList.add("d-none");
+    stock.ui_size = "sm";
+    if (row.RowExist(stock.ticker) == false) {
+        this.objStockTable.innerHTML += row.Build(stock);
+        this.PortfolioStocksCount += stock.number;
+    }
+
+    row.SetTicker(stock.ticker);
+    row.SetPrice(stock.ticker, stock.market_price);
+    row.SetAmomunt(stock.ticker, stock.number);
+    row.SetEarnings(stock.ticker, stock.earnings);
+    row.SetStockLine(stock);
+    
+    this.objPortfolioStocksNumber.innerHTML = this.PortfolioStocksCount;
+    $('[data-toggle="tooltip"]').tooltip();
 }
 
 ModuleStockView.prototype.UpdateStocksPrice = function() {
@@ -88,14 +109,6 @@ ModuleStockView.prototype.UpdateStocksPrice = function() {
     }, function(res) {
         var payload = res.data.payload;
         var portfolio = payload.portfolio;
-
-        var row = new ModuleRowStock();
-        for (key in payload.stocks) {
-            var stock = payload.stocks[key];
-            row.SetPrice(stock.ticker, stock.market_price);
-            row.SetAmomunt(stock.ticker, stock.number);
-            row.SetEarnings(stock.ticker, stock.earnings);
-        }
         
         self.objPortfolioEarnings.innerHTML = portfolio.earnings;
         if (portfolio.earnings < 0) {
@@ -108,41 +121,12 @@ ModuleStockView.prototype.UpdateStocksPrice = function() {
     });
 }
 
-ModuleStockView.prototype.RebuildStockTable = function(stocks) {
-    var tableContent = "";
-    var portfolioStocksCount = 0.0;
-
-    var ui_size = "lg";
-    if (stocks.length > 30) {
-        ui_size = "sm";
-    }
-
-    this.objStockTable.innerHTML = "";
-    var row = new ModuleRowStock();
-    for (key in stocks) {
-        var stock 	  = stocks[key];
-        stock.ui_size = ui_size;
-        if (row.RowExist(stock.ticker) == false) {
-            this.objStockTable.innerHTML += row.Build(stock);
-            portfolioStocksCount += stock.number;
-        }
-
-        row.SetTicker(stock.ticker);
-        row.SetPrice(stock.ticker, stock.market_price);
-        row.SetAmomunt(stock.ticker, stock.number);
-        row.SetEarnings(stock.ticker, stock.earnings);
-        row.SetStockLine(stock);
-    }
-    
-    this.objPortfolioStocksNumber.innerHTML = portfolioStocksCount;
-    $('[data-toggle="tooltip"]').tooltip();
-}
-
 ModuleStockView.prototype.GetStocks = function() {
     var self = this;
 
-    this.PortfolioID = 0;
-    this.PortfolioName = "All"
+    this.PortfolioID            = 0;
+    this.PortfolioName          = "All"
+    this.PortfolioStocksCount   = 0;
 
     node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
         "portfolio_id": this.PortfolioID,
@@ -160,7 +144,6 @@ ModuleStockView.prototype.GetStocks = function() {
 
         self.StockLoaderProgressBar.Hide();
         self.RebuildPortfolioEarnings(payload.portfolio);
-        self.RebuildStockTable(payload.stocks);
         self.GetStocksTimerHndl = setInterval(self.UpdateStocksPrice.bind(self), 10000);
     });
 }

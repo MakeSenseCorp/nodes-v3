@@ -99,13 +99,13 @@ class StockMarket():
 		return {
 			"warning": warning,
 			"statistics": {
-				"min": s_min,
-				"max": s_max,
-				"slope": s_slope,
-				"std": s_std,
-				"slope_offset": s_b,
-				"r_value": s_r2,
-				"varience": s_var
+				"min": float("{0:.2f}".format(s_min)),
+				"max": float("{0:.2f}".format(s_max)),
+				"slope": float("{0:.2f}".format(s_slope)),
+				"std": float("{0:.2f}".format(s_std)),
+				"slope_offset": float("{0:.2f}".format(s_b)),
+				"r_value": float("{0:.2f}".format(s_r2)),
+				"varience": float("{0:.2f}".format(s_var))
 			}
 		}
 	

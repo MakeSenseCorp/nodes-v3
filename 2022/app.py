@@ -53,6 +53,7 @@ class Context():
 			'get_db_stocks':			self.GetDBStocksHandler,
 			'get_stock_portfolios':		self.GetStockPortfolios,
 			'set_stock_portfolios':		self.SetStockPortfolios,
+			'delete_portfolio':			self.DeletePortfolioHandler,
 			'undefined':				self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -71,6 +72,14 @@ class Context():
 	
 	def FullLoopPerformedEvent(self):
 		pass
+
+	def DeletePortfolioHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [DeletePortfolioHandler] {0}".format(payload,classname=self.ClassName),5)
+		self.SQL.DeletePortfolio(payload["id"])
+		return {
+			"portfolios": self.SQL.GetPortfolios()
+		}
 
 	def SetStockPortfolios(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
@@ -319,7 +328,7 @@ class Context():
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload, classname=self.ClassName),5)
 
-		potrfolio_id 	= payload["portfolio_id"]
+		potrfolio_id = payload["portfolio_id"]
 		return {
 			"portfolio_id": potrfolio_id
 		}
@@ -346,7 +355,7 @@ class Context():
 				ticker = db_stock["ticker"]
 				if mkt_stocks[ticker]["updated"] is True:
 					updated_stocks += 1
-			status["percentage"] = float("{0:.1f}".format(float(updated_stocks) / float(len(db_stocks)) * 100.0)) 
+			status["percentage"] = float("{0:.1f}".format(float(updated_stocks) / float(len(db_stocks)) * 100.0))
 			return {
 				"portfolio": None,
 				"stocks": None,
@@ -354,7 +363,7 @@ class Context():
 			}
 		else:
 			# Get portfolio stocks
-			db_stocks  		= self.SQL.GetPortfolioStocks(potrfolio_id)
+			db_stocks = self.SQL.GetPortfolioStocks(potrfolio_id)
 			for db_stock in db_stocks:
 				# For each stock in DB
 				ticker = db_stock["ticker"]
@@ -381,23 +390,26 @@ class Context():
 					if "warning" in stock["5D_statistics"] and "warning" in stock["1MO_statistics"]:
 						warning = stock["5D_statistics"]["warning"] & stock["1MO_statistics"]["warning"]
 
-					stocks.append({
-						"ticker":ticker,
-						"name": db_stock["name"],
-						"number": db_stock["amount_sum"],
-						"earnings": earnings,
-						"market_price": price,
-						"hist_price_min": db_stock["hist_min"],
-						"hist_price_max": db_stock["hist_max"],
-						"warning": warning,
-						"statistics": {
-							"weekly": stock["5D_statistics"],
-							"monthly": stock["1MO_statistics"]
+					THIS.Node.EmitOnNodeChange({
+						'event': "stock_info",
+						'data': {
+							"ticker":ticker,
+							"name": db_stock["name"],
+							"number": db_stock["amount_sum"],
+							"earnings": earnings,
+							"market_price": price,
+							"hist_price_min": db_stock["hist_min"],
+							"hist_price_max": db_stock["hist_max"],
+							"warning": warning,
+							"statistics": {
+								"weekly": stock["5D_statistics"],
+								"monthly": stock["1MO_statistics"]
+							}
 						}
 					})
 				else:
 					pass
-
+		
 		return {
 			"portfolio": {
 				"name": payload["portfolio_name"],
@@ -408,140 +420,6 @@ class Context():
 			"stocks": stocks,
 			"status": status
 		}
-	
-	'''
-	def GetPortfolioStocksHandler(self, sock, packet):
-		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload, classname=self.ClassName),5)
-
-		potrfolio_id 	= payload["portfolio_id"]
-		# Get portfolio stocks
-		db_stocks  		= self.SQL.GetPortfolioStocks(potrfolio_id)
-		# Get market class status
-		status = self.Market.GetMarketStatus()
-		if status["local_stock_market_ready"] is False:
-			mkt_stocks 		= self.Market.GetStocks()
-			updated_stocks 	= 0
-			for db_stock in db_stocks:
-				ticker = db_stock["ticker"]
-				if mkt_stocks[ticker]["updated"] is True:
-					updated_stocks += 1
-			status["percentage"] = float("{0:.1f}".format(float(updated_stocks) / float(len(db_stocks)) * 100.0)) 
-			return {
-				"portfolio": None,
-				"stocks": None,
-				"status": status
-			}
-		
-		stocks 					= []
-		portfolio_earnings 		= 0.0
-		portfolio_investment 	= 0.0
-		earnings 				= 0.0
-
-		if len(db_stocks) > 0:
-			try:
-				for db_stock in db_stocks:
-					ticker = db_stock["ticker"]
-					stock = self.Market.GetStockInformation(ticker)
-
-					if stock is not None:
-						warning = 0
-						price = stock["price"]
-						if price > 0:
-							if db_stock["amount_sum"] is not None and db_stock["hist_price_sum"] is not None:
-								earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
-								portfolio_earnings += earnings
-								portfolio_investment += price * db_stock["amount_sum"]
-							else:
-								db_stock["amount_sum"] 	= 0.0
-								db_stock["hist_min"] 	= 0.0
-								db_stock["hist_max"]	= 0.0
-
-						w_min = w_max = w_slope = w_b = w_r2 = w_var = w_std = 0
-						data = stock["5D"]
-						if len(data) > 0:
-							w_min, w_max = self.Market.CalculateMinMax(data)
-							w_slope, w_b, w_r2 = self.Market.GetRegressionLineStatistics(data)
-							w_var, w_std = self.Market.GetBasicStatistics(data)
-						else:
-							warning = 1
-
-						m_min = m_max = m_slope = m_b = m_r2 = m_var = m_std = 0
-						data = stock["1MO"]
-						if len(data) > 0:
-							m_min, m_max = self.Market.CalculateMinMax(data)
-							m_slope, m_b, m_r2 = self.Market.GetRegressionLineStatistics(data)
-							m_var, m_std = self.Market.GetBasicStatistics(data)
-
-							if math.isnan(m_min) is True:
-								warning = 1
-								m_min = 0
-							if math.isnan(m_max) is True:
-								warning = 1
-								m_max = 0
-							if math.isnan(m_slope) is True:
-								warning = 1
-								m_slope = 0
-							if math.isnan(m_b) is True:
-								warning = 1
-								m_b = 0
-							if math.isnan(m_r2) is True:
-								warning = 1
-								m_r2 = 0
-							if math.isnan(m_var) is True:
-								warning = 1
-								m_var = 0
-							if math.isnan(m_std) is True:
-								warning = 1
-								m_std = 0
-						else:
-							warning = 1
-						
-						stocks.append({
-							"ticker":ticker,
-							"name": db_stock["name"],
-							"number": db_stock["amount_sum"],
-							"earnings": earnings,
-							"market_price": price,
-							"hist_price_min": db_stock["hist_min"],
-							"hist_price_max": db_stock["hist_max"],
-							"warning": warning,
-							"statistics": {
-								"weekly": {
-									"min": float("{0:.2f}".format(w_min)),
-									"max": float("{0:.2f}".format(w_max)),
-									"slope": float("{0:.2f}".format(w_slope)),
-									"std": float("{0:.2f}".format(w_std)),
-									"slope_offset": float("{0:.2f}".format(w_b)),
-									"r_value": float("{0:.2f}".format(w_r2)),
-									"varience": float("{0:.2f}".format(w_var))
-								},
-								"monthly": {
-									"min": float("{0:.2f}".format(m_min)),
-									"max": float("{0:.2f}".format(m_max)),
-									"slope": float("{0:.2f}".format(m_slope)),
-									"std": float("{0:.2f}".format(m_std)),
-									"slope_offset": float("{0:.2f}".format(m_b)),
-									"r_value": float("{0:.2f}".format(m_r2)),
-									"varience": float("{0:.2f}".format(m_var))
-								}
-							}
-						})
-			except Exception as e:
-				self.Node.LogMSG("({classname})# [Exeption] ({0})".format(e,classname=self.ClassName), 5)
-		portfolio_earnings   = float("{0:.3f}".format(portfolio_earnings))
-		portfolio_investment = float("{0:.3f}".format(portfolio_investment))
-		return {
-			"portfolio": {
-				"name": payload["portfolio_name"],
-				"earnings": portfolio_earnings,
-				"investment": portfolio_investment,
-				"stocks_count": len(db_stocks)
-			},
-			"stocks": stocks,
-			"status": status
-		}
-	'''
 	
 	def UndefindHandler(self, sock, packet):
 		print ("UndefindHandler")
