@@ -1,3 +1,4 @@
+var G_MODULE_IMPORT_ACTIONS_IMPORT_DATA = [];
 function ModuleImportActions() {
     var self = this;
 
@@ -69,9 +70,9 @@ ModuleImportActions.prototype.ImportStocks = function(id) {
         alert("Portfolio name is empty");
         return;
     }
-
+    
     node.API.SendCustomCommand(NodeUUID, "import_stocks", {
-        "stocks": this.ImportData,
+        "stocks": G_MODULE_IMPORT_ACTIONS_IMPORT_DATA,
         "portfolio_checked": this.ImportDataCreatePortfolioChecked,
         "portfolio_name": document.getElementById("id_m_ipmort_stocks_portfolio_name").value
     }, function(res) {
@@ -128,7 +129,8 @@ ModuleImportActions.prototype.OnUploadCompleteHandler = function(file) {
         }
         table.SetData(data);
         table.Build(document.getElementById("id_import_stocks_table"));
-        self.ImportData = Array.from(importData);
+        console.log(">",importData);
+        G_MODULE_IMPORT_ACTIONS_IMPORT_DATA = Array.from(importData);
         document.getElementById("id_m_ipmort_stocks_block").classList.remove("d-none");
     });
 }

@@ -70,10 +70,57 @@ class Context():
 		self.LocalStoragePath 			= "import"
 
 		self.Timer.AddTimeItem(10, self.PrintConnections)
-		self.Market.FullLoopPerformedCallback = self.FullLoopPerformedEvent
+		self.Market.FullLoopPerformedCallback 	= self.FullLoopPerformedEvent
+		#self.Market.StockChangeCallback 		= self.StockChangeEvent
 	
 	def FullLoopPerformedEvent(self):
 		pass
+
+	def StockChangeEvent(self, stock):
+		self.Node.LogMSG("({classname})# [StockChangeEvent]".format(classname=self.ClassName),5)
+		warning 				= 0
+		price 					= stock["price"]
+		earnings 				= 0.0
+		earnings 				= 0.0
+		ticker 					= stock["ticker"]
+		
+		try:
+			db_stock = self.SQL.GetStockExtetendedInfo(ticker)
+			# Calculate actions min, max and summary
+			if price > 0:
+				if db_stock["amount_sum"] is not None and db_stock["hist_price_sum"] is not None:
+					earnings = float("{0:.3f}".format(db_stock["hist_price_sum"]))
+					if (price * db_stock["amount_sum"]) > 0:
+						earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
+				else:
+					db_stock["amount_sum"] 	= 0.0
+					db_stock["hist_min"] 	= 0.0
+					db_stock["hist_max"]	= 0.0
+			
+			if "warning" in stock["5D_statistics"] and "warning" in stock["1MO_statistics"]:
+				warning = stock["5D_statistics"]["warning"] & stock["1MO_statistics"]["warning"]
+			
+			THIS.Node.EmitOnNodeChange({
+				'event': "stock_info",
+				'data': [
+					{
+						"ticker":ticker,
+						"name": db_stock["name"],
+						"number": db_stock["amount_sum"],
+						"earnings": earnings,
+						"market_price": price,
+						"hist_price_min": db_stock["hist_min"],
+						"hist_price_max": db_stock["hist_max"],
+						"warning": warning,
+						"statistics": {
+							"weekly": stock["5D_statistics"],
+							"monthly": stock["1MO_statistics"]
+						}
+					} 	
+				]
+			})
+		except Exception as e:
+			self.Node.LogMSG("({classname})# [StockChangeEvent] ERROR {0} {1}".format(ticker,e,classname=self.ClassName),5)
 
 	def DBDeleteStockHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
@@ -86,14 +133,15 @@ class Context():
 	def DBInsertStockHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0}".format(payload,classname=self.ClassName),5)
-		info = self.Market.GetStockInfoRaw(payload["ticker"])
-		self.SQL.InsertStock({
-			'name': info["shortName"],
-			'ticker': payload["ticker"],
-			'market_price': info["previousClose"],
-			'sector': info["sector"],
-			'industry': info["industry"]
-		})
+		if self.SQL.StockExist(payload["ticker"]) is False:
+			info = self.Market.GetStockInfoRaw(payload["ticker"])
+			self.SQL.InsertStock({
+				'name': info["shortName"],
+				'ticker': payload["ticker"],
+				'market_price': info["previousClose"],
+				'sector': info["sector"],
+				'industry': info["industry"]
+			})
 		return {
 			"status": True
 		}
@@ -209,16 +257,26 @@ class Context():
 	def ImportStocksHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [ImportStocksHandler]".format(classname=self.ClassName),5)
+		self.Market.PauseMarket()
 		
 		portfolio_id = 1
-		tickers = self.SQL.GetTickers()
 		if payload["portfolio_checked"] is True:
 			if False == self.SQL.PortfolioExist(payload["portfolio_name"]):
 				self.Node.LogMSG("({classname})# [ImportStocksHandler] Create portfolio ({0})".format(payload["portfolio_name"], classname=self.ClassName),5)
 				portfolio_id = self.SQL.InsertPortfolio(payload["portfolio_name"])
-		
 		stocks = payload["stocks"]
-		for item in stocks:
+
+		THIS.Node.EmitOnNodeChange({
+			'event': "upload_progress",
+			'data': {
+				"status": "inprogress",
+				"precentage": "10%",
+				"message": "Importing Stocks.",
+				"file": ""
+			}
+		})
+
+		for idx, item in enumerate(stocks):
 			date 	= item["date"].replace("/","-")
 			ticker 	= item["ticker"]
 			price 	= item["price"]
@@ -239,19 +297,65 @@ class Context():
 					'fee': fee
 				})
 
-				if ticker not in tickers:
-					self.SQL.InsertStock({
-						"name": "",
-						"ticker": ticker,
-						"sector": "",
-						"industry": "",
-						"market_price": float(price)
+				if self.SQL.StockExist(ticker) is False:
+					self.Node.LogMSG("({classname})# [ImportStocksHandler] Insert Stock {0}".format(ticker,classname=self.ClassName),5)
+					info = None
+					try:
+						info = self.Market.GetStockInfoRaw(ticker)
+					except Exception as e:
+						self.Node.LogMSG("({classname})# [ImportStocksHandler] ERROR {0}".format(e,classname=self.ClassName),5)
+					
+					if info is None:
+						self.SQL.InsertStock({
+							'name': "",
+							'ticker': ticker,
+							'market_price': float(price),
+							'sector':"",
+							'industry': ""
+						})
+					else:
+						self.SQL.InsertStock({
+							'name': info["shortName"],
+							'ticker': ticker,
+							'market_price': info["previousClose"],
+							'sector': info["sector"],
+							'industry': info["industry"]
+						})
+					
+					self.Market.AppendStock({
+						"ticker": 	ticker,
+						"price": 	0,
+						"1MO": 		None,
+						"5D": 		None,
+						"updated": 	False,
+						"pulled": 	False
 					})
-					tickers = self.SQL.GetTickers()
+
+					THIS.Node.EmitOnNodeChange({
+						'event': "upload_progress",
+						'data': {
+							"status": "inprogress",
+							"precentage": "{0}%".format(float((idx+1)/len(stocks)) * 100),
+							"message": "Importing Stocks",
+							"file": ""
+						}
+					})
 				
 				if False == self.SQL.StockToPortfolioExist(ticker, portfolio_id):
 					self.SQL.InsertStockToPortfolio(ticker, portfolio_id)
+					
+		self.Market.ContinueMarket()
+		self.Market.UpdateStocks()
 
+		THIS.Node.EmitOnNodeChange({
+			'event': "upload_progress",
+			'data': {
+				"status": "inprogress",
+				"precentage": "100%",
+				"message": "Importing Stocks. Done.",
+				"file": ""
+			}
+		})
 		return {
 			'status': 'success'
 		}
@@ -362,12 +466,12 @@ class Context():
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload, classname=self.ClassName),5)
 
-		potrfolio_id 			= payload["portfolio_id"]
+		self.CurrentPortfolio	= int(payload["portfolio_id"])
 		portfolio_earnings		= 0.0
 		portfolio_investment	= 0.0
 		earnings 				= 0.0
+		stocks_count  			= 0
 		db_stocks 				= []
-		stocks 					= []
 
 		# Stock market status
 		status 			= self.Market.GetMarketStatus()
@@ -375,7 +479,7 @@ class Context():
 		if status["local_stock_market_ready"] is False:
 			updated_stocks 	= 0
 			# Get portfolio stocks
-			db_stocks  		= self.SQL.GetStocksByProfile(potrfolio_id)
+			db_stocks  		= self.SQL.GetStocksByProfile(self.CurrentPortfolio)
 			for db_stock in db_stocks:
 				ticker = db_stock["ticker"]
 				if mkt_stocks[ticker]["updated"] is True:
@@ -388,13 +492,16 @@ class Context():
 			}
 		else:
 			# Get portfolio stocks
-			db_stocks = self.SQL.GetPortfolioStocks(potrfolio_id)
+			db_stocks = self.SQL.GetPortfolioStocks(self.CurrentPortfolio)
+			# For each stock do calculation
+			stocks_in_payload 	= 0
+			stocks_per_payload 	= 50
+			stocks_list 		= []
 			for db_stock in db_stocks:
 				# For each stock in DB
 				ticker = db_stock["ticker"]
 				# Get stock information from cache DB
 				stock = self.Market.GetStockInformation(ticker)
-				# self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(db_stock, classname=self.ClassName),5)
 				if stock is not None:
 					warning 	= 0
 					price 		= stock["price"]
@@ -405,6 +512,7 @@ class Context():
 							earnings = float("{0:.3f}".format(db_stock["hist_price_sum"]))
 							if (price * db_stock["amount_sum"]) > 0:
 								earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
+							stocks_count += db_stock["amount_sum"]
 							portfolio_earnings += earnings
 							portfolio_investment += price * db_stock["amount_sum"]
 						else:
@@ -414,35 +522,47 @@ class Context():
 					
 					if "warning" in stock["5D_statistics"] and "warning" in stock["1MO_statistics"]:
 						warning = stock["5D_statistics"]["warning"] & stock["1MO_statistics"]["warning"]
-
-					THIS.Node.EmitOnNodeChange({
-						'event': "stock_info",
-						'data': {
-							"ticker":ticker,
-							"name": db_stock["name"],
-							"number": db_stock["amount_sum"],
-							"earnings": earnings,
-							"market_price": price,
-							"hist_price_min": db_stock["hist_min"],
-							"hist_price_max": db_stock["hist_max"],
-							"warning": warning,
-							"statistics": {
-								"weekly": stock["5D_statistics"],
-								"monthly": stock["1MO_statistics"]
-							}
+					
+					stocks_in_payload += 1
+					stocks_list.append({
+						"ticker":ticker,
+						"name": db_stock["name"],
+						"number": db_stock["amount_sum"],
+						"earnings": earnings,
+						"market_price": price,
+						"hist_price_min": db_stock["hist_min"],
+						"hist_price_max": db_stock["hist_max"],
+						"warning": warning,
+						"statistics": {
+							"weekly": stock["5D_statistics"],
+							"monthly": stock["1MO_statistics"]
 						}
 					})
 				else:
 					self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] TICKER NULL {0}".format(ticker, classname=self.ClassName),5)
 		
+				if stocks_in_payload == stocks_per_payload:
+					THIS.Node.EmitOnNodeChange({
+						'event': "stock_info",
+						'data': stocks_list
+					})
+					
+					stocks_in_payload 	= 0
+					stocks_list 		= []
+			if stocks_in_payload != 0:
+				THIS.Node.EmitOnNodeChange({
+					'event': "stock_info",
+					'data': stocks_list
+				})
+
 		return {
 			"portfolio": {
 				"name": payload["portfolio_name"],
-				"stocks_count": len(db_stocks),
-				"earnings": portfolio_earnings,
-				"investment": portfolio_investment
+				"companies_count": len(db_stocks),
+				"stocks_count": stocks_count,
+				"earnings": float("{0:.3f}".format(portfolio_earnings)),
+				"investment": float("{0:.3f}".format(portfolio_investment))
 			},
-			"stocks": stocks,
 			"status": status
 		}
 	

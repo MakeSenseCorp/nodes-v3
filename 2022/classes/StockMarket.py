@@ -25,8 +25,11 @@ class StockMarket():
 		self.MarketOpen 				= False
 		self.MarketPollingInterval 		= 1
 		self.Logger						= None
+		self.Halt 						= False
 
 		self.FullLoopPerformedCallback 	= None
+		self.StockChangeCallback 		= None
+		self.StockChangeLocker 			= threading.Lock()
 
 		# Threading section
 		self.ThreadCount				= 5
@@ -136,6 +139,10 @@ class StockMarket():
 				stock["1D_statistics"]  	= self.CalculateBasicStatistics(stock["1D"])
 				stock["5D_statistics"]  	= self.CalculateBasicStatistics(stock["5D"])
 				stock["1MO_statistics"] 	= self.CalculateBasicStatistics(stock["1MO"])
+				if self.StockChangeCallback is not None:
+					self.StockChangeLocker.acquire()
+					self.StockChangeCallback(stock)
+					self.StockChangeLocker.release()
 				time.sleep(Interval)
 				# Free to accept new job
 				self.ThreadPoolStatus[index] = False
@@ -143,6 +150,8 @@ class StockMarket():
 				self.Signal.set()
 			except Exception as e:
 				self.LogMSG("({classname})# [EXCEPTION] MINION {0} {1}".format(index,str(e),classname=self.ClassName), 5)
+				if self.StockChangeLocker.locked is True:
+					self.StockChangeLocker.release()
 				self.ThreadPoolStatus[index] = False
 				self.Signal.set()
 	
@@ -161,49 +170,64 @@ class StockMarket():
 		d_ticker = ""
 		while self.WorkerRunning is True:
 			try:
-				self.MarketOpen = False # self.IsMarketOpen()
-				if self.MarketOpen is True or self.FirstStockUpdateRun is False:
-					if self.MarketOpen is False:
-						self.MarketPollingInterval = 10
-					for ticker in self.CacheDB:
-						stock = self.CacheDB[ticker]
-						d_ticker = ticker
-						ts = time.time()
-						if stock["updated"] is True:
-							vol = stock["1D"][0]["vol"]
-							if vol > 1000000:
-								stock["updated"] = False
-							elif vol > 500000:
-								if ts - stock["ts_last_updated"] > 5.0:
+				self.MarketOpen = self.IsMarketOpen()
+				if self.Halt is False:
+					if self.MarketOpen is True or self.FirstStockUpdateRun is False:
+						if self.MarketOpen is False:
+							self.MarketPollingInterval = 10
+						for ticker in self.CacheDB:
+							if self.Halt is True:
+								# Get out
+								break
+							stock = self.CacheDB[ticker]
+							d_ticker = ticker
+							ts = time.time()
+							if stock["updated"] is True:
+								vol = stock["1D"][0]["vol"]
+								if vol > 1000000:
 									stock["updated"] = False
-							elif vol > 100000:
-								if ts - stock["ts_last_updated"] > 10.0:
-									stock["updated"] = False
-							else:
-								if ts - stock["ts_last_updated"] > 30.0:
-									stock["updated"] = False
-						
-						# Find free queue
-						jobless_minion_found = False
-						while jobless_minion_found is False:
-							for idx, item in enumerate(self.ThreadPoolStatus):
-								if item is False:
-									# Send job to minion
-									self.Queues[idx].put({
-										"ticker": ticker
-									})
-									time.sleep(0.1)
-									jobless_minion_found = True
-									break
-							if jobless_minion_found is False:
-								# self.LogMSG("({classname})# [MASTER] Wait...".format(classname=self.ClassName), 5)
-								self.Signal.clear()
-								# free minion not found, wait
-								self.Signal.wait()
+								elif vol > 500000:
+									if ts - stock["ts_last_updated"] > 5.0:
+										stock["updated"] = False
+								elif vol > 100000:
+									if ts - stock["ts_last_updated"] > 10.0:
+										stock["updated"] = False
+								else:
+									if ts - stock["ts_last_updated"] > 30.0:
+										stock["updated"] = False
+							
+							# Find free queue
+							jobless_minion_found = False
+							while jobless_minion_found is False:
+								for idx, item in enumerate(self.ThreadPoolStatus):
+									if item is False:
+										# Send job to minion
+										self.Queues[idx].put({
+											"ticker": ticker
+										})
+										time.sleep(0.1)
+										jobless_minion_found = True
+										break
+								if jobless_minion_found is False:
+									# self.LogMSG("({classname})# [MASTER] Wait...".format(classname=self.ClassName), 5)
+									self.Signal.clear()
+									# free minion not found, wait
+									self.Signal.wait()
 					self.FirstStockUpdateRun = True
 				time.sleep(self.MarketPollingInterval)
 			except Exception as e:
 				self.LogMSG("({classname})# [Exeption] MASTER ({0}) ({1})".format(d_ticker,e,classname=self.ClassName), 5)
+
+	def PauseMarket(self):
+		self.LogMSG("({classname})# [PauseMarket]".format(classname=self.ClassName), 5)
+		self.Halt = True
+	
+	def ContinueMarket(self):
+		self.LogMSG("({classname})# [ContinueMarket]".format(classname=self.ClassName), 5)
+		self.Halt = False
+
+	def UpdateStocks(self):
+		self.FirstStockUpdateRun = False
 
 	def AppendStock(self, stock):
 		self.Locker.acquire()

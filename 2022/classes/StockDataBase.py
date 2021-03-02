@@ -51,6 +51,18 @@ class StockDB():
 							"id"	INTEGER,
 							"name"	TEXT
 						);''')
+		self.Init()
+
+	def Init(self):
+		self.CURS.execute("SELECT * FROM actions WHERE id=1")
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			return
+		
+		self.CURS.execute("INSERT INTO actions (id,name) VALUES(-1,'BUY')")
+		self.CURS.execute("INSERT INTO actions (id,name) VALUES(1,'SELL')")
+		self.CURS.execute("INSERT INTO portfolios (id,name) VALUES(1,'Watch')")
+		self.DB.commit()
 
 	def GetPortfolios(self):
 		query = "SELECT * FROM portfolios"
@@ -131,6 +143,37 @@ class StockDB():
 			for row in rows:
 				tickers.append(row[1])
 		return tickers
+
+	def GetStockExtetendedInfo(self, ticker):
+		query = '''
+		SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, hist_max, hist_min FROM stocks_info 
+		LEFT JOIN (
+			SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum
+			FROM stocks_history 
+			GROUP BY ticker) as hist ON hist.ticker == stocks_info.ticker
+		LEFT JOIN (
+			SELECT ticker, MAX(price) as hist_max, MIN(price) as hist_min
+			FROM stocks_history
+			WHERE action == -1
+			GROUP BY ticker) as tbl_actions ON tbl_actions.ticker == stocks_info.ticker
+		WHERE stocks_info.ticker = '{0}'
+		'''.format(ticker)
+
+		self.CURS.execute(query)
+		rows = self.CURS.fetchall()
+		
+		if len(rows) > 0:
+			return {
+					"ticker": rows[0][0],
+					"name": rows[0][1],
+					"market_price": rows[0][2],
+					"curr_price_sum": rows[0][3],
+					"hist_price_sum": rows[0][4],
+					"amount_sum": rows[0][5],
+					"hist_max": rows[0][6],
+					"hist_min": rows[0][7]
+				}
+		return None
 
 	def GetPortfolioStocks(self, id):
 		stocks = []
@@ -224,6 +267,20 @@ class StockDB():
 			return True
 		
 		return False
+	
+	def StockExist(self, ticker):
+		if self.GetStock(ticker) is not None:
+			return True
+		return False
+	
+	def GetStock(self, ticker):
+		query = "SELECT * FROM stocks_info WHERE ticker='{0}'".format(ticker)
+		self.CURS.execute(query)
+		
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			return rows[0]
+		return None
 	
 	def InsertStock(self, stock):
 		query = '''

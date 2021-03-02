@@ -64,6 +64,10 @@ ModuleStockView.prototype.Build = function(data, callback) {
         self.StockLoaderProgressBar.Build(document.getElementById("id_stocks_loading_progressbar"));
         self.StockLoaderProgressBar.Show();
 
+        this.PortfolioID            = 0;
+        this.PortfolioName          = "All"
+        this.PortfolioStocksCount   = 0;
+
         if (callback !== undefined && callback != null) {
             callback(self);
         }
@@ -71,9 +75,11 @@ ModuleStockView.prototype.Build = function(data, callback) {
 }
 
 ModuleStockView.prototype.RebuildPortfolioEarnings = function(portfolio) {
-    this.objPortfolioInvestment.innerHTML   = portfolio.investment;
-    this.objPortfolioStocksCount.innerHTML  = portfolio.stocks_count;
     this.objPortfolioEarnings.innerHTML     = portfolio.earnings;
+    this.objPortfolioInvestment.innerHTML   = portfolio.investment;
+
+    this.objPortfolioStocksCount.innerHTML  = portfolio.companies_count;
+    this.objPortfolioStocksNumber.innerHTML = portfolio.stocks_count;
     if (portfolio.earnings < 0) {
         this.objPortfolioEarnings.style.color = "RED";
     } else {
@@ -81,52 +87,35 @@ ModuleStockView.prototype.RebuildPortfolioEarnings = function(portfolio) {
     }
 }
 
-ModuleStockView.prototype.BuildStockAsync = function(stock) {
+ModuleStockView.prototype.BuildStockAsync = function(stocks) {
     var row = new ModuleRowStock();
-    document.getElementById("id_m_stock_view_loader_ui").classList.add("d-none");
-    stock.ui_size = "sm";
-    if (row.RowExist(stock.ticker) == false) {
-        this.objStockTable.innerHTML += row.Build(stock);
-        this.PortfolioStocksCount += stock.number;
+
+    for (key in stocks) {
+        stock = stocks[key];
+        stock.ui_size = "sm";
+        if (row.RowExist(stock.ticker) == false) {
+            this.objStockTable.innerHTML += row.Build(stock);
+        }
+    
+        row.SetTicker(stock.ticker);
+        row.SetPrice(stock.ticker, stock.market_price);
+        row.SetAmomunt(stock.ticker, stock.number);
+        row.SetEarnings(stock.ticker, stock.earnings);
+        row.SetStockLine(stock);
     }
 
-    row.SetTicker(stock.ticker);
-    row.SetPrice(stock.ticker, stock.market_price);
-    row.SetAmomunt(stock.ticker, stock.number);
-    row.SetEarnings(stock.ticker, stock.earnings);
-    row.SetStockLine(stock);
-    
-    this.objPortfolioStocksNumber.innerHTML = this.PortfolioStocksCount;
     $('[data-toggle="tooltip"]').tooltip();
 }
 
-ModuleStockView.prototype.UpdateStocksPrice = function() {
-    var self = this;
-
-    node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
-        "portfolio_id": parseInt(this.PortfolioID),
-        "portfolio_name": this.PortfolioName
-    }, function(res) {
-        var payload = res.data.payload;
-        var portfolio = payload.portfolio;
-        
-        self.objPortfolioEarnings.innerHTML = portfolio.earnings;
-        if (portfolio.earnings < 0) {
-            self.objPortfolioEarnings.style.color = "RED";
-        } else {
-            self.objPortfolioEarnings.style.color = "GREEN";
-        }
-
-        self.RebuildPortfolioEarnings(payload.portfolio);
-    });
+ModuleStockView.prototype.HideLoader = function() {
+    var objLoader = document.getElementById("id_m_stock_view_loader_ui");
+    if (objLoader !== undefined || objLoader !== null) {
+        objLoader.classList.add("d-none");
+    }
 }
 
 ModuleStockView.prototype.GetStocks = function() {
     var self = this;
-
-    this.PortfolioID            = 0;
-    this.PortfolioName          = "All"
-    this.PortfolioStocksCount   = 0;
 
     node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
         "portfolio_id": this.PortfolioID,
@@ -142,9 +131,11 @@ ModuleStockView.prototype.GetStocks = function() {
             return;
         }
 
+        self.HideLoader();
         self.StockLoaderProgressBar.Hide();
         self.RebuildPortfolioEarnings(payload.portfolio);
-        self.GetStocksTimerHndl = setInterval(self.UpdateStocksPrice.bind(self), 10000);
+        setTimeout(self.GetStocks.bind(self), 10000);
+        // self.GetStocksTimerHndl = setInterval(self.GetStocks.bind(self), 10000);
     });
 }
 

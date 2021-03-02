@@ -249,22 +249,22 @@
 				window.StockView = new ModuleStockView();
 				window.StockView.SetHostingID("id_application_view_module");
 				window.StockView.SetObjectDOMName("window.StockView");
-				/*
+				
 				window.StockView.Build(null, function(module) {
 					ui = new NodeUI(node.API);
 					window.StockView.UpdatePortfolioList();
 					window.StockView.GetStocks();
 				});
-				*/
+				
 				window.StockAppend = new ModuleStockAppend();
 				window.StockAppend.SetHostingID("id_application_view_module");
 				window.StockAppend.SetObjectDOMName("window.StockAppend");
-				
+				/*
 				window.StockAppend.Build(null, function(module) {
 					ui = new NodeUI(node.API);
 					window.StockAppend.GetDataBaseStocks();
 				});
-				
+				*/
 
 				window.Portfolio = new ModulePortfolioView();
 				window.Portfolio.SetHostingID("id_application_view_module");
