@@ -54,6 +54,8 @@ class Context():
 			'get_stock_portfolios':		self.GetStockPortfolios,
 			'set_stock_portfolios':		self.SetStockPortfolios,
 			'delete_portfolio':			self.DeletePortfolioHandler,
+			'db_insert_stock':			self.DBInsertStockHandler,
+			'db_delete_stock':			self.DBDeleteStockHandler,
 			'undefined':				self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -72,6 +74,29 @@ class Context():
 	
 	def FullLoopPerformedEvent(self):
 		pass
+
+	def DBDeleteStockHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [DBDeleteStockHandler] {0}".format(payload,classname=self.ClassName),5)
+		self.SQL.DeleteStock(payload["ticker"])
+		return {
+			"status": True
+		}
+	
+	def DBInsertStockHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0}".format(payload,classname=self.ClassName),5)
+		info = self.Market.GetStockInfoRaw(payload["ticker"])
+		self.SQL.InsertStock({
+			'name': info["shortName"],
+			'ticker': payload["ticker"],
+			'market_price': info["previousClose"],
+			'sector': info["sector"],
+			'industry': info["industry"]
+		})
+		return {
+			"status": True
+		}
 
 	def DeletePortfolioHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
@@ -123,7 +148,7 @@ class Context():
 							exist = 1
 						else:
 							exist = 0
-						# TODO - Check each field for correctness						
+						# TODO - Check each field for correctness
 						data.append({
 							"date": 	cols[0],
 							"ticker": 	cols[1],
@@ -408,7 +433,7 @@ class Context():
 						}
 					})
 				else:
-					pass
+					self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] TICKER NULL {0}".format(ticker, classname=self.ClassName),5)
 		
 		return {
 			"portfolio": {

@@ -50,6 +50,27 @@ ModuleStockAppend.prototype.ShowStockAppendCheckbox = function(obj) {
     }
 }
 
+ModuleStockAppend.prototype.AppendStock = function() {
+    var self = this;
+    var ticker = document.getElementById('d_m_stock_append_stock_find_ticker').value;
+    node.API.SendCustomCommand(NodeUUID, "db_insert_stock", {
+        'ticker': ticker
+    }, function(res) {
+        var payload = res.data.payload;
+        self.GetDataBaseStocks();
+    });
+}
+
+ModuleStockAppend.prototype.DeleteStock = function(ticker) {
+    var self = this;
+    node.API.SendCustomCommand(NodeUUID, "db_delete_stock", {
+        'ticker': ticker
+    }, function(res) {
+        var payload = res.data.payload;
+        self.GetDataBaseStocks();
+    });
+}
+
 ModuleStockAppend.prototype.FindStockInMarket = function() {
     var ticker = document.getElementById('d_m_stock_append_stock_find_ticker').value;
 
@@ -103,7 +124,7 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
                                         </button>
                                         <div class="dropdown-menu text-center" aria-labelledby="dropdownMenuButton">
                                             <span class="dropdown-item" style="color: BLUE; cursor:pointer" onclick="[DOM].OpenPortfolioSelectorModal('[TICKER]');">Portfolios</span>
-                                            <span class="dropdown-item" style="color: RED; cursor:pointer">Delete</span>
+                                            <span class="dropdown-item" style="color: RED; cursor:pointer" onclick="[DOM].DeleteStock('[TICKER]');">Delete</span>
                                         </div>
                                     </div>
                                 </div>
@@ -128,10 +149,6 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
             }
         });
     });
-}
-
-ModuleStockAppend.prototype.AppendStock = function(ticker) {
-
 }
 
 ModuleStockAppend.prototype.Hide = function() {

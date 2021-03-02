@@ -229,7 +229,7 @@ class StockDB():
 		query = '''
 			INSERT INTO stocks_info (name,ticker,sector,industry,market_price)
 			VALUES ('{0}','{1}','{2}','{3}',{4})
-		'''.format(stock["name"],stock["ticker"],stock["sector"],stock["industry"],stock["market_price"])
+		'''.format(stock["name"],stock["ticker"].upper(),stock["sector"],stock["industry"],stock["market_price"])
 		self.CURS.execute(query)
 		self.DB.commit()
 		return self.CURS.lastrowid
@@ -291,4 +291,17 @@ class StockDB():
 			DELETE FROM portfolios
 			WHERE id = {0}
 		'''.format(id))
+		self.DB.commit()
+	
+	def DeleteStock(self, ticker):
+		self.CURS.execute('''
+			DELETE FROM stock_to_portfolio
+			WHERE ticker = '{0}'
+		'''.format(ticker))
+		self.DB.commit()
+
+		self.CURS.execute('''
+			DELETE FROM stocks_info
+			WHERE ticker = '{0}'
+		'''.format(ticker))
 		self.DB.commit()
