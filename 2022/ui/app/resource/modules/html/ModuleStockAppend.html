@@ -1,32 +1,31 @@
 <div class="container">
     <div class="row">
         <div class="col-xl-12">
-            <h4 class="mb-3">Look For Stock</h4>
-            <div class="card">
-                <div class="card-body">
-                    <div class="mb-3">
-                        <div class="input-group">
-                            <input type="text" id="d_m_stock_append_stock_find_ticker" class="form-control" placeholder="Ticker">
-                            <div class="input-group-append">
-                                <button class="btn btn-secondary" onclick="">
-                                    <span class="spinner-grow spinner-grow-sm d-none" role="status" aria-hidden="true"></span>
-                                    <span onclick="window.StockAppend.FindStockInMarket();">Find</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="d_m_stock_append_stock_graph"></div>
-                    <div class="mb-3">
-                        <br/>
-                        <div id="id_m_stock_append_info_container"></div>
-                    </div>
-                    <div class="mb-3" id="id_m_stock_append_add_new_stock">
-                        <button class="btn btn-secondary" onclick="window.StockAppend.AppendStock();">Append</button>
-                    </div>
+            <h5 class="mb-3">Search stock market</h5>
+            <div class="mb-3">
+                <div class="input-group">
+                    <input type="text" id="d_m_stock_append_stock_find_ticker" class="form-control mr-sm-2" placeholder="Ticker">
+                    <button class="btn btn-outline-success my-2 my-sm-0" onclick="window.StockAppend.FindStockInMarket();">Search</button>
                 </div>
             </div>
-            <hr class="mb-4">
-            <div id="id_m_stock_append_stock_table"></div>
+            <div class="row">
+                <div class="col-xl-6">
+                    <div id="id_m_stock_append_info_container"></div>
+                    <div class="mb-3 d-none" id="id_m_stock_append_add_new_stock">
+                        <br>
+                        <button class="btn btn-outline-secondary" onclick="window.StockAppend.AppendStock();">Append</button>
+                    </div>
+                </div>
+                <div class="col-xl-6">
+                    <div id="d_m_stock_append_stock_graph"></div>
+                </div>
+            </div>            
+            <h5 class="mb-3">My stocks</h5>
+            <div class="row" id="id_m_stock_append_stock_stocks_view">
+                <div class="col-xl-12">
+                    <div id="id_m_stock_append_stock_table"></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

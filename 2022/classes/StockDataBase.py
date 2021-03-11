@@ -19,21 +19,28 @@ class StockDB():
 		self.BuildSchema()
 	
 	def BuildSchema(self):
+		'''
+			leftovers - How many stock still available for this buy.
+		'''
 		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stocks_history" (
+							"id"		INTEGER PRIMARY KEY AUTOINCREMENT,
 							"timestamp"	REAL NOT NULL,
-							"date"	TEXT NOT NULL,
+							"date"		TEXT NOT NULL,
 							"ticker"	TEXT NOT NULL,
-							"price"	REAL NOT NULL,
+							"price"		REAL NOT NULL,
 							"action"	INTEGER NOT NULL,
 							"amount"	INTEGER,
-							"fee"	REAL
+							"fee"		REAL,
+							"leftovers" INTEGER,
+							"risk"		REAL
 						);''')
 		
 		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stocks_info" (
-							"name"	TEXT NOT NULL,
-							"ticker"	TEXT NOT NULL,
-							"sector"	TEXT,
-							"industry"	TEXT,
+							"id"			INTEGER PRIMARY KEY AUTOINCREMENT,
+							"name"			TEXT NOT NULL,
+							"ticker"		TEXT NOT NULL,
+							"sector"		TEXT,
+							"industry"		TEXT,
 							"market_price"	REAL
 						);''')
 				
@@ -43,7 +50,7 @@ class StockDB():
 						);''')
 		
 		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stock_to_portfolio" (
-							"ticker"	TEXT NOT NULL,
+							"ticker"		TEXT NOT NULL,
 							"portfolio_id"	INTEGER NOT NULL
 						);''')
 
@@ -51,10 +58,29 @@ class StockDB():
 							"id"	INTEGER,
 							"name"	TEXT
 						);''')
+		
+		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stocks_history_sell_info" (
+							"id"						INTEGER PRIMARY KEY AUTOINCREMENT,
+							"stocks_history_sell_id" 	INTEGER,
+							"stocks_history_buy_id" 	INTEGER,
+							"quantity"					INTEGER
+						);''')
+		
+		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stocks_history_actions" (
+							"id"						INTEGER PRIMARY KEY AUTOINCREMENT,
+							"action" 					INTEGER,
+							"timestamp" 				REAL,
+							"info"						TEXT
+						);''')
 		self.Init()
 
 	def Init(self):
 		self.CURS.execute("SELECT * FROM actions WHERE id=1")
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			return
+		
+		self.CURS.execute("SELECT * FROM portfolios WHERE id=1")
 		rows = self.CURS.fetchall()
 		if len(rows) > 0:
 			return
@@ -284,8 +310,8 @@ class StockDB():
 	
 	def InsertStock(self, stock):
 		query = '''
-			INSERT INTO stocks_info (name,ticker,sector,industry,market_price)
-			VALUES ('{0}','{1}','{2}','{3}',{4})
+			INSERT INTO stocks_info (id,name,ticker,sector,industry,market_price)
+			VALUES (NULL,'{0}','{1}','{2}','{3}',{4})
 		'''.format(stock["name"],stock["ticker"].upper(),stock["sector"],stock["industry"],stock["market_price"])
 		self.CURS.execute(query)
 		self.DB.commit()
@@ -302,9 +328,9 @@ class StockDB():
 	
 	def InsertStockHistory(self, transaction):
 		query = '''
-			INSERT INTO stocks_history (timestamp,date,ticker,price,action,amount,fee)
-			VALUES ({0},'{1}','{2}',{3},{4},{5},{6})
-		'''.format(transaction["timestamp"],transaction["date"],transaction["ticker"],transaction["price"],transaction["action"],transaction["amount"],transaction["fee"])
+			INSERT INTO stocks_history (id,timestamp,date,ticker,price,action,amount,fee,leftovers,risk)
+			VALUES (NULL,{0},'{1}','{2}',{3},{4},{5},{6},{7},{8})
+		'''.format(transaction["timestamp"],transaction["date"],transaction["ticker"],transaction["price"],transaction["action"],transaction["amount"],transaction["fee"],0,2.0)
 
 		self.CURS.execute(query)
 		self.DB.commit()

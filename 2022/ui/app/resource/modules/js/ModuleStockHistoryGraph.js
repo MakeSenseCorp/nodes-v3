@@ -9,7 +9,7 @@ function ModuleStockHistoryGraph(name, ticker) {
                 <div class="card-body">
                     <div class="row">
                         <div class="col-lg-12 text-center">
-                            <div class="btn-group" role="group" aria-label="Basic example">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Basic example">
                                 <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraph('1d','1m');">1D</button>
                                 <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraph('5d','5m');">5D</button>
                                 <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraph('1mo','30m');">1MO</button>
@@ -17,15 +17,18 @@ function ModuleStockHistoryGraph(name, ticker) {
                                 <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraph('6mo','1d');">6MO</button>
                                 <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraph('1y','1d');">1Y</button>
                             </div>
-                            <div class="btn-group" role="group" aria-label="Basic example">
-                                <button type="button" class="btn btn-outline-secondary">High</button>
-                                <button type="button" class="btn btn-outline-secondary">Low</button>
-                                <button type="button" class="btn btn-outline-secondary">Regression</button>
-                            </div>
                         </div>
                     </div>
                     <hr class="mb-4">
                     <div class="row">
+                        <div class="col-xl-12 d-none" style="text-align: center;" id="id_m_stock_history_loader_[ID]_[NAME]">
+                            <br>
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="sr-only">Loading...</span>
+                            </div>
+                            <br>
+                            <br>
+                        </div>
                         <div class="col-lg-12">
                             <div id="id_m_stock_history_graph_[ID]_[NAME]"></div>
                             <br/>
@@ -86,6 +89,7 @@ ModuleStockHistoryGraph.prototype.DownloadStockHistory = function(ticker, period
 
 ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
     var self = this;
+    this.ShowLoader();
     this.DownloadStockHistory(this.Ticker, period, interval, function(data) {
         self.GraphHistoryCtx.Configure({
             "type": "line",
@@ -113,6 +117,7 @@ ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
             "title": "Regression"
         });
         self.GraphHistoryCtx.Build(document.getElementById("id_m_stock_history_graph_"+self.HostingID+"_"+self.Name));
+        self.HideGraphLoader();
         /*
         self.GraphHistogramCtx.Configure({
             "type": "bar",
@@ -135,6 +140,16 @@ ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
         self.GraphHistogramCtx.Build(document.getElementById("id_m_stock_histogram_graph_"+self.HostingID+"_"+self.Name));
         */
     });
+}
+
+ModuleStockHistoryGraph.prototype.HideGraphLoader = function() {
+    var self = this;
+    document.getElementById("id_m_stock_history_loader_"+self.HostingID+"_"+self.Name).classList.add("d-none");
+}
+
+ModuleStockHistoryGraph.prototype.ShowLoader = function() {
+    var self = this;
+    document.getElementById("id_m_stock_history_loader_"+self.HostingID+"_"+self.Name).classList.remove("d-none");
 }
 
 ModuleStockHistoryGraph.prototype.Hide = function() {

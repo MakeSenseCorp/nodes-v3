@@ -61,38 +61,37 @@
     </head>
     <body>
         <main role="main" class="container">
-        	<div class="row">
-				<div class="col-xl-1"></div>
-				<div class="col-xl-10">
-					<div class="bd-example">
-						<div class="card">
-							<div class="card-body">
-								<div class="row text-center">
-									<div class="col-xl-2">
-										<a href="#" onclick="ui.ViewDashboard();"><strong>Dasboard</strong></a>
-									</div>
-									<div class="col-xl-2">
-										<a href="#" onclick="ui.OpenModalPortfolio();"><strong>Portfolios</strong></a>
-									</div>
-									<div class="col-xl-2">
-										<a href="#" onclick="ui.OpenModalAppendNewStock();"><strong>Stocks</strong></a>
-									</div>
-									<div class="col-xl-2">
-										<a href="#"><strong>Export</strong></a>
-									</div>
-									<div class="col-xl-2">
-										<a href="#" onclick="ui.OpenModalImportStocks();"><strong>Import</strong></a>
-									</div>
-									<div class="col-xl-2">
-										<a href="#"><strong>Settings</strong></a>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
+			<br>
+			<br>
+			<nav class="navbar navbar-expand-lg navbar-light bg-light">
+				<a class="navbar-brand" href="#">
+					<img id="navbar_icon" data-obj="mks" width="30" height="30" src="resource/img/main_icon.jpg" class="d-inline-block align-top" alt="" />
+					Stock Monitor
+				</a>
+				<div class="collapse navbar-collapse">
+					<ul class="navbar-nav">
+						<li class="nav-item">
+							<a class="nav-link" href="#" onclick="ui.ViewDashboard();">Dashboard</a>
+						</li>
+						<li class="nav-item active">
+							<a class="nav-link" href="#" onclick="ui.OpenModalPortfolio();">Portfolios</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link" href="#" onclick="ui.OpenModalAppendNewStock();">Stocks</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link" href="#">Export</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link" href="#" onclick="ui.OpenModalImportStocks();">Import</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link" href="#">Settings</a>
+						</li>
+					</ul>
 				</div>
-				<div class="col-xl-1"></div>
-			</div>
+			</nav>
+			<br>
 			<div>
 				<br>
 				<div id="id_application_view_module"></div>

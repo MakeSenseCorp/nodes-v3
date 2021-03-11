@@ -314,12 +314,24 @@ class Context():
 							'industry': ""
 						})
 					else:
+						name = ""
+						if "shortName" in info:
+							name = info["shortName"]
+						sector = ""
+						if "sector" in info:
+							sector = info["sector"]
+						industry = ""
+						if "industry" in info:
+							industry = info["industry"]
+						previousClose = 0
+						if "previousClose" in info:
+							previousClose = info["previousClose"]
 						self.SQL.InsertStock({
-							'name': info["shortName"],
+							'name': name,
 							'ticker': ticker,
-							'market_price': info["previousClose"],
-							'sector': info["sector"],
-							'industry': info["industry"]
+							'market_price': previousClose,
+							'sector': sector,
+							'industry': industry
 						})
 					
 					self.Market.AppendStock({
@@ -335,7 +347,7 @@ class Context():
 						'event': "upload_progress",
 						'data': {
 							"status": "inprogress",
-							"precentage": "{0}%".format(float((idx+1)/len(stocks)) * 100),
+							"precentage": "{0:.1f}%".format(float((idx+1)/len(stocks)) * 100),
 							"message": "Importing Stocks",
 							"file": ""
 						}

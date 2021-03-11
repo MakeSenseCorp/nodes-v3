@@ -42,11 +42,12 @@ ModuleStockInfo.prototype.Build = function(data, callback) {
     });
 }
 
-ModuleStockInfo.prototype.GetStockInfo = function(ticker) {
+ModuleStockInfo.prototype.GetStockInfo = function(ticker, callback) {
     if (ticker === undefined || ticker === null) {
         return false;
     }
 
+    this.ShowLoader();
     var self = this;
     node.API.SendCustomCommand(NodeUUID, "download_stock_info", {
         "ticker": ticker
@@ -62,8 +63,17 @@ ModuleStockInfo.prototype.GetStockInfo = function(ticker) {
         self.Beta.innerHTML                     = payload.info.beta;
         self.FloatShares.innerHTML              = payload.info.floatShares;
         self.Show();
-        return true;
+        self.HideLoader();
+        callback(self);
     });
+}
+
+ModuleStockInfo.prototype.HideLoader = function() {
+    document.getElementById("id_m_stock_info_stock_loader").classList.add("d-none");
+}
+
+ModuleStockInfo.prototype.ShowLoader = function() {
+    document.getElementById("id_m_stock_info_stock_loader").classList.remove("d-none");
 }
 
 ModuleStockInfo.prototype.Hide = function() {
