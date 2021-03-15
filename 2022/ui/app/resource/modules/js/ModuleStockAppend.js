@@ -10,6 +10,9 @@ function ModuleStockAppend() {
     this.ComponentObject            = null;
     this.StockGraph                 = null;
     this.Selector                   = null;
+    // Portfolio
+    this.PortfolioID 	            = 0;
+    this.PortfolioName              = "All";
 
     return this;
 }
@@ -110,49 +113,63 @@ ModuleStockAppend.prototype.UpdateStockInfoView = function(ticker) {
     this.FindStockInMarket();
 }
 
+ModuleStockAppend.prototype.UpdateStockTableFromLocalMarket = function() {
+    for (key in market.Stocks) {
+        var stock = market.Stocks[key];
+        document.getElementById("id_m_stock_append_table_price_"+stock.ticker).innerHTML = stock.market_price;
+    }
+}
+
+ModuleStockAppend.prototype.UpdateStockTableAsync = function(data, scope) {
+    for (key in data) {
+        var stock = data[key];
+        if (document.getElementById("id_m_stock_append_table_price_"+stock.ticker) === undefined || document.getElementById("id_m_stock_append_table_price_"+stock.ticker) === null) {
+            return;
+        }
+        document.getElementById("id_m_stock_append_table_price_"+stock.ticker).innerHTML = stock.market_price;
+    }
+}
+
 ModuleStockAppend.prototype.GetDataBaseStocks = function() {
     var self = this;
+    
     node.API.SendCustomCommand(NodeUUID, "get_db_stocks", {
     }, function(res) {
         var payload = res.data.payload;
-        var stockTable = new MksBlockTable();
-        var tableData = []
-        
+        var table = new MksBasicTable();
+        table.SetSchema(["", "", "", "", "", "", ""]);
+        var data = [];
         for (key in payload.stocks) {
             stock = payload.stocks[key];
-            var ticker = `<a href="#" onclick="[DOM].UpdateStockInfoView('[TICKER]');">[TICKER]</a>`;
-            var options = `
-                            <div class="row">
-                                <div class="col align-middle">
-                                    <strong><span class="align-middle" style="color: RED; cursor: pointer;" onclick="">Buy</span></strong>
-                                </div>
-                                <div class="col align-middle">
-                                    <strong><span class="align-middle" style="color: GREEN; cursor: pointer;" onclick="">Sell</span></strong>
-                                </div>
-                                <div class="col">
-                                    <div class="dropdown">
-                                        <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                            <span data-feather="menu"></span>
-                                        </button>
-                                        <div class="dropdown-menu text-center" aria-labelledby="dropdownMenuButton">
-                                            <span class="dropdown-item" style="color: BLUE; cursor:pointer" onclick="[DOM].OpenPortfolioSelectorModal('[TICKER]');">Portfolios</span>
-                                            <span class="dropdown-item" style="color: RED; cursor:pointer" onclick="[DOM].DeleteStock('[TICKER]');">Delete</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>`;
-            ticker = ticker.split("[DOM]").join(self.DOMName);
-            ticker = ticker.split("[TICKER]").join(stock.ticker);
-            options = options.split("[DOM]").join(self.DOMName);
-            options = options.split("[TICKER]").join(stock.ticker);
-            tableData.push({
-                "item1": ticker,
-                "item2": stock.name,
-                "item3": options
-            });
+            row = [];
+            row.push(`<h6 class="my-0"><a href="#" onclick="`+self.DOMName+`.UpdateStockInfoView('`+stock.ticker+`');">`+stock.ticker+`</a></h6>`);
+            row.push(0);
+            row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`">`+stock.market_price+`<span>`);
+            row.push(0);
+            row.push(`
+                <strong><span class="align-middle" style="color: RED; cursor: pointer;" onclick="">Buy</span></strong>
+            `);
+            row.push(`
+                <strong><span class="align-middle" style="color: GREEN; cursor: pointer;" onclick="">Sell</span></strong>
+            `);
+            row.push(`
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <span data-feather="menu"></span>
+                    </button>
+                    <div class="dropdown-menu text-center" aria-labelledby="dropdownMenuButton">
+                        <span class="dropdown-item" style="color: BLUE; cursor:pointer" onclick="`+self.DOMName+`.OpenPortfolioSelectorModal('`+stock.ticker+`');">Portfolios</span>
+                        <span class="dropdown-item" style="color: RED; cursor:pointer" onclick="`+self.DOMName+`.DeleteStock(`+stock.ticker+`');">Delete</span>
+                    </div>
+                </div>
+            `);
+
+            data.push(row);
         }
-        stockTable.SetData(tableData);
-        stockTable.Build(document.getElementById("id_m_stock_append_stock_table"));
+        table.ShowRowNumber(false);
+        table.ShowHeader(false);
+        table.SetData(data);
+        table.Build(document.getElementById("id_m_stock_append_stock_table"));
 
         document.getElementById('d_m_stock_append_stock_find_ticker').addEventListener('keyup', function(event) {
             if (event.code === 'Enter') {
@@ -162,6 +179,7 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
         });
         // document.getElementById('id_m_stock_append_stock_stocks_view').classList.remove("d-none");
         feather.replace();
+        self.UpdateStockTableFromLocalMarket();
     });
 }
 

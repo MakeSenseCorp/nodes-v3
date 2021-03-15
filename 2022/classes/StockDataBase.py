@@ -124,11 +124,12 @@ class StockDB():
 		if len(rows) > 0:
 			for row in rows:
 				stocks.append({
-					"name": row[0],
-					"ticker": row[1],
-					"sector": row[2],
-					"industry": row[3],
-					"market_price": row[4]
+					"id":			row[0],
+					"name": 		row[1],
+					"ticker": 		row[2],
+					"sector": 		row[3],
+					"industry": 	row[4],
+					"market_price": row[5]
 				})
 		return stocks
 	
@@ -151,11 +152,12 @@ class StockDB():
 		if len(rows) > 0:
 			for row in rows:
 				stocks.append({
-					"name": row[0],
-					"ticker": row[1],
-					"sector": row[2],
-					"industry": row[3],
-					"market_price": row[4]
+					"id":			row[0],
+					"name": 		row[1],
+					"ticker": 		row[2],
+					"sector": 		row[3],
+					"industry": 	row[4],
+					"market_price": row[5]
 				})
 		return stocks
 	
@@ -167,7 +169,7 @@ class StockDB():
 		rows = self.CURS.fetchall()
 		if len(rows) > 0:
 			for row in rows:
-				tickers.append(row[1])
+				tickers.append(row[2])
 		return tickers
 
 	def GetStockExtetendedInfo(self, ticker):

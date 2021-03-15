@@ -73,17 +73,17 @@
 						<li class="nav-item">
 							<a class="nav-link" href="#" onclick="ui.ViewDashboard();">Dashboard</a>
 						</li>
+						<li class="nav-item">
+							<a class="nav-link" href="#" onclick="ui.OpenModalAppendNewStock();">Stocks</a>
+						</li>
 						<li class="nav-item active">
 							<a class="nav-link" href="#" onclick="ui.OpenModalPortfolio();">Portfolios</a>
 						</li>
 						<li class="nav-item">
-							<a class="nav-link" href="#" onclick="ui.OpenModalAppendNewStock();">Stocks</a>
+							<a class="nav-link" href="#" onclick="ui.OpenModalImportStocks();">Import</a>
 						</li>
 						<li class="nav-item">
 							<a class="nav-link" href="#">Export</a>
-						</li>
-						<li class="nav-item">
-							<a class="nav-link" href="#" onclick="ui.OpenModalImportStocks();">Import</a>
 						</li>
 						<li class="nav-item">
 							<a class="nav-link" href="#">Settings</a>
@@ -144,7 +144,74 @@
 				// User Code #1 - Start
 				
 				// User Code #1 - End
-			});		
+			});
+			
+			function StockMarket(api) {
+				this.Stocks 		= {};
+				this.MarketStatus 	= null;
+				this.UpdateInterval	= 10000;
+				this.DoWork 		= false;
+
+				this.Callbacks 		= [];
+
+				return this;
+			}
+
+			StockMarket.prototype.GetStocks = function() {
+				var self = this;
+
+				node.API.SendCustomCommand(NodeUUID, "get_market_stocks", {
+				}, function(res) {
+					var payload = res.data.payload;
+					this.MarketStatus = payload.status;
+					if (payload.status.local_stock_market_ready == false) {
+						if (self.DoWork === true) {
+							setTimeout(self.GetStocks.bind(self), 2500);
+						}
+						return;
+					}
+					if (self.DoWork === true) {
+						setTimeout(self.GetStocks.bind(self), self.UpdateInterval);
+					}
+				});
+			}
+
+			StockMarket.prototype.Start = function() {
+				this.DoWork = true;
+				this.GetStocks();
+			}
+
+			StockMarket.prototype.Stop = function() {
+				this.DoWork = false;
+			}
+
+			StockMarket.prototype.Publish = function(data) {
+				for (key in data) {
+					var stock = data[key];
+					this.Stocks[stock.ticker] = stock;
+				}
+
+				for (key in this.Callbacks) {
+					var handler  = this.Callbacks[key];
+					handler.callback(data, handler.scope);
+				}
+			}
+
+			StockMarket.prototype.DeleteStock = function(ticker) {
+				delete this.Stocks[ticker];
+			}
+
+			StockMarket.prototype.Register = function(id, callback, scope) {
+				this.Callbacks[id] = { 
+					callback: callback,
+					id: id,
+					scope: scope
+				};
+			}
+
+			StockMarket.prototype.Unregister = function(id) {
+				delete self.Callbacks[id];
+			}
 
 			function NodeUI(api) {
 				this.API = api;
@@ -248,16 +315,18 @@
 				window.StockView = new ModuleStockView();
 				window.StockView.SetHostingID("id_application_view_module");
 				window.StockView.SetObjectDOMName("window.StockView");
-				
+				/*
 				window.StockView.Build(null, function(module) {
 					ui = new NodeUI(node.API);
 					window.StockView.UpdatePortfolioList();
 					window.StockView.GetStocks();
 				});
+				*/
 				
 				window.StockAppend = new ModuleStockAppend();
 				window.StockAppend.SetHostingID("id_application_view_module");
 				window.StockAppend.SetObjectDOMName("window.StockAppend");
+				market.Register("window.StockAppend", window.StockAppend.UpdateStockTableAsync, window.StockAppend);
 				/*
 				window.StockAppend.Build(null, function(module) {
 					ui = new NodeUI(node.API);
@@ -272,6 +341,9 @@
 				window.ImportActions = new ModuleImportActions();
 				window.ImportActions.SetHostingID("id_application_view_module");
 				window.ImportActions.SetObjectDOMName("window.ImportActions");
+
+				ui = new NodeUI(node.API);
+				market.Start();
 				// User Code #1 - End
 			}
 
@@ -284,7 +356,8 @@
 					}
 					break;
 					case "stock_info": {
-						window.StockView.BuildStockAsync(data);
+						// window.StockView.BuildStockAsync(data);
+						market.Publish(data);
 					}
 					break;
 				}
@@ -294,7 +367,8 @@
 			// Self-generated area
 			[NODE_INSTANCE]
 			// Self-generated area
-			var ui = null;
+			var ui 		= null;
+			var market 	= new StockMarket();
 		</script>
 	</body>
 </html>
