@@ -1,33 +1,21 @@
-<div class="row" id="id_m_portfolio_[ID]">
-    <div class="col-lg-12">
-        <div class="row">
-            <div class="col-xl-12">
-                <h5 class="mt-0"><strong>Create Portfolio</strong></h5>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-lg-4">
-                                <input type="text" class="form-control" id="id_m_portfolio_name" placeholder="Name">
-                            </div>
-                            <div class="col-lg-3">
-                                <button type="button" class="btn btn-success" onclick="window.Portfolio.CreatePortfolio();">Create</button>
-                            </div>
-                        </div>
-                    </div>
+<div class="container">
+    <div class="row" id="id_m_portfolio_[ID]">
+        <div class="col-lg-12">
+            <h5 class="mb-3">Create Portfolio</h5>
+            <div class="mb-3">
+                <div class="input-group">
+                    <input type="text" id="id_m_portfolio_name" class="form-control mr-sm-2" placeholder="Portfolio Name">
+                    <button class="btn btn-outline-success my-2 my-sm-0" onclick="window.Portfolio.CreatePortfolio();">Create</button>
                 </div>
             </div>
         </div>
-        <br />
-        <div class="row">
-            <div class="col-xl-12">
-                <h5 class="mt-0"><strong>My Portfolios</strong></h5>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-lg-12" id="id_m_portfolio_name_list"></div>
-                        </div>
-                    </div>
-                </div>
+    </div>
+    <br>
+    <div class="row">
+        <div class="col-lg-12">
+            <h5 class="mb-3">My Portfolios</h5>
+            <div class="mb-3">
+                <div class="col-lg-12" id="id_m_portfolio_name_list"></div>
             </div>
         </div>
     </div>

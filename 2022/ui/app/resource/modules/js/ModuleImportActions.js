@@ -70,6 +70,11 @@ ModuleImportActions.prototype.ImportStocks = function(id) {
         alert("Portfolio name is empty");
         return;
     }
+
+    if (G_MODULE_IMPORT_ACTIONS_IMPORT_DATA.length == 0) {
+        alert("Nothing to import");
+        return;
+    }
     
     node.API.SendCustomCommand(NodeUUID, "import_stocks", {
         "stocks": G_MODULE_IMPORT_ACTIONS_IMPORT_DATA,

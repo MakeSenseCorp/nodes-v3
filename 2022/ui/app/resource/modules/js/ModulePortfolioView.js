@@ -51,19 +51,22 @@ ModulePortfolioView.prototype.UpdatePortfolioList = function() {
 
         self.PortfolioList = payload.portfolios;
         var table = new MksBasicTable();
-        table.SetSchema(["","Portfolio Name", "Edit", "Stocks", "Delete"]);
+        table.SetSchema(["","","",""]);
         var data = [];
         for (key in payload.portfolios) {
             portfolio = payload.portfolios[key];
             row = [];
             row.push(portfolio.name);
-            row.push("<a href='#' onclick='window.Portfolio.EditPortfolio("+portfolio.id+")'><span>Edit</span></a>");
-            row.push("<a href='#' onclick='window.Portfolio.OpenStockViewer("+portfolio.id+")'><span>View Stocks</span></a>");
-            row.push("<a href='#' onclick='window.Portfolio.DeletePortfolio("+portfolio.id+")'><span>Delete</span></a>");
+            row.push(`<div class="text-right"><span data-feather="edit" style="cursor: pointer;" onclick="window.Portfolio.EditPortfolio(`+portfolio.id+`);"></span></div>`);
+            row.push(`<div class="text-right"><span data-feather="database" style="cursor: pointer;" onclick="window.Portfolio.OpenStockViewer(`+portfolio.id+`);"></span></div>`);
+            row.push(`<div class="text-right"><span data-feather="x-square" style="cursor: pointer;" onclick="window.Portfolio.DeletePortfolio(`+portfolio.id+`);"></span></div>`);
             data.push(row);
         }
+        table.ShowRowNumber(false);
+        table.ShowHeader(false);
         table.SetData(data);
         table.Build(obj);
+        feather.replace();
     });
 }
 

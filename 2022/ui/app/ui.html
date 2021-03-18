@@ -71,22 +71,22 @@
 				<div class="collapse navbar-collapse">
 					<ul class="navbar-nav">
 						<li class="nav-item">
-							<a class="nav-link" href="#" onclick="ui.ViewDashboard();">Dashboard</a>
+							<a class="nav-link active" id="id_m_main_dashboard" href="#" onclick="ui.ViewDashboard();">Dashboard</a>
 						</li>
 						<li class="nav-item">
-							<a class="nav-link" href="#" onclick="ui.OpenModalAppendNewStock();">Stocks</a>
-						</li>
-						<li class="nav-item active">
-							<a class="nav-link" href="#" onclick="ui.OpenModalPortfolio();">Portfolios</a>
+							<a class="nav-link" id="id_m_main_stocks" href="#" onclick="ui.OpenModalAppendNewStock();">Stocks</a>
 						</li>
 						<li class="nav-item">
-							<a class="nav-link" href="#" onclick="ui.OpenModalImportStocks();">Import</a>
+							<a class="nav-link" id="id_m_main_portfolio" href="#" onclick="ui.OpenModalPortfolio();">Portfolios</a>
 						</li>
 						<li class="nav-item">
-							<a class="nav-link" href="#">Export</a>
+							<a class="nav-link" id="id_m_main_import" href="#" onclick="ui.OpenModalImportStocks();">Import</a>
 						</li>
 						<li class="nav-item">
-							<a class="nav-link" href="#">Settings</a>
+							<a class="nav-link" id="id_m_main_export" href="#">Export</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link" id="id_m_main_settings" href="#">Settings</a>
 						</li>
 					</ul>
 				</div>
@@ -225,31 +225,45 @@
 				return this;
 			}
 
-			NodeUI.prototype.OpenModalAppendNewStock = function() {
-				window.StockAppend.Build(null, function(module) {
-					window.StockAppend.GetDataBaseStocks();
-					window.StockAppend.GetPortfolioList();
-				});
-				window.DashboardView.Clean();
+			NodeUI.prototype.CleanActiveNavigation = function() {
+				document.getElementById("id_m_main_dashboard").classList.remove("active");
+				document.getElementById("id_m_main_stocks").classList.remove("active");
+				document.getElementById("id_m_main_portfolio").classList.remove("active");
+				document.getElementById("id_m_main_import").classList.remove("active");
+				document.getElementById("id_m_main_export").classList.remove("active");
+				document.getElementById("id_m_main_settings").classList.remove("active");
 			}
 
 			NodeUI.prototype.ViewDashboard = function() {
 				window.DashboardView.Build(null, function(module) {
 				});
+				this.CleanActiveNavigation();
+				document.getElementById("id_m_main_dashboard").classList.add("active");
 			}
 
-			NodeUI.prototype.OpenModalImportStocks = function() {
-				window.ImportActions.Build(null, function(module) {
-					module.BuildUploader();
+			NodeUI.prototype.OpenModalAppendNewStock = function() {
+				window.StockAppend.Build(null, function(module) {
+					window.StockAppend.GetDataBaseStocks();
+					window.StockAppend.GetPortfolioList();
 				});
-				window.DashboardView.Clean();
+				this.CleanActiveNavigation();
+				document.getElementById("id_m_main_stocks").classList.add("active");
 			}
 
 			NodeUI.prototype.OpenModalPortfolio = function() {
 				window.Portfolio.Build(null, function(module) {
 					window.Portfolio.UpdatePortfolioList()
 				});
-				window.DashboardView.Clean();
+				this.CleanActiveNavigation();
+				document.getElementById("id_m_main_portfolio").classList.add("active");
+			}
+
+			NodeUI.prototype.OpenModalImportStocks = function() {
+				window.ImportActions.Build(null, function(module) {
+					module.BuildUploader();
+				});
+				this.CleanActiveNavigation();
+				document.getElementById("id_m_main_import").classList.add("active");
 			}
 
 			var UserInit = function() {

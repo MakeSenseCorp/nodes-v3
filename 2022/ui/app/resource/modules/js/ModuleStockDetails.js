@@ -5,7 +5,18 @@ function ModuleStockDetails() {
     this.HTML 	                    = `
         <div class="row" id="id_m_stock_details_[ID]" class="d-none">
             <div class="col-lg-12">
-                <div id="id_stock_history_list"></div>
+                <div class="row">
+                    <div class="col-lg-12">
+                        <h5 class="mb-3">History</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-12">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div id="id_stock_history_list"></div>
+                    </div>
+                </div>
             </div>
         </div>
     `;
@@ -65,7 +76,7 @@ ModuleStockDetails.prototype.GetDetails = function(ticker) {
         var payload = res.data.payload;
         console.log(payload);
         var table = new MksBasicTable();
-        table.SetSchema(["","Date","Price", "Amount", "Action",""]);
+        table.SetSchema(["","", "", "",""]);
         var data = [];
         for (key in payload.history) {
             stock = payload.history[key];
@@ -81,7 +92,8 @@ ModuleStockDetails.prototype.GetDetails = function(ticker) {
             row.push(`<span style="color:RED; cursor: pointer" onclick="`+self.DOMName+`.DeleteAction('`+ticker+`',`+stock.id+`)">Delete</span>`);
             data.push(row);
         }
-        table.ShowRowNumber(true);
+        table.ShowRowNumber(false);
+        table.ShowHeader(false);
         table.SetData(data);
         table.Build(self.StockActionsHistoryObject);
     });

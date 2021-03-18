@@ -1,36 +1,31 @@
 <div class="row">
     <div class="col-lg-12">
-        <div class="card">
+        <div class="row">
+            <div class="col" id="id-basic-uploader-installer"></div>
+        </div>
+        <br/>
+        <div class="card d-none" id="id_m_ipmort_stocks_block">
             <div class="card-body">
                 <div class="row">
-                    <div class="col" id="id-basic-uploader-installer"></div>
-                </div>
-                <br/>
-                <div class="card d-none" id="id_m_ipmort_stocks_block">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="custom-control custom-checkbox">
-                                <input type="checkbox" class="custom-control-input" id="id_m_ipmort_stocks_portfolio_checkbox" onclick="window.ImportActions.ImportStocksCreateNewPortfolio(this);">
-                                <label class="custom-control-label" for="id_m_ipmort_stocks_portfolio_checkbox">Create new portfolio for this list</label>
-                            </div>
-                        </div>
-                        <div class="row d-none" id="id_m_ipmort_stocks_portfolio_name_block">
-                            <label for="id_m_ipmort_stocks_portfolio_name" class="col-sm-3 col-form-label">Portfolio Name</label>
-                            <div class="col-sm-10">
-                                <input type="text" class="form-control" id="id_m_ipmort_stocks_portfolio_name" placeholder="Name">
-                            </div>
-                        </div>
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="id_m_ipmort_stocks_portfolio_checkbox" onclick="window.ImportActions.ImportStocksCreateNewPortfolio(this);">
+                        <label class="custom-control-label" for="id_m_ipmort_stocks_portfolio_checkbox">Create new portfolio for this list</label>
                     </div>
                 </div>
-                <br/>
-                <div class="row">
-                    <div class="col" id="id_import_stocks_table"></div>
-                </div>
-                <div class="row">
-                    <div class="col" style="text-align:right;">
-                        <button type="button" class="btn btn-success" onclick="window.ImportActions.ImportStocks();">Import</button>
+                <div class="row d-none" id="id_m_ipmort_stocks_portfolio_name_block">
+                    <label for="id_m_ipmort_stocks_portfolio_name" class="col-sm-3 col-form-label">Portfolio Name</label>
+                    <div class="col-sm-10">
+                        <input type="text" class="form-control" id="id_m_ipmort_stocks_portfolio_name" placeholder="Name">
                     </div>
                 </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col" id="id_import_stocks_table"></div>
+        </div>
+        <div class="row">
+            <div class="col" style="text-align:right;">
+                <button type="button" class="btn btn-success" onclick="window.ImportActions.ImportStocks();">Import</button>
             </div>
         </div>
     </div>
