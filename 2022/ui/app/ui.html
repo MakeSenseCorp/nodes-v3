@@ -127,10 +127,9 @@
 
 			// User Code #1 - Start
 			require ModuleStocksAdaptor
-			require ModuleStockView
+			require ModuleDashboardView
 			require ModuleStockLine
 			require ModuleStockInfo
-			require ModuleRowStock
 			require ModuleStockHistoryGraph
 			require ModuleStockDetails
 			require ModulePortfolioView
@@ -177,12 +176,18 @@
 			}
 
 			StockMarket.prototype.Start = function() {
+				console.log("StockMarket Start");
 				this.DoWork = true;
 				this.GetStocks();
 			}
 
 			StockMarket.prototype.Stop = function() {
+				console.log("StockMarket Stop");
 				this.DoWork = false;
+			}
+
+			StockMarket.prototype.Update = function() {
+				this.GetStocks();
 			}
 
 			StockMarket.prototype.Publish = function(data) {
@@ -215,7 +220,7 @@
 
 			function NodeUI(api) {
 				this.API = api;
-				window.Modal = new MksBasicModal();
+				window.Modal = new MksBasicModal("GLOBAL");
 
 				return this;
 			}
@@ -223,14 +228,13 @@
 			NodeUI.prototype.OpenModalAppendNewStock = function() {
 				window.StockAppend.Build(null, function(module) {
 					window.StockAppend.GetDataBaseStocks();
+					window.StockAppend.GetPortfolioList();
 				});
-				window.StockView.Clean();
+				window.DashboardView.Clean();
 			}
 
 			NodeUI.prototype.ViewDashboard = function() {
-				window.StockView.Build(null, function(module) {
-					window.StockView.UpdatePortfolioList();
-					window.StockView.GetStocks();
+				window.DashboardView.Build(null, function(module) {
 				});
 			}
 
@@ -238,64 +242,14 @@
 				window.ImportActions.Build(null, function(module) {
 					module.BuildUploader();
 				});
-				window.StockView.Clean();
+				window.DashboardView.Clean();
 			}
 
 			NodeUI.prototype.OpenModalPortfolio = function() {
 				window.Portfolio.Build(null, function(module) {
 					window.Portfolio.UpdatePortfolioList()
 				});
-				window.StockView.Clean();
-			}
-
-			NodeUI.prototype.OpenModalAction = function(ticker, action) {
-				var self = this;
-
-				window.Action = new ModuleAction();
-				window.Action.SetObjectDOMName("window.Action");
-				window.Action.SetHostingID("module_action");
-				window.Action.Build({
-					"ticker": ticker,
-					"action": action
-				}, null);
-
-				var footer = `
-					<button type="button" class="btn [COLOR]" onclick="[FUNC]">[NAME]</button>
-					<button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
-				`;
-				footer = footer.split("[NAME]").join(action);
-				if (action == "SELL") {
-					footer = footer.split("[COLOR]").join("btn-success");
-					footer = footer.split("[FUNC]").join("window.Action.AppendStockAction('"+ticker+"',1);");
-				} else {
-					footer = footer.split("[COLOR]").join("btn-danger");
-					footer = footer.split("[FUNC]").join("window.Action.AppendStockAction('"+ticker+"',-1);");
-				}
-
-				window.Modal.Remove();
-				window.Modal.SetTitle(action);
-				window.Modal.SetContent(window.Action.HTML);
-				window.Modal.SetFooter(footer);
-				window.Modal.Build("lg");
-				window.Modal.Show();
-			}
-
-			NodeUI.prototype.OpenModalStockDetails = function(ticker) {
-				var self = this;
-
-				window.StockDetails = new ModuleStockDetails();
-				window.StockDetails.SetHostingID("details_modal");
-				window.StockDetails.SetObjectDOMName("window.StockDetails");
-				window.StockDetails.Build(null, function(module) {
-					window.Modal.Remove();
-					window.Modal.SetTitle("Details");
-					window.Modal.SetContent(module.HTML);
-					window.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
-					window.Modal.Build("lg");
-					window.Modal.Show();
-					module.GetDetails(ticker);
-				});
-				window.StockView.Clean();
+				window.DashboardView.Clean();
 			}
 
 			var UserInit = function() {
@@ -312,27 +266,17 @@
 
 			var UserNodeLoaded = function() {
 				// User Code #1 - Start
-				window.StockView = new ModuleStockView();
-				window.StockView.SetHostingID("id_application_view_module");
-				window.StockView.SetObjectDOMName("window.StockView");
-				/*
-				window.StockView.Build(null, function(module) {
-					ui = new NodeUI(node.API);
-					window.StockView.UpdatePortfolioList();
-					window.StockView.GetStocks();
-				});
-				*/
+				window.DashboardView = new ModuleDashboardView();
+				window.DashboardView.SetHostingID("id_application_view_module");
+				window.DashboardView.SetObjectDOMName("window.DashboardView");
+				
+				window.DashboardView.Build(null, function(module) {
+				});	
 				
 				window.StockAppend = new ModuleStockAppend();
 				window.StockAppend.SetHostingID("id_application_view_module");
 				window.StockAppend.SetObjectDOMName("window.StockAppend");
 				market.Register("window.StockAppend", window.StockAppend.UpdateStockTableAsync, window.StockAppend);
-				/*
-				window.StockAppend.Build(null, function(module) {
-					ui = new NodeUI(node.API);
-					window.StockAppend.GetDataBaseStocks();
-				});
-				*/
 
 				window.Portfolio = new ModulePortfolioView();
 				window.Portfolio.SetHostingID("id_application_view_module");
@@ -356,7 +300,7 @@
 					}
 					break;
 					case "stock_info": {
-						// window.StockView.BuildStockAsync(data);
+						// window.DashboardView.BuildStockAsync(data);
 						market.Publish(data);
 					}
 					break;

@@ -2,7 +2,13 @@ function ModuleStockDetails() {
     var self = this;
 
     // Modules basic
-    this.HTML 	                    = "";
+    this.HTML 	                    = `
+        <div class="row" id="id_m_stock_details_[ID]" class="d-none">
+            <div class="col-lg-12">
+                <div id="id_stock_history_list"></div>
+            </div>
+        </div>
+    `;
     this.HostingID                  = "";
     this.GraphModule                = null;
     this.DOMName                    = "";
@@ -26,15 +32,19 @@ ModuleStockDetails.prototype.SetHostingID = function(id) {
 
 ModuleStockDetails.prototype.Build = function(data, callback) {
     var self = this;
+    self.HTML = self.HTML.replace("[ID]", this.HostingID);
+    if (callback !== undefined && callback != null) {
+        callback(this);
+    }
+}
 
-    node.API.GetFileContent(NodeUUID, {
-        "file_path": "modules/html/ModuleStockDetails.html"
+ModuleStockDetails.prototype.DeleteAction = function(ticker, id) {
+    var self = this;
+    node.API.SendCustomCommand(NodeUUID, "db_delete_action", {
+        "id": id
     }, function(res) {
         var payload = res.data.payload;
-        self.HTML = MkSGlobal.ConvertHEXtoString(payload.content).replace("[ID]", self.HostingID);
-        if (callback !== undefined && callback != null) {
-            callback(self);
-        }
+        self.GetDetails(ticker);
     });
 }
 
@@ -53,8 +63,9 @@ ModuleStockDetails.prototype.GetDetails = function(ticker) {
         "ticker": ticker
     }, function(res) {
         var payload = res.data.payload;
+        console.log(payload);
         var table = new MksBasicTable();
-        table.SetSchema(["","Date","Price", "Amount", "Action"]);
+        table.SetSchema(["","Date","Price", "Amount", "Action",""]);
         var data = [];
         for (key in payload.history) {
             stock = payload.history[key];
@@ -67,25 +78,13 @@ ModuleStockDetails.prototype.GetDetails = function(ticker) {
             } else {
                 row.push("<span style='color:GREEN'>SELL</span>");
             }
+            row.push(`<span style="color:RED; cursor: pointer" onclick="`+self.DOMName+`.DeleteAction('`+ticker+`',`+stock.id+`)">Delete</span>`);
             data.push(row);
         }
+        table.ShowRowNumber(true);
         table.SetData(data);
         table.Build(self.StockActionsHistoryObject);
     });
-
-    // ui.HistogrameGraph 	= new MksBasicGraph("histograme");
-    // ui.BuilsHistogrameGraph(payload);
-
-    var info = new ModuleStockInfo();
-    info.SetHostingID("id_m_stock_details_info_container");
-    info.Build(null, function(module) {
-        module.GetStockInfo(ticker);
-    });
-
-    this.GraphModule = new ModuleStockHistoryGraph("stock_graph", ticker);
-    this.GraphModule.SetHostingID("id_m_stock_history_graph_container");
-    this.GraphModule.SetObjectDOMName(this.DOMName+".GraphModule");
-    this.GraphModule.Build(null, null);
 
     this.Show();
 }

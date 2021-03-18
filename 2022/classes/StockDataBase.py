@@ -255,7 +255,7 @@ class StockDB():
 	
 	def GetStockHistory(self, ticker):
 		query = '''
-			SELECT timestamp, date, price, amount, name, action, fee FROM stocks_history
+			SELECT stocks_history.id, timestamp, date, price, amount, name, action, fee FROM stocks_history
 			INNER JOIN actions ON actions.id == stocks_history.action
 			WHERE stocks_history.ticker == "{0}"
 		'''.format(ticker)
@@ -266,13 +266,14 @@ class StockDB():
 		if len(rows) > 0:
 			for row in rows:
 				stocks.append({
-					"timestamp": row[0],
-					"date": row[1],
-					"price": row[2],
-					"amount": row[3],
-					"action": row[5],
-					"action_name": row[4],
-					"fee": row[6]
+					"id": 		 	row[0],
+					"timestamp": 	row[1],
+					"date": 	 	row[2],
+					"price": 	 	row[3],
+					"amount": 	 	row[4],
+					"action_name": 	row[5],
+					"action": 	 	row[6],
+					"fee": 			row[7]
 				})
 		return stocks
 	
@@ -302,7 +303,7 @@ class StockDB():
 		return False
 	
 	def GetStock(self, ticker):
-		query = "SELECT * FROM stocks_info WHERE ticker='{0}'".format(ticker)
+		query = "SELECT * FROM stocks_info WHERE ticker='{0}'".format(ticker.upper())
 		self.CURS.execute(query)
 		
 		rows = self.CURS.fetchall()
@@ -389,4 +390,11 @@ class StockDB():
 			DELETE FROM stocks_info
 			WHERE ticker = '{0}'
 		'''.format(ticker))
+		self.DB.commit()
+	
+	def DeleteActionById(self, id):
+		self.CURS.execute('''
+			DELETE FROM stocks_history
+			WHERE id = '{0}'
+		'''.format(id))
 		self.DB.commit()

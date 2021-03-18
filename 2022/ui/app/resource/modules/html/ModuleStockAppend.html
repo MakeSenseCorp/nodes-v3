@@ -19,8 +19,23 @@
                 <div class="col-xl-6">
                     <div id="d_m_stock_append_stock_graph"></div>
                 </div>
-            </div>            
-            <h5 class="mb-3">My stocks</h5>
+            </div>
+            <br>
+            <div class="row">
+                <div class="col-xl-6 d-flex flex-row">
+                    <h5 class="mb-3">My stocks</h5>
+                </div>
+                <div class="col-xl-6 d-flex flex-row-reverse">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="id_m_stock_append_portfolio_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <span id="id_m_stock_append_portfolio_dropdown_span">Portfolios</span>
+                        </button>
+                        <div class="dropdown-menu text-center" aria-labelledby="id_m_stock_append_portfolio_dropdown" id="id_m_stock_append_portfolio_dropdown_items">
+                            <span class="dropdown-item" style="cursor:pointer">All</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="row" id="id_m_stock_append_stock_stocks_view">
                 <div class="col-xl-12">
                     <div id="id_m_stock_append_stock_table"></div>

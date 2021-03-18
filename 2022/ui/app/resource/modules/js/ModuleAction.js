@@ -5,24 +5,20 @@ function ModuleAction() {
     this.HTML 	                    = "";
     this.ActionHTML                 = `
         <div class="container" id="id_m_action_[ID]">
-            <div class="py-5 text-center">
-                <p class="lead">[ACTION] [TICKER] stocks.</p>
+            <div class="text-center">
+                <h5 class="lead">You will [ACTION] [TICKER] stocks.</h5><hr>
             </div>
             <div class="row">
                 <div class="col-lg-12">
-                    <div class="card">
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col">
-                                    <input type="number" min="0" data-bind="value:replyNumber" class="form-control" id="id_m_append_action_price" placeholder="Price">
-                                </div>
-                                <div class="col">
-                                    <input type="number" min="0" data-bind="value:replyNumber" class="form-control" id="id_m_append_action_amount" placeholder="Amount">
-                                </div>
-                                <div class="col">
-                                    <input type="number" min="0" data-bind="value:replyNumber" class="form-control" id="id_m_append_action_fee" placeholder="Fee">
-                                </div>
-                            </div>
+                    <div class="row">
+                        <div class="col">
+                            <input type="number" min="0" data-bind="value:replyNumber" class="form-control" id="id_m_append_action_price" placeholder="Price">
+                        </div>
+                        <div class="col">
+                            <input type="number" min="0" data-bind="value:replyNumber" class="form-control" id="id_m_append_action_amount" placeholder="Amount">
+                        </div>
+                        <div class="col">
+                            <input type="number" min="0" data-bind="value:replyNumber" class="form-control" id="id_m_append_action_fee" placeholder="Fee">
                         </div>
                     </div>
                 </div>
@@ -59,6 +55,13 @@ ModuleAction.prototype.Build = function(data, callback) {
 
 ModuleAction.prototype.AppendStockAction = function(ticker, action, callback) {
     var self = this;
+
+    console.log(market.Stocks[ticker].number, parseInt(document.getElementById("id_m_append_action_amount").value), action);
+    if (market.Stocks[ticker].number < parseInt(document.getElementById("id_m_append_action_amount").value) && action == 1) {
+        console.log("Cannot sell stock with current amount less then in possetion");
+        return;
+    }
+
     node.API.SendCustomCommand(NodeUUID, "append_new_action", {
         "ticker": ticker,
         "price": document.getElementById("id_m_append_action_price").value,
@@ -69,6 +72,7 @@ ModuleAction.prototype.AppendStockAction = function(ticker, action, callback) {
         var payload = res.data.payload;
         window.Modal.Hide();
         window.Modal.Remove();
+        market.Update();
     });
 }
 

@@ -41,6 +41,7 @@ ModulePortfolioSelectorView.prototype.SetStockPortfolio = function(obj, id) {
         "ticker": self.Ticker
     }, function(res) {
         var payload = res.data.payload;
+        market.Update();
     });
 }
 

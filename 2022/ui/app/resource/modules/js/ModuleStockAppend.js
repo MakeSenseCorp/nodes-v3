@@ -10,9 +10,14 @@ function ModuleStockAppend() {
     this.ComponentObject            = null;
     this.StockGraph                 = null;
     this.Selector                   = null;
+    this.PortfolioList              = null;
+    this.StockLoaderProgressBar	    = null;
     // Portfolio
     this.PortfolioID 	            = 0;
     this.PortfolioName              = "All";
+    this.Earnings                   = 0.0;
+    this.Number                     = 0;
+    this.ModalDelete                = new MksBasicModal("m_stock_append_delete");
 
     return this;
 }
@@ -38,9 +43,175 @@ ModuleStockAppend.prototype.Build = function(data, callback) {
         if (self.HostingObject !== undefined && self.HostingObject != null) {
             self.HostingObject.innerHTML = self.HTML;
         }
+
+        /*
+        self.StockLoaderProgressBar	= new MksBasicProgressBar("StockLoaderProgressBar");
+        self.StockLoaderProgressBar.EnableInnerPercentageText(false);
+        self.StockLoaderProgressBar.Build(document.getElementById("id_stocks_loading_progressbar"));
+        self.StockLoaderProgressBar.Show();
+        */
        
         if (callback !== undefined && callback != null) {
             callback(self);
+        }
+    });
+}
+
+/*
+
+<div class="col-xl-12" id="id_m_stock_view_loader_ui">
+    <div class="row">
+        <div class="col-lg-12" style="text-align:center;">
+            <h4>Loading...</h4>
+        </div>
+    </div>
+</div>
+
+<div class="col-xl-12">
+    <div id="id_stocks_loading_progressbar"></div>
+</div>
+
+ModuleStockAppend.prototype.HideLoader = function() {
+    var objLoader = document.getElementById("id_m_stock_view_loader_ui");
+    if (objLoader !== undefined || objLoader !== null) {
+        objLoader.classList.add("d-none");
+    }
+}
+
+ModuleDashboardView.prototype.GetStocks = function() {
+    var self = this;
+
+    node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
+        "portfolio_id": this.PortfolioID,
+        "portfolio_name": this.PortfolioName
+    }, function(res) {
+        var payload = res.data.payload;
+        if (payload.status.local_stock_market_ready == false) {
+            self.StockLoaderProgressBar.UpdateProgress({
+                'precentage': payload.status.percentage,
+                'message': "Loading (" + payload.status.percentage + "%)"
+            });
+            setTimeout(self.GetStocks.bind(self), 2500);
+            return;
+        }
+
+        self.HideLoader();
+        self.StockLoaderProgressBar.Hide();
+    });
+}
+*/
+
+ModuleStockAppend.prototype.OpenActionAppendModal = function (ticker, action) {
+    var self = this;
+
+    console.log("OpenActionAppendModal");
+
+    window.Action = new ModuleAction();
+    window.Action.SetObjectDOMName("window.Action");
+    window.Action.SetHostingID("module_action");
+    window.Action.Build({
+        "ticker": ticker,
+        "action": action
+    }, null);
+
+    var footer = `
+        <button type="button" class="btn [COLOR]" onclick="[FUNC]">[NAME]</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
+    `;
+    footer = footer.split("[NAME]").join(action);
+    if (action == "SELL") {
+        footer = footer.split("[COLOR]").join("btn-success");
+        footer = footer.split("[FUNC]").join("window.Action.AppendStockAction('"+ticker+"',1);");
+    } else {
+        footer = footer.split("[COLOR]").join("btn-danger");
+        footer = footer.split("[FUNC]").join("window.Action.AppendStockAction('"+ticker+"',-1);");
+    }
+
+    window.Modal.Remove();
+    window.Modal.SetTitle(action);
+    window.Modal.SetContent(window.Action.HTML);
+    window.Modal.SetFooter(footer);
+    window.Modal.Build("lg");
+    window.Modal.Show();
+}
+
+ModuleStockAppend.prototype.OpenStockActionsHistoryModal = function (ticker) {
+    var self = this;
+
+    console.log("OpenStockActionsHistoryModal");
+
+    window.StockDetails = new ModuleStockDetails();
+    window.StockDetails.SetHostingID("details_modal");
+    window.StockDetails.SetObjectDOMName("window.StockDetails");
+    window.StockDetails.Build(null, function(module) {
+        window.Modal.Remove();
+        window.Modal.SetTitle("Details");
+        window.Modal.SetContent(module.HTML);
+        window.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+        window.Modal.Build("lg");
+        window.Modal.Show();
+        module.GetDetails(ticker);
+    });
+}
+
+ModuleStockAppend.prototype.GetPortfolioStocks = function(id, name) {
+    console.log(id, name);
+
+    this.Earnings   = 0.0;
+    this.Number     = 0;
+    
+    var table = new MksBasicTable();
+        table.SetSchema(["", "", "", "", ""]);
+        var data = [];
+        for (key in market.Stocks) {
+            stock = market.Stocks[key];
+            if (stock.portfolio_id == id || id == 0) {
+                this.Earnings   += stock.earnings;
+                this.Number     += stock.number;
+
+                row = [];
+                row.push(`<h6 class="my-0"><a href="#" onclick="`+this.DOMName+`.UpdateStockInfoView('`+stock.ticker+`');">`+stock.ticker+`</a></h6>`);
+                row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_market_price">`+stock.market_price+`<span>`);
+                row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_number">`+stock.number+`<span>`);
+                row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_earnings">`+stock.earnings+`<span>`);
+                row.push(`
+                    <div class="d-flex flex-row-reverse">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="id_m_stock_append_stock_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <span data-feather="menu"></span>
+                            </button>
+                            <div class="dropdown-menu text-center" aria-labelledby="id_m_stock_append_stock_dropdown">
+                                <span class="dropdown-item" style="color: RED; cursor:pointer; font-size: 12px;" onclick="`+this.DOMName+`.OpenActionAppendModal('`+stock.ticker+`','BUY');">Buy</span>
+                                <span class="dropdown-item" style="color: GREEN; cursor:pointer; font-size: 12px;" onclick="`+this.DOMName+`.OpenActionAppendModal('`+stock.ticker+`','SELL');">Sell</span>
+                                <span class="dropdown-item" style="color: BLUE; cursor:pointer; font-size: 12px;" onclick="`+this.DOMName+`.OpenStockActionsHistoryModal('`+stock.ticker+`');">History</span>
+                                <span class="dropdown-item" style="color: BLUE; cursor:pointer; font-size: 12px;" onclick="`+this.DOMName+`.OpenPortfolioSelectorModal('`+stock.ticker+`');">Portfolios</span>
+                                <span class="dropdown-item" style="color: RED; cursor:pointer; font-size: 12px;" onclick="`+this.DOMName+`.DeleteStock('`+stock.ticker+`');">Delete</span>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                data.push(row);
+            }
+        }
+        table.ShowRowNumber(false);
+        table.ShowHeader(false);
+        table.SetData(data);
+        table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, "", `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">`+this.Number+`<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">`+this.Earnings.toFixed(2)+`<span>`, ""])
+        table.Build(document.getElementById("id_m_stock_append_stock_table"));
+        feather.replace();
+}
+
+ModuleStockAppend.prototype.GetPortfolioList = function() {
+    var self = this;
+    node.API.SendCustomCommand(NodeUUID, "get_portfolios", {}, function(res) {
+        var payload = res.data.payload;
+        var obj = document.getElementById("id_m_stock_append_portfolio_dropdown_items");
+
+        self.PortfolioList = payload.portfolios;
+        obj.innerHTML = `<span class="dropdown-item" style="cursor:pointer" onclick="window.StockAppend.GetPortfolioStocks(0,'All');">All</span>`;
+        for (key in payload.portfolios) {
+            item = payload.portfolios[key];
+            obj.innerHTML += `<span class="dropdown-item" style="cursor:pointer" onclick="window.StockAppend.GetPortfolioStocks(`+item.id+`,'`+item.name+`');">`+item.name+`</span>`;
         }
     });
 }
@@ -64,14 +235,38 @@ ModuleStockAppend.prototype.AppendStock = function() {
     });
 }
 
-ModuleStockAppend.prototype.DeleteStock = function(ticker) {
+ModuleStockAppend.prototype.CleanModal = function() {
+    this.ModalDelete.Remove();
+}
+
+ModuleStockAppend.prototype.DeleteStockRequest = function(ticker) {
     var self = this;
+
     node.API.SendCustomCommand(NodeUUID, "db_delete_stock", {
         'ticker': ticker
     }, function(res) {
         var payload = res.data.payload;
+        self.ModalDelete.Remove();
+        market.DeleteStock(ticker);
         self.GetDataBaseStocks();
     });
+}
+
+ModuleStockAppend.prototype.DeleteStock = function(ticker) {
+    var self = this;
+
+    var footer = `
+        <button type="button" class="btn btn-danger" onclick="window.StockAppend.DeleteStockRequest('[TICKER]');">Yes</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" onclick="window.StockAppend.CleanModal();">No</button>
+    `;
+    
+    footer = footer.split("[TICKER]").join(ticker);
+    this.ModalDelete.Remove();
+    this.ModalDelete.SetTitle("Delete Stock");
+    this.ModalDelete.SetContent("Shouls I delete "+ticker+" stock?");
+    this.ModalDelete.SetFooter(footer);
+    this.ModalDelete.Build("cm");
+    this.ModalDelete.Show();
 }
 
 ModuleStockAppend.prototype.FindStockInMarket = function() {
@@ -114,19 +309,47 @@ ModuleStockAppend.prototype.UpdateStockInfoView = function(ticker) {
 }
 
 ModuleStockAppend.prototype.UpdateStockTableFromLocalMarket = function() {
+    console.log("UpdateStockTableFromLocalMarket");
+
+    this.Earnings   = 0.0;
+    this.Number     = 0;
+
     for (key in market.Stocks) {
         var stock = market.Stocks[key];
-        document.getElementById("id_m_stock_append_table_price_"+stock.ticker).innerHTML = stock.market_price;
+        document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_market_price").innerHTML = stock.market_price;
+        document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_number").innerHTML = stock.number;
+        document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_earnings").innerHTML = stock.earnings;
+        this.Earnings   += stock.earnings;
+        this.Number     += stock.number;
     }
+
+    document.getElementById("id_m_stock_append_table_price_summery_number").innerHTML   = this.Number;
+    document.getElementById("id_m_stock_append_table_price_summery_earnings").innerHTML = this.Earnings.toFixed(2);
 }
 
 ModuleStockAppend.prototype.UpdateStockTableAsync = function(data, scope) {
     for (key in data) {
         var stock = data[key];
-        if (document.getElementById("id_m_stock_append_table_price_"+stock.ticker) === undefined || document.getElementById("id_m_stock_append_table_price_"+stock.ticker) === null) {
+
+        var priceObj    = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_market_price");
+        var amountObj   = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_number");
+        var earningsObj = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_earnings");
+
+        if (priceObj === undefined || priceObj === null) {
             return;
         }
-        document.getElementById("id_m_stock_append_table_price_"+stock.ticker).innerHTML = stock.market_price;
+
+        scope.Number     -= parseFloat(amountObj.innerHTML);
+        scope.Earnings   -= parseFloat(earningsObj.innerHTML);
+        scope.Number     += stock.number;
+        scope.Earnings   += stock.earnings;
+
+        priceObj.innerHTML      = stock.market_price;
+        amountObj.innerHTML     = stock.number;
+        earningsObj.innerHTML   = stock.earnings;
+
+        document.getElementById("id_m_stock_append_table_price_summery_number").innerHTML   = scope.Number;
+        document.getElementById("id_m_stock_append_table_price_summery_earnings").innerHTML = scope.Earnings.toFixed(2);
     }
 }
 
@@ -137,29 +360,28 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
     }, function(res) {
         var payload = res.data.payload;
         var table = new MksBasicTable();
-        table.SetSchema(["", "", "", "", "", "", ""]);
+        table.SetSchema(["", "", "", "", ""]);
         var data = [];
         for (key in payload.stocks) {
             stock = payload.stocks[key];
             row = [];
             row.push(`<h6 class="my-0"><a href="#" onclick="`+self.DOMName+`.UpdateStockInfoView('`+stock.ticker+`');">`+stock.ticker+`</a></h6>`);
-            row.push(0);
-            row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`">`+stock.market_price+`<span>`);
-            row.push(0);
+            row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_market_price">`+stock.market_price+`<span>`);
+            row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_number">0<span>`);
+            row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_earnings">0<span>`);
             row.push(`
-                <strong><span class="align-middle" style="color: RED; cursor: pointer;" onclick="">Buy</span></strong>
-            `);
-            row.push(`
-                <strong><span class="align-middle" style="color: GREEN; cursor: pointer;" onclick="">Sell</span></strong>
-            `);
-            row.push(`
-                <div class="dropdown">
-                    <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        <span data-feather="menu"></span>
-                    </button>
-                    <div class="dropdown-menu text-center" aria-labelledby="dropdownMenuButton">
-                        <span class="dropdown-item" style="color: BLUE; cursor:pointer" onclick="`+self.DOMName+`.OpenPortfolioSelectorModal('`+stock.ticker+`');">Portfolios</span>
-                        <span class="dropdown-item" style="color: RED; cursor:pointer" onclick="`+self.DOMName+`.DeleteStock(`+stock.ticker+`');">Delete</span>
+                <div class="d-flex flex-row-reverse">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="id_m_stock_append_stock_dropdown_`+stock.ticker+`" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <span data-feather="menu"></span>
+                        </button>
+                        <div class="dropdown-menu text-center" aria-labelledby="id_m_stock_append_stock_dropdown_`+stock.ticker+`">
+                            <span class="dropdown-item" style="color: RED; cursor:pointer; font-size: 12px;" onclick="`+self.DOMName+`.OpenActionAppendModal('`+stock.ticker+`','BUY');">Buy</span>
+                            <span class="dropdown-item" style="color: GREEN; cursor:pointer; font-size: 12px;" onclick="`+self.DOMName+`.OpenActionAppendModal('`+stock.ticker+`','SELL');">Sell</span>
+                            <span class="dropdown-item" style="color: BLUE; cursor:pointer; font-size: 12px;" onclick="`+self.DOMName+`.OpenStockActionsHistoryModal('`+stock.ticker+`');">History</span>
+                            <span class="dropdown-item" style="color: BLUE; cursor:pointer; font-size: 12px;" onclick="`+self.DOMName+`.OpenPortfolioSelectorModal('`+stock.ticker+`');">Portfolios</span>
+                            <span class="dropdown-item" style="color: RED; cursor:pointer; font-size: 12px;" onclick="`+self.DOMName+`.DeleteStock('`+stock.ticker+`');">Delete</span>
+                        </div>
                     </div>
                 </div>
             `);
@@ -169,6 +391,7 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
         table.ShowRowNumber(false);
         table.ShowHeader(false);
         table.SetData(data);
+        table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, "", `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">0<span>`, ""])
         table.Build(document.getElementById("id_m_stock_append_stock_table"));
 
         document.getElementById('d_m_stock_append_stock_find_ticker').addEventListener('keyup', function(event) {

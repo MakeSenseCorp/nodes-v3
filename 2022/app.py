@@ -57,6 +57,7 @@ class Context():
 			'db_insert_stock':			self.DBInsertStockHandler,
 			'db_delete_stock':			self.DBDeleteStockHandler,
 			'get_market_stocks':		self.GetMarketStocksHandler,
+			'db_delete_action':			self.DBDeleteActionHandler,
 			'undefined':				self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -102,24 +103,23 @@ class Context():
 		stocks_in_payload 	= 0
 		stocks_per_payload 	= 50
 		stocks_list 		= []
+		stocks_count  		= 0
 		for db_stock in db_stocks:
 			# For each stock in DB
 			ticker = db_stock["ticker"]
 			# Get stock information from cache DB
 			stock = self.Market.GetStockInformation(ticker)
 			if stock is not None:
-				warning 	= 0
-				price 		= stock["price"]
-				earnings 	= 0.0
+				warning 		= 0
+				market_price 	= stock["price"]
+				earnings 		= 0.0
 				# Calculate actions min, max and summary
-				if price > 0:
+				if market_price > 0:
 					if db_stock["amount_sum"] is not None and db_stock["hist_price_sum"] is not None:
-						earnings = float("{0:.3f}".format(db_stock["hist_price_sum"]))
-						if (price * db_stock["amount_sum"]) > 0:
-							earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
+						# earnings = float("{0:.3f}".format(db_stock["hist_price_sum"]))
+						if (market_price * db_stock["amount_sum"]) > 0 or db_stock["amount_sum"] == 0:
+							earnings = float("{0:.3f}".format(market_price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
 						stocks_count += db_stock["amount_sum"]
-						portfolio_earnings += earnings
-						portfolio_investment += price * db_stock["amount_sum"]
 					else:
 						db_stock["amount_sum"] 	= 0.0
 						db_stock["hist_min"] 	= 0.0
@@ -131,10 +131,11 @@ class Context():
 				stocks_in_payload += 1
 				stocks_list.append({
 					"ticker":ticker,
+					"portfolio_id": db_stock["portfolio_id"],
 					"name": db_stock["name"],
 					"number": db_stock["amount_sum"],
 					"earnings": earnings,
-					"market_price": price,
+					"market_price": market_price,
 					"hist_price_min": db_stock["hist_min"],
 					"hist_price_max": db_stock["hist_max"],
 					"warning": warning,
@@ -218,6 +219,16 @@ class Context():
 			"status": True
 		}
 	
+	def DBDeleteActionHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [DBDeleteActionHandler] {0}".format(payload,classname=self.ClassName),5)
+
+		self.SQL.DeleteActionById(payload["id"])
+
+		return {
+			"status": True
+		}
+
 	def DBInsertStockHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0}".format(payload,classname=self.ClassName),5)
@@ -474,6 +485,8 @@ class Context():
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [AppendNewActionHandler]".format(classname=self.ClassName),5)
 
+		# TODO - Get this stock from database, check for selling action if number of stock in possetion bigger then selling
+
 		now = datetime.now()
 		res = self.SQL.InsertStockHistory({
 			'timestamp': time.time(),
@@ -491,7 +504,7 @@ class Context():
 
 	def GetStockHistoryHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		self.Node.LogMSG("({classname})# [GetStockHistoryHandler]".format(classname=self.ClassName),5)
+		self.Node.LogMSG("({classname})# [GetStockHistoryHandler] {0}".format(payload,classname=self.ClassName),5)
 		
 		return {
 			"history": self.SQL.GetStockHistory(payload["ticker"])
