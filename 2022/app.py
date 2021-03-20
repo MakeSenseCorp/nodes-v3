@@ -549,10 +549,15 @@ class Context():
 			stock_low.append(stock["low"])
 			stock_vol.append(stock["vol"])
 		
-		hist_open_y, hist_open_x = self.Market.CreateHistogram(stock_open, 1.0)
+		hist_open_y, hist_open_x = self.Market.CreateHistogram(stock_open, 25)
+		low, high = self.Market.CalculatePercentile(0.15, 0.85, hist_open_y)
+		pmin, pmax = self.Market.FindMaxMin(stock_open)
+		#self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0} {1}".format(hist_open_x[low], hist_open_x[high], classname=self.ClassName),5)
 		return {
 			"ticker": payload["ticker"],
 			"data": {
+				"min": pmin,
+				"max": pmax,
 				"date": stock_date,
 				"open": stock_open,
 				"close": stock_close,
@@ -563,6 +568,10 @@ class Context():
 				"hist_open": {
 					"x": hist_open_x,
 					"y": hist_open_y
+				},
+				"algo": {
+					"perc_low": [hist_open_x[low]]*len(hist),
+					"perc_high": [hist_open_x[high]]*len(hist)
 				}
 			}
 		}

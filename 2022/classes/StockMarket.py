@@ -377,38 +377,66 @@ class StockMarket():
 			})
 		return hist
 	
-	def CreateHistogram(self, buffer, hist_bin_size):
+	def FindMaxMin(self, buffer):
+		pmax = 0		
+		pmin = 0
+		if len(buffer) > 0:
+			pmin = buffer[0]
+			for item in buffer:
+				if pmax < item:
+					pmax = item
+				if pmin > item:
+					pmin = item
+		return pmin, pmax
+
+	def CreateHistogram(self, buffer, bin_size):
 		ret_hist_buffer_y = []
 		ret_hist_buffer_x = []
 		try:
-			hist_len = len(buffer)
-			hist_buffer_y = []
-			hist_buffer_x = []
-			if hist_len > 0:
-				pmax = 0		
-				pmin = buffer[0]
-				for item in buffer:
-					if pmax < item:
-						pmax = item
-					if pmin > item:
-						pmin = item
-				normal = 1.0 / (pmax - pmin)
-
-				hist_buffer_y = [0]*hist_len # [0]*(int(pmax - pmin) + 2)
-				hist_buffer_x = [0]*hist_len
+			if len(buffer) > 0:
+				# Find min and max for this buffer
+				pmin, pmax = self.FindMaxMin(buffer)
+				# Calculate freq
+				freq = (float(pmax) - float(pmin)) / float(bin_size)
+				# Generate x scale
+				ret_hist_buffer_x = [(x * freq) + pmin for x in range(0, bin_size)]
+				ret_hist_buffer_y = [0] * bin_size
+				# Generate y scale
 				for sample in buffer:
-					index = int((sample-pmin)*normal*hist_len) - 1
-					#print(hist_len,index)
-					hist_buffer_y[index] += 1
-					hist_buffer_x[index] = float("{0:.3f}".format(sample))
-				
-				for idx, sample in enumerate(hist_buffer_y):
-					if sample > 0:
-						ret_hist_buffer_y.append(sample)
-						ret_hist_buffer_x.append(hist_buffer_x[idx])
-		except:
-			pass
+					index = int((float(sample) - float(pmin)) / freq)
+					if index == 25:
+						index = 24
+					#print(index, sample, freq, pmin, pmax)
+					ret_hist_buffer_y[index] += 1
+		except Exception as e:
+			print("Histograme exception {0}".format(e))
 		return ret_hist_buffer_y, ret_hist_buffer_x
+	
+	def CalculatePercentile(self, low, high, histogram):
+		low_perc  			= 0
+		low_perc_found  	= False
+
+		high_perc 			= 0
+		high_perc_found 	= False
+
+		perc_integral 	= 0.0
+		hist_sum 		= 0.0
+
+		for sample in histogram:
+			hist_sum += sample
+
+		for idx, sample in enumerate(histogram):
+			perc_integral += sample
+			if low_perc_found is False:
+				if (perc_integral / hist_sum) > low:
+					low_perc_found = True
+					low_perc = idx
+			if high_perc_found is False:
+				if (perc_integral / hist_sum) > high:
+					high_perc_found = True
+					high_perc = idx
+		
+		return low_perc, high_perc
 
 	def Get1MO(self, ticker):
 		'''

@@ -48,6 +48,7 @@ function ModuleStockHistoryGraph(name, ticker) {
     // Objects section
     this.ComponentObject        = null;
     this.GraphHistoryCtx 	    = null;
+    this.GraphHistogramCtx 	    = null;
 
     return this;
 }
@@ -60,6 +61,7 @@ ModuleStockHistoryGraph.prototype.SetHostingID = function(id) {
     this.HostingID = id;
     this.ID = this.HostingID+"_"+this.Name;
     this.GraphHistoryCtx = new MksBasicGraph("id_m_stock_graph_"+this.ID+"_history");
+    this.GraphHistogramCtx = new MksBasicGraph("id_m_stock_graph_"+this.ID+"_histograme");
 }
 
 ModuleStockHistoryGraph.prototype.Build = function(data, callback) {
@@ -116,9 +118,26 @@ ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
             "bk_color": self.GraphHistoryCtx.Colors.blue,
             "title": "Regression"
         });
+        self.GraphHistoryCtx.AddDataSet({
+            "x": data.data.date,
+            "y": data.data.algo.perc_low,
+            "color": self.GraphHistoryCtx.Colors.green,
+            "bk_color": self.GraphHistoryCtx.Colors.green,
+            "title": "Buy",
+            "dashed": true
+        });
+        self.GraphHistoryCtx.AddDataSet({
+            "x": data.data.date,
+            "y": data.data.algo.perc_high,
+            "color": self.GraphHistoryCtx.Colors.orange,
+            "bk_color": self.GraphHistoryCtx.Colors.orange,
+            "title": "Sell",
+            "dashed": true
+        });
         self.GraphHistoryCtx.Build(document.getElementById("id_m_stock_history_graph_"+self.HostingID+"_"+self.Name));
         self.HideGraphLoader();
-        /*
+        
+        console.log(data.data.hist_open.x, data.data.hist_open.y);
         self.GraphHistogramCtx.Configure({
             "type": "bar",
             "title": "Price Histograme",
@@ -137,8 +156,8 @@ ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
             "bk_color": self.GraphHistogramCtx.Colors.blue,
             "title": "Price Histograme"
         });
-        self.GraphHistogramCtx.Build(document.getElementById("id_m_stock_histogram_graph_"+self.HostingID+"_"+self.Name));
-        */
+        
+        self.GraphHistogramCtx.Build(document.getElementById("id_m_stock_histograme_graph_"+self.HostingID+"_"+self.Name));
     });
 }
 
