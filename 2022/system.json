@@ -3,10 +3,10 @@
 	{
 		"system": {
 			"log_level": 3,
-			"log_to_file": "True"
+			"log_to_file": "False"
 		},
 		"info": {
-			"uuid":"00000000-0000-0000-0000-000000000101",
+			"uuid":"12345678-1234-1234-1234-000000000101",
 			"isHW":"False",
 			"type":2022,
 			"ostype":"Linux",
@@ -40,7 +40,9 @@
 	},
 	"deploymnet": {
 		"dependencies_cmd": [
-			"python3 -m pip install yfinance"
+			"python3 -m pip install yfinance",
+			"python3 -m pip install html5lib",
+			"python3 -m pip install BeautifulSoup4"
 		],
 		"script": {
 

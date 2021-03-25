@@ -9,13 +9,13 @@ function ModuleStockHistoryGraph(name, ticker) {
                 <div class="card-body">
                     <div class="row">
                         <div class="col-lg-12 text-center">
-                            <div class="btn-group btn-group-sm" role="group" aria-label="Basic example">
-                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraph('1d','1m');">1D</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraph('5d','5m');">5D</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraph('1mo','30m');">1MO</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraph('3mo','60m');">3MO</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraph('6mo','1d');">6MO</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraph('1y','1d');">1Y</button>
+                            <div id="id_m_stock_graph_period_selector_[ID]_[NAME]" class="btn-group btn-group-sm" role="group" aria-label="Basic example">
+                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraphUI(this,'1d','1m');">1D</button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraphUI(this,'5d','5m');">5D</button>
+                                <button type="button" class="btn btn-outline-secondary active" onclick="[INSTANCE].UpdateGraphUI(this,'1mo','30m');">1MO</button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraphUI(this,'3mo','60m');">3MO</button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraphUI(this,'6mo','1d');">6MO</button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraphUI(this,'1y','1d');">1Y</button>
                             </div>
                         </div>
                     </div>
@@ -72,7 +72,7 @@ ModuleStockHistoryGraph.prototype.Build = function(data, callback) {
     html = html.split("[INSTANCE]").join(this.DOMName);
     this.ComponentObject = document.getElementById("id_m_stock_graph_"+this.ID);
     document.getElementById(this.HostingID).innerHTML = html;
-    this.UpdateGraph('5d','5m');
+    this.UpdateGraph('1mo','30m');
     if (callback !== undefined && callback != null) {
         callback(this);
     }
@@ -89,10 +89,24 @@ ModuleStockHistoryGraph.prototype.DownloadStockHistory = function(ticker, period
     });
 }
 
+ModuleStockHistoryGraph.prototype.UpdateGraphUI = function(obj, period, interval) {
+    var selector = document.getElementById("id_m_stock_graph_period_selector_"+this.ID);
+    var kids = selector.children;
+    for (var i = 0; i < kids.length; i++) {
+        kids[i].classList.remove("active");
+    }
+    obj.classList.add("active");
+    this.UpdateGraph(period, interval);
+}
+
 ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
     var self = this;
     this.ShowLoader();
     this.DownloadStockHistory(this.Ticker, period, interval, function(data) {
+        if (data.data == null || data.data === undefined) {
+            return;
+        }
+
         self.GraphHistoryCtx.Configure({
             "type": "line",
             "title": "Stock Price",
@@ -137,7 +151,6 @@ ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
         self.GraphHistoryCtx.Build(document.getElementById("id_m_stock_history_graph_"+self.HostingID+"_"+self.Name));
         self.HideGraphLoader();
         
-        console.log(data.data.hist_open.x, data.data.hist_open.y);
         self.GraphHistogramCtx.Configure({
             "type": "bar",
             "title": "Price Histograme",
@@ -173,10 +186,10 @@ ModuleStockHistoryGraph.prototype.ShowLoader = function() {
 
 ModuleStockHistoryGraph.prototype.Hide = function() {
     var self = this;
-    this.ComponentObject.classList.add("d-none")
+    this.ComponentObject.classList.add("d-none");
 }
 
 ModuleStockHistoryGraph.prototype.Show = function() {
     var self = this;
-    this.ComponentObject.classList.remove("d-none")
+    this.ComponentObject.classList.remove("d-none");
 }

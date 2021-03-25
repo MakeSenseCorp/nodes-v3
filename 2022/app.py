@@ -74,6 +74,7 @@ class Context():
 		self.Timer.AddTimeItem(10, self.PrintConnections)
 		self.Market.FullLoopPerformedCallback 	= self.FullLoopPerformedEvent
 		#self.Market.StockChangeCallback 		= self.StockChangeEvent
+		self.CurrentPortfolio 			= 0
 	
 	def FullLoopPerformedEvent(self):
 		pass
@@ -215,6 +216,7 @@ class Context():
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [DBDeleteStockHandler] {0}".format(payload,classname=self.ClassName),5)
 		self.SQL.DeleteStock(payload["ticker"])
+		self.Market.RemoveStock(payload["ticker"])
 		return {
 			"status": True
 		}
@@ -235,12 +237,23 @@ class Context():
 		# Check if stock already in the DB
 		if self.SQL.StockExist(payload["ticker"]) is False:
 			info = self.Market.GetStockInfoRaw(payload["ticker"])
+			self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0} Append to stock DB".format(payload,classname=self.ClassName),5)
 			self.SQL.InsertStock({
 				'name': info["shortName"],
 				'ticker': payload["ticker"],
 				'market_price': info["previousClose"],
 				'sector': info["sector"],
 				'industry': info["industry"]
+			})
+			self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0} Append to stock monitoring".format(payload,classname=self.ClassName),5)
+			# Append to stock monitoring
+			self.Market.AppendStock({
+				"ticker": 	payload["ticker"].upper(),
+				"price": 	info["previousClose"],
+				"1MO": 		None,
+				"5D": 		None,
+				"updated": 	False,
+				"pulled": 	False
 			})
 		return {
 			"status": True
@@ -519,8 +532,13 @@ class Context():
 	
 	def DownloadStockInfoHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		self.Node.LogMSG("({classname})# [GetStockHistoryHandler] ({0})".format(payload["ticker"],classname=self.ClassName),5)
-		info = self.Market.GetStockInfoRaw(payload["ticker"])
+		self.Node.LogMSG("({classname})# [DownloadStockInfoHandler] ({0})".format(payload["ticker"],classname=self.ClassName),5)
+		info = None
+
+		try:
+			info = self.Market.GetStockInfoRaw(payload["ticker"])
+		except Exception as e:
+			self.Node.LogMSG("({classname})# [DownloadStockInfoHandler] Exeption ({0})".format(e,classname=self.ClassName),5)
 
 		return {
 			"info": info
@@ -529,6 +547,11 @@ class Context():
 	def DownloadStockHistoryHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		hist = self.Market.GetStock(payload["ticker"], payload["period"], payload["interval"])
+
+		if len(hist) == 0:
+			return {
+				"ticker": payload["ticker"]
+			}
 
 		stock_date 			= []
 		stock_open 			= []

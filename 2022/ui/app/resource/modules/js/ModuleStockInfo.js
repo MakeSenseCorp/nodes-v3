@@ -42,6 +42,17 @@ ModuleStockInfo.prototype.Build = function(data, callback) {
     });
 }
 
+ModuleStockInfo.prototype.GetDataFromObject = function(data) {
+    if (data == null || data === undefined) {
+        return "";
+    }
+
+    if (typeof(data) === "object") {
+        return data.fmt;
+    }
+    return data;
+}
+
 ModuleStockInfo.prototype.GetStockInfo = function(ticker, callback) {
     if (ticker === undefined || ticker === null) {
         return false;
@@ -53,15 +64,15 @@ ModuleStockInfo.prototype.GetStockInfo = function(ticker, callback) {
         "ticker": ticker
     }, function(res) {
         var payload = res.data.payload;
-        self.CompanyNameObject.innerHTML 		= payload.info.shortName;
-        self.CompanyCountryObject.innerHTML 	= payload.info.country;
-        self.CompanySectorObject.innerHTML 	    = payload.info.sector;
-        self.CompanyIndustryObject.innerHTML 	= payload.info.industry;
-        self.Price.innerHTML                    = payload.info.previousClose; // payload.info.ask;
-        self.Volume.innerHTML                   = payload.info.volume;
-        self.Divident.innerHTML                 = payload.info.dividendRate;
-        self.Beta.innerHTML                     = payload.info.beta;
-        self.FloatShares.innerHTML              = payload.info.floatShares;
+        self.CompanyNameObject.innerHTML 		= self.GetDataFromObject(payload.info.shortName);
+        self.CompanyCountryObject.innerHTML 	= self.GetDataFromObject(payload.info.country);
+        self.CompanySectorObject.innerHTML 	    = self.GetDataFromObject(payload.info.sector);
+        self.CompanyIndustryObject.innerHTML 	= self.GetDataFromObject(payload.info.industry);
+        self.Price.innerHTML                    = self.GetDataFromObject(payload.info.previousClose); // payload.info.ask;
+        self.Volume.innerHTML                   = self.GetDataFromObject(payload.info.volume);
+        self.Divident.innerHTML                 = self.GetDataFromObject(payload.info.dividendRate);
+        self.Beta.innerHTML                     = self.GetDataFromObject(payload.info.beta);
+        self.FloatShares.innerHTML              = self.GetDataFromObject(payload.info.floatShares);
         self.Show();
         self.HideLoader();
         callback(self);
