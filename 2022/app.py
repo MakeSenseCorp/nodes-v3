@@ -225,7 +225,28 @@ class Context():
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [DBDeleteActionHandler] {0}".format(payload,classname=self.ClassName),5)
 
-		self.SQL.DeleteActionById(payload["id"])
+		# Get item to be deleted
+		del_act_id = payload["id"]
+		del_act = self.SQL.GetStockHistoryActionById(del_act_id)
+		if del_act["action"] == -1:
+			# del_act is a BUY action
+			# Delete all rows from stocks_history_sell_info table by stocks_history_buy_id
+			self.SQL.GetStockHistorySellInfoByBuyId(del_act_id)
+		else:
+			# del_act is a SELL action
+			# Get all rows for this id
+			hist_sell_info = self.SQL.GetStockHistorySellInfoBySellId(del_act_id)
+			for item in hist_sell_info:
+				# Update buy leftovers
+				self.SQL.UpdateStockActionLeftoverById(item["stocks_history_buy_id"], item["quantity"])
+				# Delete all rows from stocks_history_sell_info table by stocks_history_sell_id
+				self.SQL.DeleteStockHistorySellInfoBySellId(del_act_id)
+			pass
+
+		# Delete action
+		self.SQL.DeleteActionById(del_act_id)
+
+		# TODO - Update algo manager
 
 		return {
 			"status": True
@@ -496,20 +517,61 @@ class Context():
 
 	def AppendNewActionHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		self.Node.LogMSG("({classname})# [AppendNewActionHandler]".format(classname=self.ClassName),5)
-
-		# TODO - Get this stock from database, check for selling action if number of stock in possetion bigger then selling
+		self.Node.LogMSG("({classname})# [AppendNewActionHandler] {0}".format(payload["action"],classname=self.ClassName),5)
+		res 			= 0
+		sell_ammount	= int(payload["amount"])
+		buy_amount 		= 0
 
 		now = datetime.now()
 		res = self.SQL.InsertStockHistory({
-			'timestamp': time.time(),
-			'date': now.strftime("%m-%d-%Y 00:00:00"),
-			'ticker': payload["ticker"],
-			'price': payload["price"],
-			'action': payload["action"],
-			'amount': payload["amount"],
-			'fee': payload["fee"]
+			'timestamp': 	time.time(),
+			'date': 		now.strftime("%m-%d-%Y 00:00:00"),
+			'ticker': 		payload["ticker"],
+			'price': 		payload["price"],
+			'action': 		payload["action"],
+			'amount': 		payload["amount"],
+			'fee': 			payload["fee"],
+			'risk': 		2.0
 		})
+
+		# Sell stock
+		if payload["action"] == 1:
+			pass
+			# Get all buy with leftovers rows
+			actions = self.SQL.GetBuyStocksWithLeftovers(payload["ticker"])
+			for action in actions:
+				buy_amount += int(action["leftovers"])
+			
+			# Check for selling action if number of stock in possetion bigger then selling
+			if sell_ammount > buy_amount:
+				return {
+					"id": res
+				}
+
+			# Update leftovers
+			for action in actions[::-1]:
+				if sell_ammount == 0:
+					break
+				
+				leftovers 	= int(action["leftovers"])
+				act_id 		= int(action["id"])
+				if leftovers < sell_ammount:
+					# Update buy action, all action sold
+					self.SQL.UpdateStockActionLeftoverById(act_id, 0)
+					self.SQL.InsertStockHistorySellInfo({
+						"stocks_history_sell_id": res,
+						"stocks_history_buy_id": act_id,
+						"quantity": leftovers
+					})
+					sell_ammount -= leftovers
+				else:
+					self.SQL.UpdateStockActionLeftoverById(act_id,leftovers - sell_ammount)
+					self.SQL.InsertStockHistorySellInfo({
+						"stocks_history_sell_id": res,
+						"stocks_history_buy_id": act_id,
+						"quantity": sell_ammount
+					})
+					sell_ammount = 0
 
 		return {
 			"id": res

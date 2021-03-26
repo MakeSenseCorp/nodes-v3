@@ -277,6 +277,31 @@ class StockDB():
 				})
 		return stocks
 	
+	def GetBuyStocksWithLeftovers(self, ticker):
+		query = '''
+			SELECT stocks_history.id, timestamp, date, price, amount, name, action, fee, leftovers FROM stocks_history
+			INNER JOIN actions ON actions.id == stocks_history.action
+			WHERE stocks_history.leftovers > 0 AND stocks_history.action = -1 AND ticker = '{0}'
+		'''.format(ticker)
+		self.CURS.execute(query)
+		
+		stocks = []
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			for row in rows:
+				stocks.append({
+					"id": 		 	row[0],
+					"timestamp": 	row[1],
+					"date": 	 	row[2],
+					"price": 	 	row[3],
+					"amount": 	 	row[4],
+					"action_name": 	row[5],
+					"action": 	 	row[6],
+					"fee": 			row[7],
+					"leftovers":	row[8]
+				})
+		return stocks
+	
 	def StockToPortfolioExist(self, ticker, portfolio_id):
 		query = "SELECT * FROM stock_to_portfolio WHERE ticker = '{0}' AND portfolio_id = {1}".format(ticker, portfolio_id)
 		self.CURS.execute(query)
@@ -311,6 +336,67 @@ class StockDB():
 			return rows[0]
 		return None
 	
+	def GetStockHistoryActionById(self, act_id):
+		query = "SELECT * FROM stocks_history WHERE id={0}".format(act_id)
+		self.CURS.execute(query)
+		
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			return {
+					"id": 		 	rows[0][0],
+					"timestamp": 	rows[0][1],
+					"date": 	 	rows[0][2],
+					"ticker":		rows[0][3],
+					"price": 	 	rows[0][4],
+					"action": 	 	rows[0][5],
+					"amount": 	 	rows[0][6],
+					"fee": 			rows[0][7],
+					"action_name": 	rows[0][5],
+					"leftovers":	rows[0][8],
+					"risk":			rows[0][9],
+				}
+		return None
+	
+	def GetStockHistorySellInfoByBuyId(self, act_id):
+		print("GetStockHistorySellInfoByBuyId")
+		query = '''
+			SELECT * FROM stocks_history_sell_info
+			WHERE stocks_history_buy_id = {0}
+		'''.format(act_id)
+		self.CURS.execute(query)
+		
+		stocks = []
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			for row in rows:
+				stocks.append({
+					"id": 		 				row[0],
+					"stocks_history_sell_id": 	row[1],
+					"stocks_history_buy_id": 	row[2],
+					"quantity": 	 			row[3]
+				})
+		return stocks
+	
+	def GetStockHistorySellInfoBySellId(self, act_id):
+		print("GetStockHistorySellInfoBySellId")
+		query = '''
+			SELECT * FROM stocks_history_sell_info
+			WHERE stocks_history_sell_id = {0}
+		'''.format(act_id)
+		self.CURS.execute(query)
+		
+		stocks = []
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			for row in rows:
+				stocks.append({
+					"id": 		 				row[0],
+					"stocks_history_sell_id": 	row[1],
+					"stocks_history_buy_id": 	row[2],
+					"quantity": 	 			row[3]
+				})
+		return stocks
+	
 	def InsertStock(self, stock):
 		query = '''
 			INSERT INTO stocks_info (id,name,ticker,sector,industry,market_price)
@@ -330,13 +416,31 @@ class StockDB():
 		return self.CURS.lastrowid
 	
 	def InsertStockHistory(self, transaction):
+		leftovers = 0
+		if transaction["action"] == -1:
+			leftovers = transaction["amount"]
+		
 		query = '''
 			INSERT INTO stocks_history (id,timestamp,date,ticker,price,action,amount,fee,leftovers,risk)
 			VALUES (NULL,{0},'{1}','{2}',{3},{4},{5},{6},{7},{8})
-		'''.format(transaction["timestamp"],transaction["date"],transaction["ticker"],transaction["price"],transaction["action"],transaction["amount"],transaction["fee"],0,2.0)
+		'''.format(transaction["timestamp"],transaction["date"],transaction["ticker"],transaction["price"],transaction["action"],transaction["amount"],transaction["fee"],leftovers,transaction["risk"])
 
 		self.CURS.execute(query)
 		self.DB.commit()
+		return self.CURS.lastrowid
+	
+	def InsertStockHistorySellInfo(self, transaction):	
+		query = '''
+			INSERT INTO stocks_history_sell_info (id,stocks_history_sell_id,stocks_history_buy_id,quantity)
+			VALUES (NULL,{0},{1},{2})
+		'''.format(transaction["stocks_history_sell_id"],transaction["stocks_history_buy_id"],transaction["quantity"])
+
+		try:
+			self.CURS.execute(query)
+			self.DB.commit()
+		except:
+			return -1
+		
 		return self.CURS.lastrowid
 	
 	def InsertPortfolio(self, portfolio_name):
@@ -355,6 +459,21 @@ class StockDB():
 
 		self.CURS.execute(query)
 		self.DB.commit()
+		return self.CURS.lastrowid
+	
+	def UpdateStockActionLeftoverById(self, act_id, leftover):
+		query = '''
+			UPDATE stocks_history
+			SET leftovers = {0}
+			WHERE id = {1}
+		'''.format(leftover,act_id)
+
+		try:
+			self.CURS.execute(query)
+			self.DB.commit()
+		except:
+			return -1
+		
 		return self.CURS.lastrowid
 	
 	def DeleteStockPortfolio(self, data):
@@ -397,4 +516,23 @@ class StockDB():
 			DELETE FROM stocks_history
 			WHERE id = '{0}'
 		'''.format(id))
+		self.DB.commit()
+
+	def DeleteStockHistorySellInfoByBuyId(self, item_id):
+		print("DeleteStockHistorySellInfoByBuyId")
+		query = '''
+			DELETE FROM stocks_history_sell_info
+			WHERE stocks_history_buy_id={0}
+		'''.format(item_id)
+
+		self.CURS.execute(query)
+		self.DB.commit()
+	
+	def DeleteStockHistorySellInfoBySellId(self, item_id):
+		query = '''
+			DELETE FROM stocks_history_sell_info
+			WHERE stocks_history_sell_id={0}
+		'''.format(item_id)
+
+		self.CURS.execute(query)
 		self.DB.commit()
