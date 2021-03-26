@@ -252,6 +252,14 @@ class Context():
 			"status": True
 		}
 
+	def CheckForDict(self, obj, name):
+		if type(obj) == dict:
+			value = obj["raw"]
+		else:
+			value = obj
+		
+		return value
+		
 	def DBInsertStockHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0}".format(payload,classname=self.ClassName),5)
@@ -262,7 +270,7 @@ class Context():
 			self.SQL.InsertStock({
 				'name': info["shortName"],
 				'ticker': payload["ticker"],
-				'market_price': info["previousClose"],
+				'market_price': self.CheckForDict(info["previousClose"], "previousClose"),
 				'sector': info["sector"],
 				'industry': info["industry"]
 			})
@@ -270,7 +278,7 @@ class Context():
 			# Append to stock monitoring
 			self.Market.AppendStock({
 				"ticker": 	payload["ticker"].upper(),
-				"price": 	info["previousClose"],
+				"price": 	self.CheckForDict(info["previousClose"], "previousClose"),
 				"1MO": 		None,
 				"5D": 		None,
 				"updated": 	False,
@@ -821,6 +829,19 @@ class Context():
 						"updated": 	False,
 						"pulled": 	False
 					})
+					hist = self.SQL.GetBuyStocksWithLeftovers(stock["ticker"])
+					if hist is not None:
+						for item in hist:
+							'''
+								1 - Below
+								2 - Equal
+								3 - Above
+							'''
+							self.Market.AppendThreshold(stock["ticker"], {
+								"value": float(item["price"]) * ((100.0 - float(item["risk"])) / 100.0),
+								"type": 1,
+								"activated": False
+							})
 		self.Market.Start()
 
 		# Create file system for storing videos

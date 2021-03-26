@@ -29,6 +29,7 @@ class StockMarket():
 
 		self.FullLoopPerformedCallback 	= None
 		self.StockChangeCallback 		= None
+		self.ThresholdEventCallback 	= None
 		self.StockChangeLocker 			= threading.Lock()
 
 		# Threading section
@@ -139,6 +140,24 @@ class StockMarket():
 				stock["1D_statistics"]  	= self.CalculateBasicStatistics(stock["1D"])
 				stock["5D_statistics"]  	= self.CalculateBasicStatistics(stock["5D"])
 				stock["1MO_statistics"] 	= self.CalculateBasicStatistics(stock["1MO"])
+
+				for threshold in stock["thresholds"]:
+					threshold["activated"] = False
+					if threshold["type"] == 1:
+						if threshold["value"] < float(stock["price"]):
+							threshold["activated"] = True
+					elif threshold["type"] == 2:
+						if threshold["value"] == float(stock["price"]):
+							threshold["activated"] = True
+					elif threshold["type"] == 3:
+						if threshold["value"] > float(stock["price"]):
+							threshold["activated"] = True
+					else:
+						pass
+					
+					if self.ThresholdEventCallback is not None:
+						self.ThresholdEventCallback(ticker, threshold)
+				
 				if self.StockChangeCallback is not None:
 					self.StockChangeLocker.acquire()
 					self.StockChangeCallback(stock)
@@ -229,6 +248,15 @@ class StockMarket():
 	def UpdateStocks(self):
 		self.FirstStockUpdateRun = False
 
+	def AppendThreshold(self, ticker, threshold):
+		self.Locker.acquire()
+		try:
+			stock = self.CacheDB[ticker]
+			stock["thresholds"].append(threshold)
+		except:
+			pass
+		self.Locker.release()
+
 	def AppendStock(self, stock):
 		self.Locker.acquire()
 		try:
@@ -236,6 +264,7 @@ class StockMarket():
 			stock["1D_statistics"] 			= {}
 			stock["5D_statistics"] 			= {}
 			stock["1MO_statistics"] 		= {}
+			stock["thresholds"] 			= []
 			self.CacheDB[stock["ticker"]] 	= stock
 		except:
 			pass

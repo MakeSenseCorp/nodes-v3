@@ -279,7 +279,7 @@ class StockDB():
 	
 	def GetBuyStocksWithLeftovers(self, ticker):
 		query = '''
-			SELECT stocks_history.id, timestamp, date, price, amount, name, action, fee, leftovers FROM stocks_history
+			SELECT stocks_history.id, timestamp, date, price, amount, name, action, fee, leftovers, risk FROM stocks_history
 			INNER JOIN actions ON actions.id == stocks_history.action
 			WHERE stocks_history.leftovers > 0 AND stocks_history.action = -1 AND ticker = '{0}'
 		'''.format(ticker)
@@ -298,8 +298,11 @@ class StockDB():
 					"action_name": 	row[5],
 					"action": 	 	row[6],
 					"fee": 			row[7],
-					"leftovers":	row[8]
+					"leftovers":	row[8],
+					"risk":			row[9]
 				})
+		else:
+			return None
 		return stocks
 	
 	def StockToPortfolioExist(self, ticker, portfolio_id):
