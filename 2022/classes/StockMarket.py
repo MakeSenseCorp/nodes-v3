@@ -141,6 +141,19 @@ class StockMarket():
 				stock["5D_statistics"]  	= self.CalculateBasicStatistics(stock["5D"])
 				stock["1MO_statistics"] 	= self.CalculateBasicStatistics(stock["1MO"])
 
+				stock_open = []
+				for item in stock["1MO"]:
+					stock_open.append(item["open"])
+				
+				hist_open_y, hist_open_x = self.CreateHistogram(stock_open, 25)
+				pmin, low, mid, high, pmax = self.CalculatePercentile(0.15, 0.85, hist_open_y)
+				if stock_open[high] < stock["price"]:
+					stock["predictions"]["basic_action"] = "sell"
+				elif stock_open[low] > stock["price"]:
+					stock["predictions"]["basic_action"] = "buy"
+				else:
+					stock["predictions"]["basic_action"] = "hold"
+
 				for threshold in stock["thresholds"]:
 					threshold["activated"] = False
 					if threshold["type"] == 1:
@@ -267,13 +280,14 @@ class StockMarket():
 		self.Locker.acquire()
 		try:
 			stock = self.CacheDB[ticker]
-			threshold = None
-			for item in stock["thresholds"]:
+			threshold_idx = -1
+			thresholds = stock["thresholds"]
+			for idx, item in enumerate(thresholds):
 				if item["stock_action_id"] == act_id:
-					threshold = item
+					threshold_idx = idx
 					break
-			if threshold is not None:
-				del threshold
+			if threshold_idx != -1:
+				del thresholds[threshold_idx]
 		except:
 			pass
 		self.Locker.release()
@@ -296,6 +310,7 @@ class StockMarket():
 			stock["5D_statistics"] 			= {}
 			stock["1MO_statistics"] 		= {}
 			stock["thresholds"] 			= []
+			stock["predictions"]			= {}
 			self.CacheDB[stock["ticker"]] 	= stock
 		except:
 			pass
@@ -402,40 +417,28 @@ class StockMarket():
 		return hist
 
 	def Get1D(self, ticker):
-		'''
-			Open,High,Low,Close,Volume,Dividends,Stock Splits
-		'''
-		hist = []
-		objtk = yf.Ticker(ticker)
-		data = objtk.history(period="1d", interval="5m")
-		for idx, row in data.iterrows():
-			hist.append({
-				"date": "{0}".format(idx).replace("00:00:00",""),
-				"open": row['Open'],
-				"close": row['Close'],
-				"high": row['High'],
-				"low": row['Low'],
-				"vol": row['Volume']
-			})
-		return hist
+		return self.GetStock(ticker, "1d", "1m")
 
 	def Get5D(self, ticker):
-		'''
-			Open,High,Low,Close,Volume,Dividends,Stock Splits
-		'''
-		hist = []
-		objtk = yf.Ticker(ticker)
-		data = objtk.history(period="5d", interval="5m")
-		for idx, row in data.iterrows():
-			hist.append({
-				"date": "{0}".format(idx).replace("00:00:00",""),
-				"open": row['Open'],
-				"close": row['Close'],
-				"high": row['High'],
-				"low": row['Low'],
-				"vol": row['Volume']
-			})
-		return hist
+		return self.GetStock(ticker, "5d", "5m")
+	
+	def Get1MO(self, ticker):
+		return self.GetStock(ticker, "1mo", "30m")
+	
+	def Get3MO(self, ticker):
+		return self.GetStock(ticker, "3mo", "60m")
+	
+	def Get6MO(self, ticker):
+		return self.GetStock(ticker, "6mo", "1d")
+	
+	def Get1Y(self, ticker):
+		return self.GetStock(ticker, "1y", "1d")
+	
+	def Get2Y(self, ticker):
+		return self.GetStock(ticker, "2y", "5d")
+	
+	def Get5Y(self, ticker):
+		return self.GetStock(ticker, "5y", "1wk")
 	
 	def FindMaxMin(self, buffer):
 		pmax = 0		
@@ -521,24 +524,6 @@ class StockMarket():
 					pmax = (hist_len - 1) - idx
 		
 		return pmin, low_perc, mid_perc, high_perc, pmax
-
-	def Get1MO(self, ticker):
-		'''
-			Open,High,Low,Close,Volume,Dividends,Stock Splits
-		'''
-		hist = []
-		objtk = yf.Ticker(ticker)
-		data = objtk.history(period="1mo")
-		for idx, row in data.iterrows():
-			hist.append({
-				"date": "{0}".format(idx),
-				"open": row['Open'],
-				"close": row['Close'],
-				"high": row['High'],
-				"low": row['Low'],
-				"vol": row['Volume']
-			})
-		return hist
 	
 	def CalculateMinMax(self, data):
 		pmax = 0

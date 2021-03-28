@@ -128,10 +128,11 @@ ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
         self.GraphHistoryCtx.AddDataSet({
             "x": data.data.date,
             "y": data.data.open,
-            "color": self.GraphHistoryCtx.Colors.blue,
-            "bk_color": self.GraphHistoryCtx.Colors.blue,
+            "color": 'rgb(100, 100, 100)',
+            "bk_color": 'rgb(100, 100, 100)',
             "title": "Open"
         });
+        /*
         self.GraphHistoryCtx.AddDataSet({
             "x": data.data.date,
             "y": data.data.regression,
@@ -139,6 +140,7 @@ ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
             "bk_color": self.GraphHistoryCtx.Colors.yellow,
             "title": "Regression"
         });
+        */
         self.GraphHistoryCtx.AddDataSet({
             "x": data.data.date,
             "y": data.data.algo.perc_low,

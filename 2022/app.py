@@ -78,27 +78,33 @@ class Context():
 	
 	def FullLoopPerformedEvent(self):
 		pass
-
-	def AddRiskThreshold(self, ticker):
+	
+	def AddRiskThresholdToStock(self, ticker):
 		try:
 			hist = self.SQL.GetBuyStocksWithLeftovers(ticker)
 			if hist is not None:
 				for item in hist:
-					'''
-						1 - Below
-						2 - Equal
-						3 - Above
-					'''
-					self.Market.AppendThreshold(ticker, {
-						"stock_action_id": item["id"],
-						"value": float(item["price"]) * ((100.0 - float(item["risk"])) / 100.0),
-						"type": 1,
-						"activated": False
-					})
+					self.AddRiskThreshold(ticker, item["id"], item["price"], item["risk"])
 				return True
 		except Exception as e:
 			print(e)
 		return False
+
+	def AddRiskThreshold(self, ticker, act_id, price, risk):
+		try:
+			'''
+				1 - Below
+				2 - Equal
+				3 - Above
+			'''
+			self.Market.AppendThreshold(ticker, {
+				"stock_action_id": act_id,
+				"value": float(price) * ((100.0 - float(risk)) / 100.0),
+				"type": 1,
+				"activated": False
+			})
+		except Exception as e:
+			print(e)
 
 	def GetMarketStocksHandler(self, sock, packet):
 		self.Node.LogMSG("({classname})# [GetMarketStocksHandler]".format(classname=self.ClassName),5)
@@ -164,7 +170,8 @@ class Context():
 						"weekly": stock["5D_statistics"],
 						"monthly": stock["1MO_statistics"]
 					},
-					"thresholds": stock["thresholds"]
+					"thresholds": stock["thresholds"],
+					"predictions": stock["predictions"]
 				})
 			else:
 				self.Node.LogMSG("({classname})# [GetMarketStocksHandler] TICKER NULL {0}".format(ticker, classname=self.ClassName),5)
@@ -267,7 +274,7 @@ class Context():
 
 		# Delete action
 		self.SQL.DeleteActionById(del_act_id)
-
+		# Remove risk monitor for this action
 		self.Market.RemoveThresholdByStockActionId(ticker, del_act_id)
 
 		return {
@@ -306,8 +313,6 @@ class Context():
 				"updated": 	False,
 				"pulled": 	False
 			})
-			# Append threshold
-			self.AddRiskThreshold(payload["ticker"].upper())
 		return {
 			"status": True
 		}
@@ -510,7 +515,7 @@ class Context():
 					})
 
 					# Append threshold
-					self.AddRiskThreshold(ticker)
+					# self.AddRiskThresholdToStock(ticker)
 
 					THIS.Node.EmitOnNodeChange({
 						'event': "upload_progress",
@@ -557,6 +562,7 @@ class Context():
 		sell_ammount	= int(payload["amount"])
 		buy_amount 		= 0
 
+		risk = 2.0
 		now = datetime.now()
 		res = self.SQL.InsertStockHistory({
 			'timestamp': 	time.time(),
@@ -566,9 +572,9 @@ class Context():
 			'action': 		payload["action"],
 			'amount': 		payload["amount"],
 			'fee': 			payload["fee"],
-			'risk': 		2.0
+			'risk': 		risk
 		})
-
+		
 		# Sell stock
 		if payload["action"] == 1:
 			pass
@@ -607,6 +613,9 @@ class Context():
 						"quantity": sell_ammount
 					})
 					sell_ammount = 0
+		else:
+			# Append threshold
+			self.AddRiskThreshold(payload["ticker"].upper(), res, payload["price"], risk)
 
 		return {
 			"id": res
@@ -857,7 +866,7 @@ class Context():
 						"updated": 	False,
 						"pulled": 	False
 					})
-					self.AddRiskThreshold(stock["ticker"])
+					self.AddRiskThresholdToStock(stock["ticker"])
 		self.Market.Start()
 
 		# Create file system for storing videos
