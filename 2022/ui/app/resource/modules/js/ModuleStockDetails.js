@@ -52,6 +52,7 @@ ModuleStockDetails.prototype.Build = function(data, callback) {
 ModuleStockDetails.prototype.DeleteAction = function(ticker, id) {
     var self = this;
     node.API.SendCustomCommand(NodeUUID, "db_delete_action", {
+        "ticker": ticker,
         "id": id
     }, function(res) {
         var payload = res.data.payload;

@@ -107,6 +107,13 @@ ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
             return;
         }
 
+        pmin = [];
+        pmax = [];
+        for (idx = 0; idx < data.data.date.length; idx++) {
+            pmin.push(data.data.min);
+            pmax.push(data.data.max);
+        }
+
         self.GraphHistoryCtx.Configure({
             "type": "line",
             "title": "Stock Price",
@@ -121,31 +128,55 @@ ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
         self.GraphHistoryCtx.AddDataSet({
             "x": data.data.date,
             "y": data.data.open,
-            "color": self.GraphHistoryCtx.Colors.red,
-            "bk_color": self.GraphHistoryCtx.Colors.red,
+            "color": self.GraphHistoryCtx.Colors.blue,
+            "bk_color": self.GraphHistoryCtx.Colors.blue,
             "title": "Open"
         });
         self.GraphHistoryCtx.AddDataSet({
             "x": data.data.date,
             "y": data.data.regression,
-            "color": self.GraphHistoryCtx.Colors.blue,
-            "bk_color": self.GraphHistoryCtx.Colors.blue,
+            "color": self.GraphHistoryCtx.Colors.yellow,
+            "bk_color": self.GraphHistoryCtx.Colors.yellow,
             "title": "Regression"
         });
         self.GraphHistoryCtx.AddDataSet({
             "x": data.data.date,
             "y": data.data.algo.perc_low,
-            "color": self.GraphHistoryCtx.Colors.green,
-            "bk_color": self.GraphHistoryCtx.Colors.green,
+            "color": self.GraphHistoryCtx.Colors.red,
+            "bk_color": self.GraphHistoryCtx.Colors.red,
             "title": "Buy",
             "dashed": true
         });
         self.GraphHistoryCtx.AddDataSet({
             "x": data.data.date,
             "y": data.data.algo.perc_high,
+            "color": self.GraphHistoryCtx.Colors.green,
+            "bk_color": self.GraphHistoryCtx.Colors.green,
+            "title": "Sell",
+            "dashed": true
+        });
+        self.GraphHistoryCtx.AddDataSet({
+            "x": data.data.date,
+            "y": data.data.algo.perc_mid,
             "color": self.GraphHistoryCtx.Colors.orange,
             "bk_color": self.GraphHistoryCtx.Colors.orange,
-            "title": "Sell",
+            "title": "Middle",
+            "dashed": true
+        });
+        self.GraphHistoryCtx.AddDataSet({
+            "x": data.data.date,
+            "y": pmin,
+            "color": self.GraphHistoryCtx.Colors.grey,
+            "bk_color": self.GraphHistoryCtx.Colors.grey,
+            "title": "Min",
+            "dashed": true
+        });
+        self.GraphHistoryCtx.AddDataSet({
+            "x": data.data.date,
+            "y": pmax,
+            "color": self.GraphHistoryCtx.Colors.grey,
+            "bk_color": self.GraphHistoryCtx.Colors.grey,
+            "title": "Max",
             "dashed": true
         });
         self.GraphHistoryCtx.Build(document.getElementById("id_m_stock_history_graph_"+self.HostingID+"_"+self.Name));

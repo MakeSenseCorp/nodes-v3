@@ -144,13 +144,13 @@ class StockMarket():
 				for threshold in stock["thresholds"]:
 					threshold["activated"] = False
 					if threshold["type"] == 1:
-						if threshold["value"] < float(stock["price"]):
+						if float(threshold["value"]) > float(stock["price"]):
 							threshold["activated"] = True
 					elif threshold["type"] == 2:
-						if threshold["value"] == float(stock["price"]):
+						if float(threshold["value"]) == float(stock["price"]):
 							threshold["activated"] = True
 					elif threshold["type"] == 3:
-						if threshold["value"] > float(stock["price"]):
+						if float(threshold["value"]) < float(stock["price"]):
 							threshold["activated"] = True
 					else:
 						pass
@@ -247,11 +247,42 @@ class StockMarket():
 
 	def UpdateStocks(self):
 		self.FirstStockUpdateRun = False
+	
+	def RemoveThreshold(self, ticker, threshold_id):
+		self.Locker.acquire()
+		try:
+			stock = self.CacheDB[ticker]
+			threshold = None
+			for item in stock["thresholds"]:
+				if item["id"] == threshold_id:
+					threshold = item
+					break
+			if threshold is not None:
+				del threshold
+		except:
+			pass
+		self.Locker.release()
+	
+	def RemoveThresholdByStockActionId(self, ticker, act_id):
+		self.Locker.acquire()
+		try:
+			stock = self.CacheDB[ticker]
+			threshold = None
+			for item in stock["thresholds"]:
+				if item["stock_action_id"] == act_id:
+					threshold = item
+					break
+			if threshold is not None:
+				del threshold
+		except:
+			pass
+		self.Locker.release()
 
 	def AppendThreshold(self, ticker, threshold):
 		self.Locker.acquire()
 		try:
 			stock = self.CacheDB[ticker]
+			threshold["id"] = time.time()
 			stock["thresholds"].append(threshold)
 		except:
 			pass
@@ -445,15 +476,27 @@ class StockMarket():
 		low_perc  			= 0
 		low_perc_found  	= False
 
+		mid_perc 			= 0
+		mid_perc_found 		= False
+
 		high_perc 			= 0
 		high_perc_found 	= False
+
+		pmin 				= 0
+		pmin_found 			= False
+	
+		pmax 				= 0
+		pmax_found 			= False
 
 		perc_integral 	= 0.0
 		hist_sum 		= 0.0
 
+		hist_len 		= len(histogram)
+
 		for sample in histogram:
 			hist_sum += sample
 
+		# TODO - use liniar interpulation
 		for idx, sample in enumerate(histogram):
 			perc_integral += sample
 			if low_perc_found is False:
@@ -464,8 +507,20 @@ class StockMarket():
 				if (perc_integral / hist_sum) > high:
 					high_perc_found = True
 					high_perc = idx
+			if mid_perc_found is False:
+				if (perc_integral / hist_sum) >= 0.5:
+					mid_perc_found = True
+					mid_perc = idx
+			if pmin_found is False:
+				if sample > 0:
+					pmin_found = True
+					pmin = idx
+			if pmax_found is False:
+				if histogram[(hist_len - 1) - idx] > 0:
+					pmax_found = True
+					pmax = (hist_len - 1) - idx
 		
-		return low_perc, high_perc
+		return pmin, low_perc, mid_perc, high_perc, pmax
 
 	def Get1MO(self, ticker):
 		'''

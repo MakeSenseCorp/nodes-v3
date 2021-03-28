@@ -161,19 +161,21 @@ ModuleStockAppend.prototype.GetPortfolioStocks = function(id, name) {
     this.Number     = 0;
     
     var table = new MksBasicTable();
-        table.SetSchema(["", "", "", "", ""]);
+        table.SetSchema(["", "", "", "", "", "", ""]);
         var data = [];
         for (key in market.Stocks) {
             stock = market.Stocks[key];
             if (stock.portfolio_id == id || id == 0) {
                 this.Earnings   += stock.earnings;
                 this.Number     += stock.number;
-
+                
                 row = [];
                 row.push(`<h6 class="my-0"><a href="#" onclick="`+this.DOMName+`.UpdateStockInfoView('`+stock.ticker+`');">`+stock.ticker+`</a></h6>`);
                 row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_market_price">`+stock.market_price+`<span>`);
                 row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_number">`+stock.number+`<span>`);
                 row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_earnings">`+stock.earnings+`<span>`);
+                row.push(`<span><span>`);
+                row.push(`<span><span>`);
                 row.push(`
                     <div class="d-flex flex-row-reverse">
                         <div class="dropdown">
@@ -196,7 +198,7 @@ ModuleStockAppend.prototype.GetPortfolioStocks = function(id, name) {
         table.ShowRowNumber(false);
         table.ShowHeader(false);
         table.SetData(data);
-        table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, "", `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">`+this.Number+`<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">`+this.Earnings.toFixed(2)+`<span>`, ""])
+        table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, "", `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">`+this.Number+`<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">`+this.Earnings.toFixed(2)+`<span>`, "", "", ""])
         table.Build(document.getElementById("id_m_stock_append_stock_table"));
         feather.replace();
 }
@@ -316,29 +318,58 @@ ModuleStockAppend.prototype.UpdateStockTableFromLocalMarket = function() {
 
     for (key in market.Stocks) {
         var stock = market.Stocks[key];
+        
+        var priceEventObj   = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_price_event");
         document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_market_price").innerHTML = stock.market_price;
         document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_number").innerHTML = stock.number;
         document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_earnings").innerHTML = stock.earnings;
         this.Earnings   += stock.earnings;
         this.Number     += stock.number;
+
+        if (this.CheckThreshold(stock) == true) {
+            priceEventObj.innerHTML = `<span style="color: red;" data-feather="alert-triangle"><span></span>`;
+        } else {
+            priceEventObj.innerHTML = "";
+        }
     }
 
     document.getElementById("id_m_stock_append_table_price_summery_number").innerHTML   = this.Number;
     document.getElementById("id_m_stock_append_table_price_summery_earnings").innerHTML = this.Earnings.toFixed(2);
+    feather.replace();
+}
+
+ModuleStockAppend.prototype.CheckThreshold = function(stock) {
+    var threshold_activated = false;
+
+    if (stock.thresholds.length > 0) {
+        for (key in stock.thresholds) {
+            threshold = stock.thresholds[key];
+            threshold_activated = threshold.activated;
+        }
+    }
+
+    return threshold_activated;
 }
 
 ModuleStockAppend.prototype.UpdateStockTableAsync = function(data, scope) {
     for (key in data) {
         var stock = data[key];
-
-        var priceObj    = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_market_price");
-        var amountObj   = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_number");
-        var earningsObj = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_earnings");
+        
+        var priceObj        = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_market_price");
+        var amountObj       = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_number");
+        var earningsObj     = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_earnings");
+        var priceEventObj   = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_price_event");
 
         if (priceObj === undefined || priceObj === null) {
             return;
         }
 
+        if (scope.CheckThreshold(stock) == true) {
+            priceEventObj.innerHTML = `<span style="color: red;" data-feather="alert-triangle"><span></span>`;
+        } else {
+            priceEventObj.innerHTML = "";
+        }
+        
         scope.Number     -= parseFloat(amountObj.innerHTML);
         scope.Earnings   -= parseFloat(earningsObj.innerHTML);
         scope.Number     += stock.number;
@@ -351,6 +382,8 @@ ModuleStockAppend.prototype.UpdateStockTableAsync = function(data, scope) {
         document.getElementById("id_m_stock_append_table_price_summery_number").innerHTML   = scope.Number;
         document.getElementById("id_m_stock_append_table_price_summery_earnings").innerHTML = scope.Earnings.toFixed(2);
     }
+
+    feather.replace();
 }
 
 ModuleStockAppend.prototype.GetDataBaseStocks = function() {
@@ -360,15 +393,18 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
     }, function(res) {
         var payload = res.data.payload;
         var table = new MksBasicTable();
-        table.SetSchema(["", "", "", "", ""]);
+        table.SetSchema(["", "", "", "", "", "", ""]);
         var data = [];
         for (key in payload.stocks) {
             stock = payload.stocks[key];
+            
             row = [];
             row.push(`<h6 class="my-0"><a href="#" onclick="`+self.DOMName+`.UpdateStockInfoView('`+stock.ticker+`');">`+stock.ticker+`</a></h6>`);
             row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_market_price">`+stock.market_price+`<span>`);
             row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_number">0<span>`);
             row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_earnings">0<span>`);
+            row.push(`<span><span>`);
+            row.push(`<div id="id_m_stock_append_table_price_`+stock.ticker+`_price_event"></div>`);
             row.push(`
                 <div class="d-flex flex-row-reverse">
                     <div class="dropdown">
@@ -391,7 +427,7 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
         table.ShowRowNumber(false);
         table.ShowHeader(false);
         table.SetData(data);
-        table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, "", `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">0<span>`, ""])
+        table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, "", `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">0<span>`, "", "", ""])
         table.Build(document.getElementById("id_m_stock_append_stock_table"));
 
         document.getElementById('d_m_stock_append_stock_find_ticker').addEventListener('keyup', function(event) {

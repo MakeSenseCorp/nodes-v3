@@ -79,8 +79,28 @@ class Context():
 	def FullLoopPerformedEvent(self):
 		pass
 
+	def AddRiskThreshold(self, ticker):
+		try:
+			hist = self.SQL.GetBuyStocksWithLeftovers(ticker)
+			if hist is not None:
+				for item in hist:
+					'''
+						1 - Below
+						2 - Equal
+						3 - Above
+					'''
+					self.Market.AppendThreshold(ticker, {
+						"stock_action_id": item["id"],
+						"value": float(item["price"]) * ((100.0 - float(item["risk"])) / 100.0),
+						"type": 1,
+						"activated": False
+					})
+				return True
+		except Exception as e:
+			print(e)
+		return False
+
 	def GetMarketStocksHandler(self, sock, packet):
-		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [GetMarketStocksHandler]".format(classname=self.ClassName),5)
 
 		# Stock market status
@@ -143,7 +163,8 @@ class Context():
 					"statistics": {
 						"weekly": stock["5D_statistics"],
 						"monthly": stock["1MO_statistics"]
-					}
+					},
+					"thresholds": stock["thresholds"]
 				})
 			else:
 				self.Node.LogMSG("({classname})# [GetMarketStocksHandler] TICKER NULL {0}".format(ticker, classname=self.ClassName),5)
@@ -226,7 +247,8 @@ class Context():
 		self.Node.LogMSG("({classname})# [DBDeleteActionHandler] {0}".format(payload,classname=self.ClassName),5)
 
 		# Get item to be deleted
-		del_act_id = payload["id"]
+		del_act_id 	= payload["id"]
+		ticker 		= payload["ticker"]
 		del_act = self.SQL.GetStockHistoryActionById(del_act_id)
 		if del_act["action"] == -1:
 			# del_act is a BUY action
@@ -246,7 +268,7 @@ class Context():
 		# Delete action
 		self.SQL.DeleteActionById(del_act_id)
 
-		# TODO - Update algo manager
+		self.Market.RemoveThresholdByStockActionId(ticker, del_act_id)
 
 		return {
 			"status": True
@@ -284,6 +306,8 @@ class Context():
 				"updated": 	False,
 				"pulled": 	False
 			})
+			# Append threshold
+			self.AddRiskThreshold(payload["ticker"].upper())
 		return {
 			"status": True
 		}
@@ -420,7 +444,7 @@ class Context():
 
 		for idx, item in enumerate(stocks):
 			date 	= item["date"].replace("/","-")
-			ticker 	= item["ticker"]
+			ticker 	= item["ticker"].upper()
 			price 	= item["price"]
 			amount 	= item["amount"]
 			fee 	= item["fee"]
@@ -484,6 +508,9 @@ class Context():
 						"updated": 	False,
 						"pulled": 	False
 					})
+
+					# Append threshold
+					self.AddRiskThreshold(ticker)
 
 					THIS.Node.EmitOnNodeChange({
 						'event': "upload_progress",
@@ -643,14 +670,14 @@ class Context():
 			stock_vol.append(stock["vol"])
 		
 		hist_open_y, hist_open_x = self.Market.CreateHistogram(stock_open, 25)
-		low, high = self.Market.CalculatePercentile(0.15, 0.85, hist_open_y)
-		pmin, pmax = self.Market.FindMaxMin(stock_open)
+		pmin, low, mid, high, pmax = self.Market.CalculatePercentile(0.15, 0.85, hist_open_y)
+		# pmin, pmax = self.Market.FindMaxMin(stock_open)
 		#self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0} {1}".format(hist_open_x[low], hist_open_x[high], classname=self.ClassName),5)
 		return {
 			"ticker": payload["ticker"],
 			"data": {
-				"min": pmin,
-				"max": pmax,
+				"min": hist_open_x[pmin],
+				"max": hist_open_x[pmax],
 				"date": stock_date,
 				"open": stock_open,
 				"close": stock_close,
@@ -664,6 +691,7 @@ class Context():
 				},
 				"algo": {
 					"perc_low": [hist_open_x[low]]*len(hist),
+					"perc_mid": [hist_open_x[mid]]*len(hist),
 					"perc_high": [hist_open_x[high]]*len(hist)
 				}
 			}
@@ -829,19 +857,7 @@ class Context():
 						"updated": 	False,
 						"pulled": 	False
 					})
-					hist = self.SQL.GetBuyStocksWithLeftovers(stock["ticker"])
-					if hist is not None:
-						for item in hist:
-							'''
-								1 - Below
-								2 - Equal
-								3 - Above
-							'''
-							self.Market.AppendThreshold(stock["ticker"], {
-								"value": float(item["price"]) * ((100.0 - float(item["risk"])) / 100.0),
-								"type": 1,
-								"activated": False
-							})
+					self.AddRiskThreshold(stock["ticker"])
 		self.Market.Start()
 
 		# Create file system for storing videos
