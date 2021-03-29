@@ -162,6 +162,8 @@ class Context():
 					"name": db_stock["name"],
 					"number": db_stock["amount_sum"],
 					"earnings": earnings,
+					"total_investment": db_stock["hist_price_sum"],
+					"total_current_investment": market_price * db_stock["amount_sum"],
 					"market_price": market_price,
 					"hist_price_min": db_stock["hist_min"],
 					"hist_price_max": db_stock["hist_max"],
