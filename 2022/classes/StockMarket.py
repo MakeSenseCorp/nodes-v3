@@ -147,9 +147,10 @@ class StockMarket():
 				
 				hist_open_y, hist_open_x = self.CreateHistogram(stock_open, 25)
 				pmin, low, mid, high, pmax = self.CalculatePercentile(0.15, 0.85, hist_open_y)
-				if stock_open[high] < stock["price"]:
+				# self.LogMSG("({classname})# [MINION] ({0}) ({1}) ({2} - {3}) {4}".format(index,ticker,hist_open_x[low],hist_open_x[high],stock["price"],classname=self.ClassName), 5)
+				if hist_open_x[high] < stock["price"]:
 					stock["predictions"]["basic_action"] = "sell"
-				elif stock_open[low] > stock["price"]:
+				elif hist_open_x[low] > stock["price"]:
 					stock["predictions"]["basic_action"] = "buy"
 				else:
 					stock["predictions"]["basic_action"] = "hold"
@@ -188,7 +189,7 @@ class StockMarket():
 				self.Signal.set()
 	
 	def StockMonitorWorker(self):
-		self.MarketPollingInterval = 0
+		self.MarketPollingInterval = 0.5
 		# Start your minions
 		for idx in range(self.ThreadCount):
 			self.ThreadPoolStatus.append(False)
