@@ -333,7 +333,7 @@ ModuleStockAppend.prototype.CheckThreshold = function(stock) {
 ModuleStockAppend.prototype.SimplePredictionUpdate = function(stock) {
     var simpleActionObj = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_simple_action");
 
-    switch (stock.predictions.basic_action) {
+    switch (stock.predictions.basic.action) {
         case "sell":
             simpleActionObj.innerHTML = `<span style="color: red;" data-feather="log-out" data-placement="top" data-toggle="tooltip" title="Sell"></span>`;
             break;
@@ -385,7 +385,7 @@ ModuleStockAppend.prototype.UpdateStockTableFromLocalMarket = function() {
     document.getElementById("id_m_stock_append_table_price_summery_earnings").innerHTML         = this.Earnings.toFixed(2);
     document.getElementById("id_m_stock_append_table_price_summary_total_nvestment").innerHTML  = `${this.TotalCurrentInvestment.toFixed(2)} (${this.TotalInvestment.toFixed(2)}) $`;
     feather.replace();
-    $("body").tooltip({ selector: '[data-toggle=tooltip]' });
+    // $("body").tooltip({ selector: '[data-toggle=tooltip]' });
 }
 
 ModuleStockAppend.prototype.UpdateStockTableAsync = function(data, scope) {
@@ -426,7 +426,7 @@ ModuleStockAppend.prototype.UpdateStockTableAsync = function(data, scope) {
     }
 
     feather.replace();
-    $("body").tooltip({ selector: '[data-toggle=tooltip]' });
+    // $("body").tooltip({ selector: '[data-toggle=tooltip]' });
 }
 
 ModuleStockAppend.prototype.GetDataBaseStocks = function() {

@@ -79,9 +79,32 @@ class Context():
 		self.Market.FirstRunDoneCallback					= self.FirstRunDoneEvent
 		self.Market.StockMarketOpenCallback					= self.StockMarketOpenEvent
 		self.Market.StockMarketCloseCallback				= self.StockMarketCloseEvent
-		# self.Market.StockSimplePredictionChangeCallback 	= self.StockSimplePredictionChangeEvent
+		self.Market.StockSimplePredictionChangeCallback 	= self.StockSimplePredictionChangeEvent
+		self.Market.ThresholdEventCallback 					= self.ThresholdEvent
 		self.CurrentPortfolio 			= 0
 	
+	def ThresholdEvent(self, ticker, price, threshold):
+		self.Node.LogMSG("({classname})# [StockSimplePredictionChangeEvent]".format(classname=self.ClassName),5)
+
+		if "risk" in threshold["name"]:
+			html = '''
+				<table>
+					<tr>
+						<td><span>Ticker</span></td>
+						<td><span>{0}</span></td>
+					</tr>
+					<tr>
+						<td><span>Price</span></td>
+						<td><span>{1}</span></td>
+					</tr>
+					<tr>
+						<td><span>Limit</span></td>
+						<td><span>{2}</span></td>
+					</tr>
+				</table>
+			'''.format(ticker, price, threshold["value"])
+			self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Risk", html)
+
 	def StockSimplePredictionChangeEvent(self, data):
 		self.Node.LogMSG("({classname})# [StockSimplePredictionChangeEvent]".format(classname=self.ClassName),5)
 		html = '''
@@ -155,7 +178,8 @@ class Context():
 				"stock_action_id": act_id,
 				"value": float(price) * ((100.0 - float(risk)) / 100.0),
 				"type": 1,
-				"activated": False
+				"activated": False,
+				"name": "risk"
 			})
 		except Exception as e:
 			print(e)
