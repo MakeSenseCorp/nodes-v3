@@ -236,6 +236,69 @@ class StockMarket():
 			}
 		}
 	
+	def CalculateBasicPrediction(self, stock, period):
+		stock_open = []
+		for item in stock[period]:
+			stock_open.append(item["open"])
+		
+		self.BasicPrediction.SetBuffer(stock_open)
+		output = self.BasicPrediction.Execute()
+		
+		high = output["output"]["index_high"]
+		low  = output["output"]["index_low"]
+		x 	 = output["output"]["x"]
+
+		if x[high] < stock["price"]:
+			if "none" in stock["predictions"]["basic"]["prev_action"]:
+				stock["predictions"]["basic"]["prev_action"] = "sell"
+			else:
+				if "sell" not in stock["predictions"]["basic"]["prev_action"]:
+					stock["predictions"]["basic"]["prev_action"] = "sell"
+					self.LogMSG("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to SELL".format(stock["ticker"],classname=self.ClassName), 5)
+					# Call for update callback
+					if self.StockSimplePredictionChangeCallback is not None:
+						self.StockSimplePredictionChangeCallback({
+							"ticker"	: stock["ticker"],
+							"price"		: stock["price"],
+							"pred_prev"	: stock["predictions"]["basic"]["prev_action"],
+							"pred_curr"	: "sell"
+						})
+			stock["predictions"]["basic"]["action"] = "sell"
+		elif x[low] > stock["price"]:
+			if "none" in stock["predictions"]["basic"]["prev_action"]:
+				stock["predictions"]["basic"]["prev_action"] = "buy"
+			else:
+				if "buy" not in stock["predictions"]["basic"]["prev_action"]:
+					stock["predictions"]["basic"]["prev_action"] = "buy"
+					self.LogMSG("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to BUY".format(stock["ticker"],classname=self.ClassName), 5)
+					# Call for update callback
+					if self.StockSimplePredictionChangeCallback is not None:
+						self.StockSimplePredictionChangeCallback({
+							"ticker"	: stock["ticker"],
+							"price"		: stock["price"],
+							"pred_prev"	: stock["predictions"]["basic"]["prev_action"],
+							"pred_curr"	: "buy"
+						})
+			stock["predictions"]["basic"]["action"] = "buy"
+		else:
+			if "none" in stock["predictions"]["basic"]["prev_action"]:
+				stock["predictions"]["basic"]["prev_action"] = "hold"
+			else:
+				if "hold" not in stock["predictions"]["basic"]["prev_action"]:
+					stock["predictions"]["basic"]["prev_action"] = "hold"
+					self.LogMSG("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to HOLD".format(stock["ticker"],classname=self.ClassName), 5)
+					# Call for update callback
+					if self.StockSimplePredictionChangeCallback is not None:
+						self.StockSimplePredictionChangeCallback({
+							"ticker"	: stock["ticker"],
+							"price"		: stock["price"],
+							"pred_prev"	: stock["predictions"]["basic"]["prev_action"],
+							"pred_curr"	: "hold"
+						})
+			stock["predictions"]["basic"]["action"] = "hold"
+		
+		return stock
+
 	def StockMinion(self, index):
 		self.LogMSG("({classname})# [MINION] Reporting for duty ({0})".format(index,classname=self.ClassName), 5)
 		# Update jobless minons
@@ -251,12 +314,14 @@ class StockMarket():
 				item = self.Queues[index].get(block=True,timeout=None)
 				self.ThreadPoolStatus[index] = True
 				ticker = item["ticker"]
-				stock = self.CacheDB[ticker]
+				stock  = self.CacheDB[ticker]
 				self.LogMSG("({classname})# [MINION] Update stock ({0}) ({1})".format(index,ticker,classname=self.ClassName), 5)
 				# Update local stock DB
 				stock["1D"]					= self.Get1D(ticker)
 				stock["5D"] 	 			= self.Get5D(ticker)
 				stock["1MO"] 	 			= self.Get1MO(ticker)
+				stock["3MO"] 	 			= self.Get3MO(ticker)
+				stock["6MO"] 	 			= self.Get6MO(ticker)
 				stock["price"] 	 			= self.GetStockCurrentPrice(ticker)
 				stock["updated"] 			= True
 				stock["ts_last_updated"] 	= time.time()
@@ -264,66 +329,7 @@ class StockMarket():
 				stock["5D_statistics"]  	= self.CalculateBasicStatistics(stock["5D"])
 				stock["1MO_statistics"] 	= self.CalculateBasicStatistics(stock["1MO"])
 
-				stock_open = []
-				for item in stock["1MO"]:
-					stock_open.append(item["open"])
-				
-				self.BasicPrediction.SetBuffer(stock_open)
-				output = self.BasicPrediction.Execute()
-				# self.LogMSG("({classname})# [MINION] ({0}) ({1}) ({2} - {3}) {4}".format(index,ticker,hist_open_x[low],hist_open_x[high],stock["price"],classname=self.ClassName), 5)
-
-				high = output["output"]["index_high"]
-				low  = output["output"]["index_low"]
-				x 	 = output["output"]["x"]
-
-				if x[high] < stock["price"]:
-					if "none" in stock["predictions"]["basic"]["prev_action"]:
-						stock["predictions"]["basic"]["prev_action"] = "sell"
-					else:
-						if "sell" not in stock["predictions"]["basic"]["prev_action"]:
-							stock["predictions"]["basic"]["prev_action"] = "sell"
-							self.LogMSG("({classname})# [MINION] ({0}) Prediction changed to SELL".format(index,classname=self.ClassName), 5)
-							# Call for update callback
-							if self.StockSimplePredictionChangeCallback is not None:
-								self.StockSimplePredictionChangeCallback({
-									"ticker"	: stock["ticker"],
-									"price"		: stock["price"],
-									"pred_prev"	: stock["predictions"]["basic"]["prev_action"],
-									"pred_curr"	: "sell"
-								})
-					stock["predictions"]["basic"]["action"] = "sell"
-				elif x[low] > stock["price"]:
-					if "none" in stock["predictions"]["basic"]["prev_action"]:
-						stock["predictions"]["basic"]["prev_action"] = "buy"
-					else:
-						if "buy" not in stock["predictions"]["basic"]["prev_action"]:
-							stock["predictions"]["basic"]["prev_action"] = "buy"
-							self.LogMSG("({classname})# [MINION] ({0}) Prediction changed to BUY".format(index,classname=self.ClassName), 5)
-							# Call for update callback
-							if self.StockSimplePredictionChangeCallback is not None:
-								self.StockSimplePredictionChangeCallback({
-									"ticker"	: stock["ticker"],
-									"price"		: stock["price"],
-									"pred_prev"	: stock["predictions"]["basic"]["prev_action"],
-									"pred_curr"	: "buy"
-								})
-					stock["predictions"]["basic"]["action"] = "buy"
-				else:
-					if "none" in stock["predictions"]["basic"]["prev_action"]:
-						stock["predictions"]["basic"]["prev_action"] = "hold"
-					else:
-						if "hold" not in stock["predictions"]["basic"]["prev_action"]:
-							stock["predictions"]["basic"]["prev_action"] = "hold"
-							self.LogMSG("({classname})# [MINION] ({0}) Prediction changed to HOLD".format(index,classname=self.ClassName), 5)
-							# Call for update callback
-							if self.StockSimplePredictionChangeCallback is not None:
-								self.StockSimplePredictionChangeCallback({
-									"ticker"	: stock["ticker"],
-									"price"		: stock["price"],
-									"pred_prev"	: stock["predictions"]["basic"]["prev_action"],
-									"pred_curr"	: "hold"
-								})
-					stock["predictions"]["basic"]["action"] = "hold"
+				self.CalculateBasicPrediction(stock, "1MO")
 
 				for threshold in stock["thresholds"]:
 					threshold["activated"] = False
@@ -341,7 +347,7 @@ class StockMarket():
 					
 					if threshold["activated"] is True:
 						if self.ThresholdEventCallback is not None:
-							self.ThresholdEventCallback(ticker, price, threshold)
+							self.ThresholdEventCallback(ticker, stock["price"], threshold)
 				
 				if self.StockChangeCallback is not None:
 					self.StockChangeLocker.acquire()
