@@ -15,6 +15,123 @@ import yfinance as yf
 import pandas as pd
 import math
 
+class AlgoMath():
+	def __init__(self):
+		self.ClassName = "AlgoMath"
+	
+	def FindBufferMaxMin(self, buffer):
+		pmax = 0		
+		pmin = 0
+		if len(buffer) > 0:
+			pmin = buffer[0]
+			for item in buffer:
+				if pmax < item:
+					pmax = item
+				if pmin > item:
+					pmin = item
+		return pmin, pmax
+
+	def CreateHistogram(self, buffer, bin_size):
+		ret_hist_buffer_y = []
+		ret_hist_buffer_x = []
+		try:
+			if len(buffer) > 0:
+				# Find min and max for this buffer
+				pmin, pmax = self.FindBufferMaxMin(buffer)
+				# Calculate freq
+				freq = (float(pmax) - float(pmin)) / float(bin_size)
+				# Generate x scale
+				ret_hist_buffer_x = [(x * freq) + pmin for x in range(0, bin_size)]
+				ret_hist_buffer_y = [0] * bin_size
+				# Generate y scale
+				for sample in buffer:
+					index = int((float(sample) - float(pmin)) / freq)
+					if index == 25:
+						index = 24
+					#print(index, sample, freq, pmin, pmax)
+					ret_hist_buffer_y[index] += 1
+		except Exception as e:
+			print("Histograme exception {0}".format(e))
+		return ret_hist_buffer_y, ret_hist_buffer_x
+	
+	def CalculatePercentile(self, low, high, histogram):
+		low_perc  			= 0
+		low_perc_found  	= False
+
+		mid_perc 			= 0
+		mid_perc_found 		= False
+
+		high_perc 			= 0
+		high_perc_found 	= False
+
+		pmin 				= 0
+		pmin_found 			= False
+	
+		pmax 				= 0
+		pmax_found 			= False
+
+		perc_integral 	= 0.0
+		hist_sum 		= 0.0
+
+		hist_len 		= len(histogram)
+
+		for sample in histogram:
+			hist_sum += sample
+
+		# TODO - use liniar interpulation
+		for idx, sample in enumerate(histogram):
+			perc_integral += sample
+			if low_perc_found is False:
+				if (perc_integral / hist_sum) > low:
+					low_perc_found = True
+					low_perc = idx
+			if high_perc_found is False:
+				if (perc_integral / hist_sum) > high:
+					high_perc_found = True
+					high_perc = idx
+			if mid_perc_found is False:
+				if (perc_integral / hist_sum) >= 0.5:
+					mid_perc_found = True
+					mid_perc = idx
+			if pmin_found is False:
+				if sample > 0:
+					pmin_found = True
+					pmin = idx
+			if pmax_found is False:
+				if histogram[(hist_len - 1) - idx] > 0:
+					pmax_found = True
+					pmax = (hist_len - 1) - idx
+		
+		return pmin, low_perc, mid_perc, high_perc, pmax
+
+class AlgoBasicPrediction():
+	def __init__(self):
+		self.ClassName 				= "AlgoBasicPrediction"
+		self.Math 					= AlgoMath()
+		self.HistogramWindowSize 	= 25
+		self.PercentileLow 			= 0.15
+		self.PercentileHigh 		= 0.85
+		self.Buffer 				= None
+	
+	def SetBuffer(self, buffer):
+		self.Buffer = buffer
+	
+	def Execute(self):
+		Y, X = self.Math.CreateHistogram(self.Buffer, self.HistogramWindowSize)
+		idxMIN, idxLOW, idxMID, idxHIGH, idxMAX = self.Math.CalculatePercentile(self.PercentileLow, self.PercentileHigh, Y)
+
+		return {
+			"output": {
+				"x"				: X,
+				"y"				: Y,
+				"index_min"		: idxMIN,
+				"index_low"		: idxLOW,
+				"index_middle"	: idxMID,
+				"index_high"	: idxHIGH,
+				"index_max"		: idxMAX
+			}
+		}
+
 class StockMarket():
 	def __init__(self):
 		self.ClassName					= "StockMarket"
@@ -34,6 +151,8 @@ class StockMarket():
 		self.StockMarketOpenCallback 	= None
 		self.StockMarketCloseCallback	= None
 		self.StockChangeLocker 			= threading.Lock()
+
+		self.BasicPrediction 			= AlgoBasicPrediction()
 
 		# Threading section
 		self.ThreadCount				= 5
@@ -148,12 +267,17 @@ class StockMarket():
 				for item in stock["1MO"]:
 					stock_open.append(item["open"])
 				
-				hist_open_y, hist_open_x = self.CreateHistogram(stock_open, 25)
-				pmin, low, mid, high, pmax = self.CalculatePercentile(0.15, 0.85, hist_open_y)
+				self.BasicPrediction.SetBuffer(stock_open)
+				output = self.BasicPrediction.Execute()
 				# self.LogMSG("({classname})# [MINION] ({0}) ({1}) ({2} - {3}) {4}".format(index,ticker,hist_open_x[low],hist_open_x[high],stock["price"],classname=self.ClassName), 5)
-				if hist_open_x[high] < stock["price"]:
+
+				high = output["output"]["index_high"]
+				low  = output["output"]["index_low"]
+				x 	 = output["output"]["x"]
+
+				if x[high] < stock["price"]:
 					stock["predictions"]["basic_action"] = "sell"
-				elif hist_open_x[low] > stock["price"]:
+				elif x[low] > stock["price"]:
 					stock["predictions"]["basic_action"] = "buy"
 				else:
 					stock["predictions"]["basic_action"] = "hold"
@@ -317,7 +441,9 @@ class StockMarket():
 			stock["5D_statistics"] 			= {}
 			stock["1MO_statistics"] 		= {}
 			stock["thresholds"] 			= []
-			stock["predictions"]			= {}
+			stock["predictions"]			= {
+				"basic_action": "none"
+			}
 			self.CacheDB[stock["ticker"]] 	= stock
 		except:
 			pass
@@ -329,7 +455,7 @@ class StockMarket():
 		}
 		return res
 
-	def GetStocks(self):
+	def GetCacheDB(self):
 		return self.CacheDB
 
 	def GetStockInformation(self, ticker):
@@ -400,8 +526,8 @@ class StockMarket():
 			"high": high,
 			"low": low
 		}
-	
-	def GetStock(self, ticker, period, interval):
+		
+	def GetStockHistory(self, ticker, period, interval):
 		'''
 			Open,High,Low,Close,Volume,Dividends,Stock Splits
 		'''
@@ -424,113 +550,28 @@ class StockMarket():
 		return hist
 
 	def Get1D(self, ticker):
-		return self.GetStock(ticker, "1d", "1m")
+		return self.GetStockHistory(ticker, "1d", "1m")
 
 	def Get5D(self, ticker):
-		return self.GetStock(ticker, "5d", "5m")
+		return self.GetStockHistory(ticker, "5d", "5m")
 	
 	def Get1MO(self, ticker):
-		return self.GetStock(ticker, "1mo", "30m")
+		return self.GetStockHistory(ticker, "1mo", "30m")
 	
 	def Get3MO(self, ticker):
-		return self.GetStock(ticker, "3mo", "60m")
+		return self.GetStockHistory(ticker, "3mo", "60m")
 	
 	def Get6MO(self, ticker):
-		return self.GetStock(ticker, "6mo", "1d")
+		return self.GetStockHistory(ticker, "6mo", "1d")
 	
 	def Get1Y(self, ticker):
-		return self.GetStock(ticker, "1y", "1d")
+		return self.GetStockHistory(ticker, "1y", "1d")
 	
 	def Get2Y(self, ticker):
-		return self.GetStock(ticker, "2y", "5d")
+		return self.GetStockHistory(ticker, "2y", "5d")
 	
 	def Get5Y(self, ticker):
-		return self.GetStock(ticker, "5y", "1wk")
-	
-	def FindMaxMin(self, buffer):
-		pmax = 0		
-		pmin = 0
-		if len(buffer) > 0:
-			pmin = buffer[0]
-			for item in buffer:
-				if pmax < item:
-					pmax = item
-				if pmin > item:
-					pmin = item
-		return pmin, pmax
-
-	def CreateHistogram(self, buffer, bin_size):
-		ret_hist_buffer_y = []
-		ret_hist_buffer_x = []
-		try:
-			if len(buffer) > 0:
-				# Find min and max for this buffer
-				pmin, pmax = self.FindMaxMin(buffer)
-				# Calculate freq
-				freq = (float(pmax) - float(pmin)) / float(bin_size)
-				# Generate x scale
-				ret_hist_buffer_x = [(x * freq) + pmin for x in range(0, bin_size)]
-				ret_hist_buffer_y = [0] * bin_size
-				# Generate y scale
-				for sample in buffer:
-					index = int((float(sample) - float(pmin)) / freq)
-					if index == 25:
-						index = 24
-					#print(index, sample, freq, pmin, pmax)
-					ret_hist_buffer_y[index] += 1
-		except Exception as e:
-			print("Histograme exception {0}".format(e))
-		return ret_hist_buffer_y, ret_hist_buffer_x
-	
-	def CalculatePercentile(self, low, high, histogram):
-		low_perc  			= 0
-		low_perc_found  	= False
-
-		mid_perc 			= 0
-		mid_perc_found 		= False
-
-		high_perc 			= 0
-		high_perc_found 	= False
-
-		pmin 				= 0
-		pmin_found 			= False
-	
-		pmax 				= 0
-		pmax_found 			= False
-
-		perc_integral 	= 0.0
-		hist_sum 		= 0.0
-
-		hist_len 		= len(histogram)
-
-		for sample in histogram:
-			hist_sum += sample
-
-		# TODO - use liniar interpulation
-		for idx, sample in enumerate(histogram):
-			perc_integral += sample
-			if low_perc_found is False:
-				if (perc_integral / hist_sum) > low:
-					low_perc_found = True
-					low_perc = idx
-			if high_perc_found is False:
-				if (perc_integral / hist_sum) > high:
-					high_perc_found = True
-					high_perc = idx
-			if mid_perc_found is False:
-				if (perc_integral / hist_sum) >= 0.5:
-					mid_perc_found = True
-					mid_perc = idx
-			if pmin_found is False:
-				if sample > 0:
-					pmin_found = True
-					pmin = idx
-			if pmax_found is False:
-				if histogram[(hist_len - 1) - idx] > 0:
-					pmax_found = True
-					pmax = (hist_len - 1) - idx
-		
-		return pmin, low_perc, mid_perc, high_perc, pmax
+		return self.GetStockHistory(ticker, "5y", "1wk")
 	
 	def CalculateMinMax(self, data):
 		pmax = 0

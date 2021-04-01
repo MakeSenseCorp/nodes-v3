@@ -31,6 +31,8 @@ class Context():
 		self.Node						= node
 		self.File						= MkSFile.File()
 		self.Market 					= StockMarket.StockMarket()
+		self.Math 						= StockMarket.AlgoMath()
+		self.BasicPrediction 			= StockMarket.AlgoBasicPrediction()
 		self.SQL 						= StockDataBase.StockDB("stocks.db")
 		# States
 		self.States = {
@@ -112,7 +114,7 @@ class Context():
 
 	def FirstRunDoneEvent(self):
 		self.Node.LogMSG("({classname})# [FirstRunDoneEvent]".format(classname=self.ClassName),5)
-		stocks = self.Market.GetStocks()
+		stocks = self.Market.GetCacheDB()
 		html_rows = ""
 		for ticker in stocks:
 			stock = stocks[ticker]
@@ -163,7 +165,7 @@ class Context():
 
 		# Stock market status
 		status 		= self.Market.GetMarketStatus()
-		mkt_stocks 	= self.Market.GetStocks()
+		mkt_stocks 	= self.Market.GetCacheDB()
 		if status["local_stock_market_ready"] is False:
 			updated_stocks 	= 0
 			# Get portfolio stocks
@@ -706,7 +708,7 @@ class Context():
 
 	def DownloadStockHistoryHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		hist = self.Market.GetStock(payload["ticker"], payload["period"], payload["interval"])
+		hist = self.Market.GetStockHistory(payload["ticker"], payload["period"], payload["interval"])
 
 		if len(hist) == 0:
 			return {
@@ -732,15 +734,24 @@ class Context():
 			stock_low.append(stock["low"])
 			stock_vol.append(stock["vol"])
 		
-		hist_open_y, hist_open_x = self.Market.CreateHistogram(stock_open, 25)
-		pmin, low, mid, high, pmax = self.Market.CalculatePercentile(0.15, 0.85, hist_open_y)
-		# pmin, pmax = self.Market.FindMaxMin(stock_open)
+		self.BasicPrediction.SetBuffer(stock_open)
+		output = self.BasicPrediction.Execute()
+		
+		high = output["output"]["index_high"]
+		mid  = output["output"]["index_middle"]
+		low  = output["output"]["index_low"]
+		pmin = output["output"]["index_min"]
+		pmax = output["output"]["index_max"]
+		x 	 = output["output"]["x"]
+		y 	 = output["output"]["y"]
+
+		# pmin, pmax = self.Math.FindBufferMaxMin(stock_open)
 		#self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0} {1}".format(hist_open_x[low], hist_open_x[high], classname=self.ClassName),5)
 		return {
 			"ticker": payload["ticker"],
 			"data": {
-				"min": hist_open_x[pmin],
-				"max": hist_open_x[pmax],
+				"min": x[pmin],
+				"max": x[pmax],
 				"date": stock_date,
 				"open": stock_open,
 				"close": stock_close,
@@ -749,13 +760,13 @@ class Context():
 				"vol": stock_vol,
 				"regression": stock_regression,
 				"hist_open": {
-					"x": hist_open_x,
-					"y": hist_open_y
+					"x": x,
+					"y": y
 				},
 				"algo": {
-					"perc_low": [hist_open_x[low]]*len(hist),
-					"perc_mid": [hist_open_x[mid]]*len(hist),
-					"perc_high": [hist_open_x[high]]*len(hist)
+					"perc_low": [x[low]]*len(hist),
+					"perc_mid": [x[mid]]*len(hist),
+					"perc_high": [x[high]]*len(hist)
 				}
 			}
 		}
@@ -782,7 +793,7 @@ class Context():
 
 		# Stock market status
 		status 			= self.Market.GetMarketStatus()
-		mkt_stocks 		= self.Market.GetStocks()
+		mkt_stocks 		= self.Market.GetCacheDB()
 		if status["local_stock_market_ready"] is False:
 			updated_stocks 	= 0
 			# Get portfolio stocks
