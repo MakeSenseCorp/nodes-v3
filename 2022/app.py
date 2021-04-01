@@ -137,21 +137,34 @@ class Context():
 
 	def FirstRunDoneEvent(self):
 		self.Node.LogMSG("({classname})# [FirstRunDoneEvent]".format(classname=self.ClassName),5)
-		stocks = self.Market.GetCacheDB()
-		html_rows = ""
-		for ticker in stocks:
-			stock = stocks[ticker]
+		try:
+			stocks = self.Market.GetCacheDB()
+			html_rows = ""
+			for ticker in stocks:
+				stock = stocks[ticker]
 
-			html_rows += '''
-				<tr>
-					<td><a href="#">{0}</a></td>
-					<td>{1}</td>
-					<td>{2}</td>
-				</tr>
-			'''.format(stock["ticker"], stock["price"],stock["predictions"]["basic"]["action"])
+				basic_pred_html = ""
+				for item in stock["predictions"]["basic"]:
+					if "buy" in item["action"]:
+						color = "GREEN"
+					elif "sell" in item["action"]:
+						color = "RED"
+					else:
+						color = "BLACK"
+					basic_pred_html += '''<td><span style="color:{0}">{1}</span></td>'''.format(color,item["action"])
 
-		html = "<table>{0}</table>".format(html_rows)
-		self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Node Started", html)
+				html_rows += '''
+					<tr>
+						<td><a href="#">{0}</a></td>
+						<td>{1}</td>
+						{2}
+					</tr>
+				'''.format(stock["ticker"], stock["price"],basic_pred_html)
+
+			html = "<table>{0}</table>".format(html_rows)
+			self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Node Started", html)
+		except:
+			pass
 
 	def FullLoopPerformedEvent(self):
 		pass
@@ -223,6 +236,7 @@ class Context():
 					if db_stock["amount_sum"] is not None and db_stock["hist_price_sum"] is not None:
 						# earnings = float("{0:.3f}".format(db_stock["hist_price_sum"]))
 						if (market_price * db_stock["amount_sum"]) > 0 or db_stock["amount_sum"] == 0:
+							# TODO - market_price BUG (unsupported operand type(s) for *: 'int' and 'NoneType')
 							earnings = float("{0:.3f}".format(market_price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
 						stocks_count += db_stock["amount_sum"]
 					else:
@@ -759,7 +773,7 @@ class Context():
 			stock_vol.append(stock["vol"])
 		
 		self.BasicPrediction.SetBuffer(stock_open)
-		output = self.BasicPrediction.Execute()
+		error, output = self.BasicPrediction.Execute()
 		
 		high = output["output"]["index_high"]
 		mid  = output["output"]["index_middle"]

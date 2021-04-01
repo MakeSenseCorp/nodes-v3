@@ -333,7 +333,7 @@ ModuleStockAppend.prototype.CheckThreshold = function(stock) {
 ModuleStockAppend.prototype.SimplePredictionUpdate = function(stock) {
     var simpleActionObj = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_simple_action");
 
-    switch (stock.predictions.basic.action) {
+    switch (stock.predictions.basic[2].action) {
         case "sell":
             simpleActionObj.innerHTML = `<span style="color: red;" data-feather="log-out" data-placement="top" data-toggle="tooltip" title="Sell"></span>`;
             break;
