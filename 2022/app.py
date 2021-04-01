@@ -103,7 +103,7 @@ class Context():
 					</tr>
 				</table>
 			'''.format(ticker, price, threshold["value"])
-			self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Risk", html)
+			# self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Risk", html)
 
 	def StockSimplePredictionChangeEvent(self, data):
 		self.Node.LogMSG("({classname})# [StockSimplePredictionChangeEvent]".format(classname=self.ClassName),5)
