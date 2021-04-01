@@ -276,11 +276,11 @@ class StockMarket():
 				x 	 = output["output"]["x"]
 
 				if x[high] < stock["price"]:
-					stock["predictions"]["basic_action"] = "sell"
+					stock["predictions"]["basic"]["action"] = "sell"
 				elif x[low] > stock["price"]:
-					stock["predictions"]["basic_action"] = "buy"
+					stock["predictions"]["basic"]["action"] = "buy"
 				else:
-					stock["predictions"]["basic_action"] = "hold"
+					stock["predictions"]["basic"]["action"] = "hold"
 
 				for threshold in stock["thresholds"]:
 					threshold["activated"] = False
@@ -442,7 +442,10 @@ class StockMarket():
 			stock["1MO_statistics"] 		= {}
 			stock["thresholds"] 			= []
 			stock["predictions"]			= {
-				"basic_action": "none"
+				"basic": {
+					"action"		: "none",
+					"prev_action"	: "none"
+				}
 			}
 			self.CacheDB[stock["ticker"]] 	= stock
 		except:

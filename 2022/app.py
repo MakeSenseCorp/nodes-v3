@@ -125,7 +125,7 @@ class Context():
 					<td>{1}</td>
 					<td>{2}</td>
 				</tr>
-			'''.format(stock["ticker"], stock["price"],stock["predictions"]["basic_action"])
+			'''.format(stock["ticker"], stock["price"],stock["predictions"]["basic"]["action"])
 
 		html = "<table>{0}</table>".format(html_rows)
 		self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Node Started", html)
