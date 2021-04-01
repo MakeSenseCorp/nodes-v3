@@ -172,13 +172,38 @@ class EMailService(IServce):
 			server = smtplib.SMTP(self.SMTPServer)
 			server.ehlo()
 			server.starttls()
+			print("({classname})# Loging to mail service.".format(classname=self.ClassName))
 			server.login(self.GmailUser, self.GmailPassword)
+			print("({classname})# Sending mail..".format(classname=self.ClassName))
 			server.sendmail(self.GmailUser, to, message)
 			server.close()
 
 			print("({classname})# Mail was sent.".format(classname=self.ClassName))
 		except Exception as e:
-			self.Node.LogException("[Request_SendEmailHtmlHandler]",e,3)
+			print("({classname})# ERROR - [SendEmail] {0} {error}".format(item,classname=self.ClassName,error=str(e)))
+	
+	def SendHtmlEmail(self, item):
+		try:
+			message 			= MIMEMultipart("alternative")
+			message["Subject"] 	= item["subject"]
+			message["From"] 	= self.GmailUser
+			message["To"] 		= item["to"]
+
+			# message.attach(MIMEText(text, "plain"))
+			message.attach(MIMEText(item["body"], "html"))
+
+			server = smtplib.SMTP(self.SMTPServer)
+			server.ehlo()
+			server.starttls()
+			print("({classname})# Loging to mail service.".format(classname=self.ClassName))
+			server.login(self.GmailUser, self.GmailPassword)
+			print("({classname})# Sending mail..".format(classname=self.ClassName))
+			server.sendmail(self.GmailUser, item["to"], message.as_string())
+			server.close()
+
+			print("({classname})# Mail was sent.".format(classname=self.ClassName))
+		except Exception as e:
+			print("({classname})# ERROR - [SendEmail] {0} {error}".format(item,classname=self.ClassName,error=str(e)))
 	
 	def Worker(self):
 		print("({classname})# Worker {0}".format(self.WorkerRunning,classname=self.ClassName))
@@ -186,7 +211,7 @@ class EMailService(IServce):
 			try:
 				item = self.LocalQueue.get(block=True,timeout=None)
 				print("({classname})# Send mail request".format(classname=self.ClassName))
-				self.SendEmail(item)
+				self.SendHtmlEmail(item)
 			except Exception as e:
 				print("({classname})# ERROR - [Worker] {0} {error}".format(item,classname=self.ClassName,error=str(e)))
 		print("({classname})# Exit".format(classname=self.ClassName))

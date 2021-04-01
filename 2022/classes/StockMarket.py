@@ -30,6 +30,9 @@ class StockMarket():
 		self.FullLoopPerformedCallback 	= None
 		self.StockChangeCallback 		= None
 		self.ThresholdEventCallback 	= None
+		self.FirstRunDoneCallback 		= None
+		self.StockMarketOpenCallback 	= None
+		self.StockMarketCloseCallback	= None
 		self.StockChangeLocker 			= threading.Lock()
 
 		# Threading section
@@ -246,6 +249,9 @@ class StockMarket():
 									self.Signal.clear()
 									# free minion not found, wait
 									self.Signal.wait()
+						if self.FirstStockUpdateRun is False:
+							if self.FirstRunDoneCallback is not None:
+								self.FirstRunDoneCallback()
 					self.FirstStockUpdateRun = True
 				time.sleep(self.MarketPollingInterval)
 			except Exception as e:

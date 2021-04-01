@@ -72,10 +72,62 @@ class Context():
 		self.LocalStoragePath 			= "import"
 
 		self.Timer.AddTimeItem(10, self.PrintConnections)
-		self.Market.FullLoopPerformedCallback 	= self.FullLoopPerformedEvent
-		#self.Market.StockChangeCallback 		= self.StockChangeEvent
+		self.Market.FullLoopPerformedCallback 				= self.FullLoopPerformedEvent
+		# self.Market.StockChangeCallback 					= self.StockChangeEvent
+		self.Market.FirstRunDoneCallback					= self.FirstRunDoneEvent
+		self.Market.StockMarketOpenCallback					= self.StockMarketOpenEvent
+		self.Market.StockMarketCloseCallback				= self.StockMarketCloseEvent
+		# self.Market.StockSimplePredictionChangeCallback 	= self.StockSimplePredictionChangeEvent
 		self.CurrentPortfolio 			= 0
 	
+	def StockSimplePredictionChangeEvent(self, data):
+		self.Node.LogMSG("({classname})# [StockSimplePredictionChangeEvent]".format(classname=self.ClassName),5)
+		html = '''
+			<table>
+				<tr>
+					<td><span>Ticker</span></td>
+					<td><span>{0}</span></td>
+				</tr>
+				<tr>
+					<td><span>Price</span></td>
+					<td><span>{1}</span></td>
+				</tr>
+				<tr>
+					<td><span>Previouse Prediction</span></td>
+					<td><span>{2}</span></td>
+				</tr>
+				<tr>
+					<td><span>Current Prediction</span></td>
+					<td><span>{3}</span></td>
+				</tr>
+			</table>
+		'''.format(data["ticker"], data["price"], data["pred_prev"], data["pred_curr"])
+		self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Prediction Change", html)
+
+	def StockMarketCloseEvent(self):
+		pass
+
+	def StockMarketOpenEvent(self):
+		pass
+
+	def FirstRunDoneEvent(self):
+		self.Node.LogMSG("({classname})# [FirstRunDoneEvent]".format(classname=self.ClassName),5)
+		stocks = self.Market.GetStocks()
+		html_rows = ""
+		for ticker in stocks:
+			stock = stocks[ticker]
+
+			html_rows += '''
+				<tr>
+					<td><a href="#">{0}</a></td>
+					<td>{1}</td>
+					<td>{2}</td>
+				</tr>
+			'''.format(stock["ticker"], stock["price"],stock["predictions"]["basic_action"])
+
+		html = "<table>{0}</table>".format(html_rows)
+		self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Node Started", html)
+
 	def FullLoopPerformedEvent(self):
 		pass
 	
@@ -879,6 +931,8 @@ class Context():
 		self.Uploader = MkSFileUploader.Manager(self)
 		self.Uploader.SetUploadPath(os.path.join(".",self.LocalStoragePath))
 		self.Uploader.Run()
+
+		# self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Node Started", "")
 	
 	def OnGetNodesListHandler(self, uuids):
 		print ("OnGetNodesListHandler", uuids)
