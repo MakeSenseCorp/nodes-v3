@@ -183,6 +183,15 @@
 				return this;
 			}
 
+			StockMarket.prototype.GetStockFromCache = function(ticker) {
+				for (key in market.Stocks) {
+					var stock = market.Stocks[key];
+					if (stock.ticker == ticker) {
+						return stock;
+					}
+				}
+			}
+
 			StockMarket.prototype.GetStocks = function() {
 				var self = this;
 

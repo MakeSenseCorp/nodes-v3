@@ -312,6 +312,19 @@ ModuleStockAppend.prototype.OpenPortfolioSelectorModal = function(ticker) {
     });
 }
 
+ModuleStockAppend.prototype.OpenBasicPredictionModal = function(ticker) {
+    var stock = market.GetStockFromCache(ticker);
+    var html  = this.GenerateSimplePredictionHtml(stock.predictions.basic);
+    
+    window.Modal.Remove();
+    window.Modal.SetTitle("Basic Prediction");
+    window.Modal.SetContent(html);
+    window.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+    window.Modal.Build("lg");
+    window.Modal.Show();
+    feather.replace();
+}
+
 ModuleStockAppend.prototype.UpdateStockInfoView = function(ticker) {
     document.getElementById('d_m_stock_append_stock_find_ticker').value = ticker;
     this.FindStockInMarket();
@@ -330,22 +343,94 @@ ModuleStockAppend.prototype.CheckThreshold = function(stock) {
     return threshold_activated;
 }
 
+ModuleStockAppend.prototype.CalculateTotalSimplePrediction = function(prediction) {
+    var prediction_map = {
+        "sell": -1,
+        "hold": 0,
+        "buy": 1
+    }
+
+    var prediction_overall = 0;
+    // Calculate overall basic prediction [1D(0), 5D(1), 1MO(2), 3MO(3), 6MO(4)]
+    for (key in prediction) {
+        var pred = prediction[key].action;
+        if (prediction_overall < 0 && pred == "hold") {
+            prediction_overall++;
+        } else if (prediction_overall > 0 && pred == "hold") {
+            prediction_overall--;
+        } else {
+            prediction_overall += prediction_map[pred];
+        }
+    }
+
+    return prediction_overall;
+}
+
+ModuleStockAppend.prototype.GenerateSimplePredictionHtml = function(prediction) {
+    var html = `<div class="card"><div class="card-body">
+                <div class="row">
+                    <div class="col text-center"><span>1D</span></div>
+                    <div class="col text-center"><span>5D</span></div>
+                    <div class="col text-center"><span>1MO</span></div>
+                    <div class="col text-center"><span>3MO</span></div>
+                    <div class="col text-center"><span>6MO</span></div>
+                    <div class="col text-center"><span></span></div>
+                    <div class="col text-center"><span>Total</span></div>
+                </div>
+                <div class="row">`;
+    var prediction_map = {
+        "sell": -1,
+        "hold": 0,
+        "buy": 1
+    }
+
+    var prediction_overall = 0;
+
+    // Calculate overall basic prediction [1D(0), 5D(1), 1MO(2), 3MO(3), 6MO(4)]
+    for (key in prediction) {
+        var pred = prediction[key].action;
+        if (pred == "sell") {
+            html += `<div class="col text-center"><span style="color: red; cursor: pointer;" data-feather="log-out" data-placement="top" data-toggle="tooltip" title="Sell"></span></div>`;
+        } else if (pred == "buy") {
+            html += `<div class="col text-center"><span style="color: green;cursor: pointer;" data-feather="log-in" data-placement="top" data-toggle="tooltip" title="Buy"></span></div>`;
+        } else if (pred == "hold") {
+            html += `<div class="col text-center"><span style="color: orange;cursor: pointer;" data-feather="shield" data-placement="top" data-toggle="tooltip" title="Hold"></span></div>`;
+        } else { }
+
+        if (prediction_overall < 0 && pred == "hold") {
+            prediction_overall++;
+        } else if (prediction_overall > 0 && pred == "hold") {
+            prediction_overall--;
+        } else {
+            prediction_overall += prediction_map[pred];
+        }
+    }
+
+    html += `<div class="col text-center">=</div>`
+
+    if (prediction_overall < 0) {
+        html += `<div class="col text-center"><span style="color: red; cursor: pointer;" data-feather="log-out" data-placement="top" data-toggle="tooltip" title="Sell"></span></div>`;
+    } else if (prediction_overall > 0) {
+        html += `<div class="col text-center"><span style="color: green;cursor: pointer;" data-feather="log-in" data-placement="top" data-toggle="tooltip" title="Buy"></span></div>`;
+    } else if (prediction_overall == 0) {
+        html += `<div class="col text-center"><span style="color: orange;cursor: pointer;" data-feather="shield" data-placement="top" data-toggle="tooltip" title="Hold"></span></div>`;
+    } else { }
+
+    html += `</div></div></div>`
+    return html;
+}
+
 ModuleStockAppend.prototype.SimplePredictionUpdate = function(stock) {
     var simpleActionObj = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_simple_action");
+    var total = this.CalculateTotalSimplePrediction(stock.predictions.basic);
 
-    switch (stock.predictions.basic[2].action) {
-        case "sell":
-            simpleActionObj.innerHTML = `<span style="color: red;" data-feather="log-out" data-placement="top" data-toggle="tooltip" title="Sell"></span>`;
-            break;
-        case "buy":
-            simpleActionObj.innerHTML = `<span style="color: green;" data-feather="log-in" data-placement="top" data-toggle="tooltip" title="Buy"></span>`;
-            break;
-        case "hold":
-            simpleActionObj.innerHTML = `<span style="color: orange;" data-feather="shield" data-placement="top" data-toggle="tooltip" title="Hold"></span>`;
-            break;
-        default:
-            break;
-    }
+    if (total < 0) {
+        simpleActionObj.innerHTML = `<span style="color: red; cursor: pointer;" onclick="window.StockAppend.OpenBasicPredictionModal('`+stock.ticker+`');" data-feather="log-out" data-placement="top" data-toggle="tooltip" title="Sell"></span>`;
+    } else if (total > 0) {
+        simpleActionObj.innerHTML = `<span style="color: green;cursor: pointer;" onclick="window.StockAppend.OpenBasicPredictionModal('`+stock.ticker+`');" data-feather="log-in" data-placement="top" data-toggle="tooltip" title="Buy"></span>`;
+    } else if (total == 0) {
+        simpleActionObj.innerHTML = `<span style="color: orange;cursor: pointer;" onclick="window.StockAppend.OpenBasicPredictionModal('`+stock.ticker+`');" data-feather="shield" data-placement="top" data-toggle="tooltip" title="Hold"></span>`;
+    } else { }
 }
 
 ModuleStockAppend.prototype.UpdateStockTableFromLocalMarket = function() {
