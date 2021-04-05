@@ -293,6 +293,7 @@ ModuleStockAppend.prototype.DeleteStock = function(ticker) {
 }
 
 ModuleStockAppend.prototype.FindStockInMarket = function() {
+    var self = this;
     var ticker = document.getElementById('d_m_stock_append_stock_find_ticker').value;
     document.getElementById('id_m_stock_append_info_container').innerHTML = "";
 
@@ -301,14 +302,24 @@ ModuleStockAppend.prototype.FindStockInMarket = function() {
     this.StockGraph.SetObjectDOMName(this.DOMName+".StockGraph");
     this.StockGraph.Build(null, null);
 
+    document.getElementById('id_m_stock_append_info_basic_prediction').classList.add("d-none");
     document.getElementById('id_m_stock_append_add_new_stock').classList.add("d-none");
     // document.getElementById('id_m_stock_append_stock_stocks_view').classList.add("d-none");
     var info = new ModuleStockInfo();
     info.SetHostingID("id_m_stock_append_info_container");
     info.Build(null, function(module) {
         module.GetStockInfo(ticker, function(module) {
-            document.getElementById('id_m_stock_append_add_new_stock').classList.remove("d-none");
-            // document.getElementById('id_m_stock_append_stock_stocks_view').classList.remove("d-none");
+            var stock = market.GetStockFromCache(ticker);
+            if (stock !== undefined && stock !== null) {
+                var html  = self.GenerateSimplePredictionHtml(stock.predictions.basic);
+                    document.getElementById('id_m_stock_append_info_basic_prediction').innerHTML = html;
+                feather.replace();
+                document.getElementById('id_m_stock_append_info_basic_prediction').classList.remove("d-none");
+            } else {
+                // Show append buton
+                document.getElementById('id_m_stock_append_add_new_stock').classList.remove("d-none");
+                // document.getElementById('id_m_stock_append_stock_stocks_view').classList.remove("d-none");
+            }
         });
     });
 }
