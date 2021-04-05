@@ -156,6 +156,20 @@ ModuleStockAppend.prototype.OpenStockActionsHistoryModal = function (ticker) {
     });
 }
 
+ModuleStockAppend.prototype.IsStockInPortfolio = function(stock, id) {
+    if (id == 0) {
+        return true;
+    }
+
+    for (key in stock.portfolios) {
+        if (stock.portfolios[key] == id) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 ModuleStockAppend.prototype.GetPortfolioStocks = function(id, name) {
     console.log(id, name);
 
@@ -169,7 +183,7 @@ ModuleStockAppend.prototype.GetPortfolioStocks = function(id, name) {
     var data = [];
     for (key in market.Stocks) {
         stock = market.Stocks[key];
-        if (stock.portfolio_id == id || id == 0) {
+        if (this.IsStockInPortfolio(stock, id)) {
             this.Earnings               += stock.earnings;
             this.Number                 += stock.number;
             this.TotalInvestment        += stock.total_investment;

@@ -247,10 +247,12 @@ class Context():
 				if "warning" in stock["5D_statistics"] and "warning" in stock["1MO_statistics"]:
 					warning = stock["5D_statistics"]["warning"] & stock["1MO_statistics"]["warning"]
 				
+				stock_portfolios = self.SQL.GetStockPortfolios(ticker)
+				
 				stocks_in_payload += 1
 				stocks_list.append({
 					"ticker":ticker,
-					"portfolio_id": db_stock["portfolio_id"],
+					"portfolios": stock_portfolios,
 					"name": db_stock["name"],
 					"number": db_stock["amount_sum"],
 					"earnings": earnings,
