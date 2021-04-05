@@ -261,6 +261,10 @@ class StockMarket():
 		}
 	
 	def CalculateBasicPrediction(self, stock, period):
+		if stock["price"] <= 0:
+			self.LogMSG("({classname})# [CalculateBasicPrediction] ({0}) Error: Price not valid for prediction".format(stock["ticker"],classname=self.ClassName), 5)
+			return
+
 		stock_open = []
 		for item in stock[period]:
 			stock_open.append(item["open"])
@@ -278,53 +282,50 @@ class StockMarket():
 
 			index = self.BasicPredictionPeriodToIndexMap[period]
 			if x[high] < stock["price"]:
-				if "none" in stock["predictions"]["basic"][index]["prev_action"]:
-					stock["predictions"]["basic"][index]["prev_action"] = "sell"
+				if "none" in stock["predictions"]["basic"][index]["action"]:
+					stock["predictions"]["basic"][index]["action"] = "sell"
 				else:
-					if "sell" not in stock["predictions"]["basic"][index]["prev_action"]:
-						stock["predictions"]["basic"][index]["prev_action"] = "sell"
+					if "sell" not in stock["predictions"]["basic"][index]["action"]:
 						self.LogMSG("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to SELL".format(stock["ticker"],classname=self.ClassName), 5)
 						# Call for update callback
 						if self.StockSimplePredictionChangeCallback is not None:
 							self.StockSimplePredictionChangeCallback({
 								"ticker"	: stock["ticker"],
 								"price"		: stock["price"],
-								"pred_prev"	: stock["predictions"]["basic"][index]["prev_action"],
+								"pred_prev"	: stock["predictions"]["basic"][index]["action"],
 								"pred_curr"	: "sell"
 							})
-				stock["predictions"]["basic"][index]["action"] = "sell"
+						stock["predictions"]["basic"][index]["action"] = "sell"
 			elif x[low] > stock["price"]:
-				if "none" in stock["predictions"]["basic"][index]["prev_action"]:
-					stock["predictions"]["basic"][index]["prev_action"] = "buy"
+				if "none" in stock["predictions"]["basic"][index]["action"]:
+					stock["predictions"]["basic"][index]["action"] = "buy"
 				else:
-					if "buy" not in stock["predictions"]["basic"][index]["prev_action"]:
-						stock["predictions"]["basic"][index]["prev_action"] = "buy"
+					if "buy" not in stock["predictions"]["basic"][index]["action"]:
 						self.LogMSG("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to BUY".format(stock["ticker"],classname=self.ClassName), 5)
 						# Call for update callback
 						if self.StockSimplePredictionChangeCallback is not None:
 							self.StockSimplePredictionChangeCallback({
 								"ticker"	: stock["ticker"],
 								"price"		: stock["price"],
-								"pred_prev"	: stock["predictions"]["basic"][index]["prev_action"],
+								"pred_prev"	: stock["predictions"]["basic"][index]["action"],
 								"pred_curr"	: "buy"
 							})
-				stock["predictions"]["basic"][index]["action"] = "buy"
+						stock["predictions"]["basic"][index]["action"] = "buy"
 			else:
-				if "none" in stock["predictions"]["basic"][index]["prev_action"]:
-					stock["predictions"]["basic"][index]["prev_action"] = "hold"
+				if "none" in stock["predictions"]["basic"][index]["action"]:
+					stock["predictions"]["basic"][index]["action"] = "hold"
 				else:
-					if "hold" not in stock["predictions"]["basic"][index]["prev_action"]:
-						stock["predictions"]["basic"][index]["prev_action"] = "hold"
+					if "hold" not in stock["predictions"]["basic"][index]["action"]:
 						self.LogMSG("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to HOLD".format(stock["ticker"],classname=self.ClassName), 5)
 						# Call for update callback
 						if self.StockSimplePredictionChangeCallback is not None:
 							self.StockSimplePredictionChangeCallback({
 								"ticker"	: stock["ticker"],
 								"price"		: stock["price"],
-								"pred_prev"	: stock["predictions"]["basic"][index]["prev_action"],
+								"pred_prev"	: stock["predictions"]["basic"][index]["action"],
 								"pred_curr"	: "hold"
 							})
-				stock["predictions"]["basic"][index]["action"] = "hold"
+						stock["predictions"]["basic"][index]["action"] = "hold"
 		except Exception as e:
 			self.LogMSG("({classname})# [EXCEPTION] (CalculateBasicPrediction) {0} {1}".format(stock["ticker"],str(e),classname=self.ClassName), 5)
 		
@@ -541,24 +542,19 @@ class StockMarket():
 			stock["predictions"]			= {
 				"basic": [
 					{
-						"action"		: "none",
-						"prev_action"	: "none"
+						"action"		: "none"
 					},
 					{
-						"action"		: "none",
-						"prev_action"	: "none"
+						"action"		: "none"
 					},
 					{
-						"action"		: "none",
-						"prev_action"	: "none"
+						"action"		: "none"
 					},
 					{
-						"action"		: "none",
-						"prev_action"	: "none"
+						"action"		: "none"
 					},
 					{
-						"action"		: "none",
-						"prev_action"	: "none"
+						"action"		: "none"
 					}
 				]
 			}
