@@ -34,12 +34,15 @@ class AlgoMath():
 	def CreateHistogram(self, buffer, bin_size):
 		ret_hist_buffer_y = []
 		ret_hist_buffer_x = []
+		freq = 1
 		try:
 			if len(buffer) > 0:
 				# Find min and max for this buffer
 				pmin, pmax = self.FindBufferMaxMin(buffer)
 				# Calculate freq
 				freq = (float(pmax) - float(pmin)) / float(bin_size)
+				if freq == 0:
+					return 0, [pmin], [pmax]
 				# Generate x scale
 				ret_hist_buffer_x = [(x * freq) + pmin for x in range(0, bin_size)]
 				ret_hist_buffer_y = [0] * bin_size
@@ -52,8 +55,8 @@ class AlgoMath():
 					ret_hist_buffer_y[index] += 1
 		except Exception as e:
 			print("Histograme exception {0}".format(e))
-			return [], []
-		return ret_hist_buffer_y, ret_hist_buffer_x
+			return 1, [], []
+		return 0, ret_hist_buffer_y, ret_hist_buffer_x
 	
 	def CalculatePercentile(self, low, high, histogram):
 		low_perc  			= 0
@@ -118,8 +121,8 @@ class AlgoBasicPrediction():
 		self.Buffer = buffer
 	
 	def Execute(self):
-		Y, X = self.Math.CreateHistogram(self.Buffer, self.HistogramWindowSize)
-		if len(X) == 0:
+		error, Y, X = self.Math.CreateHistogram(self.Buffer, self.HistogramWindowSize)
+		if error != 0 or len(X) == 0:
 			return -1, {
 				"output": {
 					"x"				: [],
@@ -146,6 +149,202 @@ class AlgoBasicPrediction():
 			}
 		}
 
+class StockCalculation():
+	def __init__(self):
+		self.ClassName 								= "StockCalculation"
+		self.BasicPredictionPeriodToIndexMap 		= {
+			"1D":  0,
+			"5D":  1,
+			"1MO": 2,
+			"3MO": 3,
+			"6MO": 4
+		}
+		# Algo
+		self.BasicPrediction = AlgoBasicPrediction()
+
+		self.StockSimplePredictionChangeCallback 	= None
+	
+	def CalculateBasicPrediction(self, stock, period):
+		if stock["price"] <= 0:
+			print("({classname})# [CalculateBasicPrediction] ({0}) Error: Price not valid for prediction".format(stock["ticker"],classname=self.ClassName))
+			return
+
+		stock_open = []
+		for item in stock[period]:
+			stock_open.append(item["open"])
+		
+		try:
+			self.BasicPrediction.SetBuffer(stock_open)
+			error, output = self.BasicPrediction.Execute()
+		
+			if error == -1:
+				print("OPEN", stock["ticker"], item["open"])
+				return
+			
+			high = output["output"]["index_high"]
+			low  = output["output"]["index_low"]
+			x 	 = output["output"]["x"]
+
+			index = self.BasicPredictionPeriodToIndexMap[period]
+			if x[high] < stock["price"]:
+				if "none" in stock["predictions"]["basic"][index]["action"]:
+					stock["predictions"]["basic"][index]["action"] = "sell"
+				else:
+					if "sell" not in stock["predictions"]["basic"][index]["action"]:
+						print("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to SELL".format(stock["ticker"],classname=self.ClassName))
+						# Call for update callback
+						#if self.StockSimplePredictionChangeCallback is not None:
+						#	self.StockSimplePredictionChangeCallback({
+						#		"ticker"	: stock["ticker"],
+						#		"price"		: stock["price"],
+						#		"pred_prev"	: stock["predictions"]["basic"][index]["action"],
+						#		"pred_curr"	: "sell"
+						#	})
+						stock["predictions"]["basic"][index]["action"] = "sell"
+			elif x[low] > stock["price"]:
+				if "none" in stock["predictions"]["basic"][index]["action"]:
+					stock["predictions"]["basic"][index]["action"] = "buy"
+				else:
+					if "buy" not in stock["predictions"]["basic"][index]["action"]:
+						print("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to BUY".format(stock["ticker"],classname=self.ClassName))
+						# Call for update callback
+						#if self.StockSimplePredictionChangeCallback is not None:
+						#	self.StockSimplePredictionChangeCallback({
+						#		"ticker"	: stock["ticker"],
+						#		"price"		: stock["price"],
+						#		"pred_prev"	: stock["predictions"]["basic"][index]["action"],
+						#		"pred_curr"	: "buy"
+						#	})
+						stock["predictions"]["basic"][index]["action"] = "buy"
+			else:
+				if "none" in stock["predictions"]["basic"][index]["action"]:
+					stock["predictions"]["basic"][index]["action"] = "hold"
+				else:
+					if "hold" not in stock["predictions"]["basic"][index]["action"]:
+						print("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to HOLD".format(stock["ticker"],classname=self.ClassName))
+						# Call for update callback
+						#if self.StockSimplePredictionChangeCallback is not None:
+						#	self.StockSimplePredictionChangeCallback({
+						#		"ticker"	: stock["ticker"],
+						#		"price"		: stock["price"],
+						#		"pred_prev"	: stock["predictions"]["basic"][index]["action"],
+						#		"pred_curr"	: "hold"
+						#	})
+						stock["predictions"]["basic"][index]["action"] = "hold"
+		except Exception as e:
+			print("({classname})# [EXCEPTION] (CalculateBasicPrediction) {0} {1}".format(stock["ticker"],str(e),classname=self.ClassName))
+		
+		return stock
+
+class StockMarketApi():
+	def __init__(self):
+		self.ClassName	= "StockMarketApi"
+	
+	def CheckForNan(self, value):
+		if value == value:
+			return True
+		return False
+	
+	def GetStockCurrentPrice(self, ticker):
+		'''
+			Open,High,Low,Close,Volume,Dividends,Stock Splits
+		'''
+		try:
+			objtk = yf.Ticker(ticker)
+			df_stock = objtk.history(period="1d", interval="5m")
+			price = "{0:.3f}".format(df_stock["Close"].iloc[-1])
+		except:
+			price = "0"
+		return float(price)
+	
+	def GetStockInfoRaw(self, ticker):
+		objtk = yf.Ticker(ticker)
+		return objtk.info
+
+	def GetStockInfo(self, ticker):
+		objtk = yf.Ticker(ticker)
+
+		ask  = 0
+		bid  = 0
+		high = 0
+		low  = 0
+
+		if type(objtk.info["ask"]) == dict:
+			ask = objtk.info["ask"]["raw"]
+		else:
+			ask = objtk.info["ask"]
+		
+		if type(objtk.info["bid"]) == dict:
+			bid = objtk.info["bid"]["raw"]
+		else:
+			bid = objtk.info["bid"]
+		
+		if type(objtk.info["dayHigh"]) == dict:
+			high = objtk.info["dayHigh"]["raw"]
+		else:
+			high = objtk.info["dayHigh"]
+		
+		if type(objtk.info["dayLow"]) == dict:
+			low = objtk.info["dayLow"]["raw"]
+		else:
+			low = objtk.info["dayLow"]
+
+		return {
+			"ask": ask,
+			"bid": bid,
+			"high": high,
+			"low": low
+		}
+	
+	def GetStockHistory(self, ticker, period, interval):
+		'''
+			Open,High,Low,Close,Volume,Dividends,Stock Splits
+		'''
+		hist = []
+		objtk = yf.Ticker(ticker)
+		'''
+			Valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
+			Valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
+		'''
+		data = objtk.history(period=period, interval=interval)
+		for idx, row in data.iterrows():
+			if self.CheckForNan(row['Open']) is False or self.CheckForNan(row['Close']) is False or self.CheckForNan(row['High']) is False or self.CheckForNan(row['Low']) is False:
+				continue
+
+			hist.append({
+				"date": "{0}".format(idx),
+				"open": row['Open'],
+				"close": row['Close'],
+				"high": row['High'],
+				"low": row['Low'],
+				"vol": row['Volume']
+			})
+		return hist
+
+	def Get1D(self, ticker):
+		return self.GetStockHistory(ticker, "1d", "5m")
+
+	def Get5D(self, ticker):
+		return self.GetStockHistory(ticker, "5d", "30m")
+	
+	def Get1MO(self, ticker):
+		return self.GetStockHistory(ticker, "1mo", "1h")
+	
+	def Get3MO(self, ticker):
+		return self.GetStockHistory(ticker, "3mo", "1d")
+	
+	def Get6MO(self, ticker):
+		return self.GetStockHistory(ticker, "6mo", "5d")
+	
+	def Get1Y(self, ticker):
+		return self.GetStockHistory(ticker, "1y", "5d")
+	
+	def Get2Y(self, ticker):
+		return self.GetStockHistory(ticker, "2y", "1wk")
+	
+	def Get5Y(self, ticker):
+		return self.GetStockHistory(ticker, "5y", "1mo")
+
 class StockMarket():
 	def __init__(self):
 		self.ClassName					= "StockMarket"
@@ -158,6 +357,9 @@ class StockMarket():
 		self.Logger						= None
 		self.Halt 						= False
 
+		self.Algos 						= StockCalculation()
+		self.API 						= StockMarketApi()
+
 		# Callbacks
 		self.FullLoopPerformedCallback 				= None
 		self.StockChangeCallback 					= None
@@ -167,17 +369,6 @@ class StockMarket():
 		self.StockMarketCloseCallback				= None
 		self.StockSimplePredictionChangeCallback 	= None
 		self.StockChangeLocker 						= threading.Lock()
-
-		self.BasicPredictionPeriodToIndexMap 		= {
-			"1D":  0,
-			"5D":  1,
-			"1MO": 2,
-			"3MO": 3,
-			"6MO": 4
-		}
-
-		# Algo
-		self.BasicPrediction 						= AlgoBasicPrediction()
 
 		# Threading section
 		self.ThreadCount				= 5
@@ -260,77 +451,6 @@ class StockMarket():
 			}
 		}
 	
-	def CalculateBasicPrediction(self, stock, period):
-		if stock["price"] <= 0:
-			self.LogMSG("({classname})# [CalculateBasicPrediction] ({0}) Error: Price not valid for prediction".format(stock["ticker"],classname=self.ClassName), 5)
-			return
-
-		stock_open = []
-		for item in stock[period]:
-			stock_open.append(item["open"])
-		
-		try:
-			self.BasicPrediction.SetBuffer(stock_open)
-			error, output = self.BasicPrediction.Execute()
-		
-			if error == -1:
-				return
-			
-			high = output["output"]["index_high"]
-			low  = output["output"]["index_low"]
-			x 	 = output["output"]["x"]
-
-			index = self.BasicPredictionPeriodToIndexMap[period]
-			if x[high] < stock["price"]:
-				if "none" in stock["predictions"]["basic"][index]["action"]:
-					stock["predictions"]["basic"][index]["action"] = "sell"
-				else:
-					if "sell" not in stock["predictions"]["basic"][index]["action"]:
-						self.LogMSG("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to SELL".format(stock["ticker"],classname=self.ClassName), 5)
-						# Call for update callback
-						if self.StockSimplePredictionChangeCallback is not None:
-							self.StockSimplePredictionChangeCallback({
-								"ticker"	: stock["ticker"],
-								"price"		: stock["price"],
-								"pred_prev"	: stock["predictions"]["basic"][index]["action"],
-								"pred_curr"	: "sell"
-							})
-						stock["predictions"]["basic"][index]["action"] = "sell"
-			elif x[low] > stock["price"]:
-				if "none" in stock["predictions"]["basic"][index]["action"]:
-					stock["predictions"]["basic"][index]["action"] = "buy"
-				else:
-					if "buy" not in stock["predictions"]["basic"][index]["action"]:
-						self.LogMSG("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to BUY".format(stock["ticker"],classname=self.ClassName), 5)
-						# Call for update callback
-						if self.StockSimplePredictionChangeCallback is not None:
-							self.StockSimplePredictionChangeCallback({
-								"ticker"	: stock["ticker"],
-								"price"		: stock["price"],
-								"pred_prev"	: stock["predictions"]["basic"][index]["action"],
-								"pred_curr"	: "buy"
-							})
-						stock["predictions"]["basic"][index]["action"] = "buy"
-			else:
-				if "none" in stock["predictions"]["basic"][index]["action"]:
-					stock["predictions"]["basic"][index]["action"] = "hold"
-				else:
-					if "hold" not in stock["predictions"]["basic"][index]["action"]:
-						self.LogMSG("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to HOLD".format(stock["ticker"],classname=self.ClassName), 5)
-						# Call for update callback
-						if self.StockSimplePredictionChangeCallback is not None:
-							self.StockSimplePredictionChangeCallback({
-								"ticker"	: stock["ticker"],
-								"price"		: stock["price"],
-								"pred_prev"	: stock["predictions"]["basic"][index]["action"],
-								"pred_curr"	: "hold"
-							})
-						stock["predictions"]["basic"][index]["action"] = "hold"
-		except Exception as e:
-			self.LogMSG("({classname})# [EXCEPTION] (CalculateBasicPrediction) {0} {1}".format(stock["ticker"],str(e),classname=self.ClassName), 5)
-		
-		return stock
-
 	def WaitForMinionsToFinish(self):
 		wait_for_all_minions = True
 		while wait_for_all_minions is True:
@@ -350,33 +470,36 @@ class StockMarket():
 		self.ThreadPoolLocker.release()
 		Interval = 0.1
 
+		algos = StockCalculation()
+		algos.StockSimplePredictionChangeCallback = self.StockSimplePredictionChangeCallback
+		atock_api = StockMarketApi()
 		while self.WorkerRunning is True:
 			try:
-				if self.FirstStockUpdateRun is True:
-					Interval = 0.5
+				#if self.FirstStockUpdateRun is True:
+				#	Interval = 0.5
 				item = self.Queues[index].get(block=True,timeout=None)
 				self.ThreadPoolStatus[index] = True
 				ticker = item["ticker"]
 				stock  = self.CacheDB[ticker]
 				self.LogMSG("({classname})# [MINION] Update stock ({0}) ({1})".format(index,ticker,classname=self.ClassName), 5)
 				# Update local stock DB
-				stock["1D"]					= self.Get1D(ticker)
-				stock["5D"] 	 			= self.Get5D(ticker)
-				stock["1MO"] 	 			= self.Get1MO(ticker)
-				stock["3MO"] 	 			= self.Get3MO(ticker)
-				stock["6MO"] 	 			= self.Get6MO(ticker)
-				stock["price"] 	 			= self.GetStockCurrentPrice(ticker)
+				stock["1D"]					= atock_api.Get1D(ticker)
+				stock["5D"] 	 			= atock_api.Get5D(ticker)
+				stock["1MO"] 	 			= atock_api.Get1MO(ticker)
+				stock["3MO"] 	 			= atock_api.Get3MO(ticker)
+				stock["6MO"] 	 			= atock_api.Get6MO(ticker)
+				stock["price"] 	 			= self.API.GetStockCurrentPrice(ticker)
 				stock["updated"] 			= True
 				stock["ts_last_updated"] 	= time.time()
-				stock["1D_statistics"]  	= self.CalculateBasicStatistics(stock["1D"])
-				stock["5D_statistics"]  	= self.CalculateBasicStatistics(stock["5D"])
-				stock["1MO_statistics"] 	= self.CalculateBasicStatistics(stock["1MO"])
+				#stock["1D_statistics"]  	= self.CalculateBasicStatistics(stock["1D"])
+				#stock["5D_statistics"]  	= self.CalculateBasicStatistics(stock["5D"])
+				#stock["1MO_statistics"] 	= self.CalculateBasicStatistics(stock["1MO"])
 
-				self.CalculateBasicPrediction(stock, "1D")
-				self.CalculateBasicPrediction(stock, "5D")
-				self.CalculateBasicPrediction(stock, "1MO")
-				self.CalculateBasicPrediction(stock, "3MO")
-				self.CalculateBasicPrediction(stock, "6MO")
+				algos.CalculateBasicPrediction(stock, "1D")
+				algos.CalculateBasicPrediction(stock, "5D")
+				algos.CalculateBasicPrediction(stock, "1MO")
+				algos.CalculateBasicPrediction(stock, "3MO")
+				algos.CalculateBasicPrediction(stock, "6MO")
 
 				for threshold in stock["thresholds"]:
 					threshold["activated"] = False
@@ -432,6 +555,8 @@ class StockMarket():
 					if self.MarketOpen is True or self.FirstStockUpdateRun is False:
 						if self.MarketOpen is False:
 							self.MarketPollingInterval = 10
+						else:
+							self.MarketPollingInterval = 1
 						for ticker in self.CacheDB:
 							if self.Halt is True:
 								# Get out
@@ -531,6 +656,43 @@ class StockMarket():
 			pass
 		self.Locker.release()
 
+	def GenerateEmtpyStock(self):
+		return {
+			"ticker"			: "",
+			"price"				: 0,
+			"1D"				: None,
+			"5D"				: None,
+			"1MO"				: None,
+			"3MO"				: None,
+			"6MO"				: None,
+			"updated"			: False,
+			"pulled"			: False,
+			"ts_last_updated"	: 0,
+			"1D_statistics"		: {},
+			"5D_statistics"		: {},
+			"1MO_statistics"	: {},
+			"thresholds"		: [],
+			"predictions"		: {
+				"basic": [
+					{
+						"action"		: "none"
+					},
+					{
+						"action"		: "none"
+					},
+					{
+						"action"		: "none"
+					},
+					{
+						"action"		: "none"
+					},
+					{
+						"action"		: "none"
+					}
+				]
+			}
+		}
+	
 	def AppendStock(self, stock):
 		self.Locker.acquire()
 		try:
@@ -559,6 +721,7 @@ class StockMarket():
 				]
 			}
 			self.CacheDB[stock["ticker"]] 	= stock
+			self.FirstStockUpdateRun 		= False
 		except:
 			pass
 		self.Locker.release()
@@ -589,103 +752,6 @@ class StockMarket():
 			except:
 				pass
 			self.Locker.release()
-	
-	def GetStockCurrentPrice(self, ticker):
-		'''
-			Open,High,Low,Close,Volume,Dividends,Stock Splits
-		'''
-		try:
-			objtk = yf.Ticker(ticker)
-			df_stock = objtk.history(period="1d", interval="5m")
-			price = "{0:.3f}".format(df_stock["Close"].iloc[-1])
-		except:
-			price = "0"
-		return float(price)
-	
-	def GetStockInfoRaw(self, ticker):
-		objtk = yf.Ticker(ticker)
-		return objtk.info
-
-	def GetStockInfo(self, ticker):
-		objtk = yf.Ticker(ticker)
-
-		ask  = 0
-		bid  = 0
-		high = 0
-		low  = 0
-
-		if type(objtk.info["ask"]) == dict:
-			ask = objtk.info["ask"]["raw"]
-		else:
-			ask = objtk.info["ask"]
-		
-		if type(objtk.info["bid"]) == dict:
-			bid = objtk.info["bid"]["raw"]
-		else:
-			bid = objtk.info["bid"]
-		
-		if type(objtk.info["dayHigh"]) == dict:
-			high = objtk.info["dayHigh"]["raw"]
-		else:
-			high = objtk.info["dayHigh"]
-		
-		if type(objtk.info["dayLow"]) == dict:
-			low = objtk.info["dayLow"]["raw"]
-		else:
-			low = objtk.info["dayLow"]
-
-		return {
-			"ask": ask,
-			"bid": bid,
-			"high": high,
-			"low": low
-		}
-		
-	def GetStockHistory(self, ticker, period, interval):
-		'''
-			Open,High,Low,Close,Volume,Dividends,Stock Splits
-		'''
-		hist = []
-		objtk = yf.Ticker(ticker)
-		'''
-			Valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
-			Valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
-		'''
-		data = objtk.history(period=period, interval=interval)
-		for idx, row in data.iterrows():
-			hist.append({
-				"date": "{0}".format(idx),
-				"open": row['Open'],
-				"close": row['Close'],
-				"high": row['High'],
-				"low": row['Low'],
-				"vol": row['Volume']
-			})
-		return hist
-
-	def Get1D(self, ticker):
-		return self.GetStockHistory(ticker, "1d", "1m")
-
-	def Get5D(self, ticker):
-		return self.GetStockHistory(ticker, "5d", "5m")
-	
-	def Get1MO(self, ticker):
-		return self.GetStockHistory(ticker, "1mo", "30m")
-	
-	def Get3MO(self, ticker):
-		return self.GetStockHistory(ticker, "3mo", "60m")
-	
-	def Get6MO(self, ticker):
-		return self.GetStockHistory(ticker, "6mo", "1d")
-	
-	def Get1Y(self, ticker):
-		return self.GetStockHistory(ticker, "1y", "1d")
-	
-	def Get2Y(self, ticker):
-		return self.GetStockHistory(ticker, "2y", "5d")
-	
-	def Get5Y(self, ticker):
-		return self.GetStockHistory(ticker, "5y", "1wk")
 	
 	def CalculateMinMax(self, data):
 		pmax = 0

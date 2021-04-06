@@ -312,13 +312,23 @@ ModuleStockAppend.prototype.FindStockInMarket = function() {
             var stock = market.GetStockFromCache(ticker);
             if (stock !== undefined && stock !== null) {
                 var html  = self.GenerateSimplePredictionHtml(stock.predictions.basic);
-                    document.getElementById('id_m_stock_append_info_basic_prediction').innerHTML = html;
+                document.getElementById('id_m_stock_append_info_basic_prediction').innerHTML = html;
                 feather.replace();
                 document.getElementById('id_m_stock_append_info_basic_prediction').classList.remove("d-none");
             } else {
                 // Show append buton
                 document.getElementById('id_m_stock_append_add_new_stock').classList.remove("d-none");
                 // document.getElementById('id_m_stock_append_stock_stocks_view').classList.remove("d-none");
+                node.API.SendCustomCommand(NodeUUID, "calulate_basic_prediction", {
+                    "ticker": ticker
+                }, function(res) {
+                    var payload = res.data.payload;
+                    var stock = payload.stock;
+                    var html  = self.GenerateSimplePredictionHtml(stock.predictions.basic);
+                    document.getElementById('id_m_stock_append_info_basic_prediction').innerHTML = html;
+                    feather.replace();
+                    document.getElementById('id_m_stock_append_info_basic_prediction').classList.remove("d-none");
+                });
             }
         });
     });
@@ -375,17 +385,36 @@ ModuleStockAppend.prototype.CalculateTotalSimplePrediction = function(prediction
         "buy": 1
     }
 
+    var prediction_weight = {
+        0: 1,
+        1: 2,
+        2: 3,
+        3: 2,
+        4: 1
+    }
+
+    var hold = 0;
+    var buy = 0;
+    var sell = 0;
+
     var prediction_overall = 0;
     // Calculate overall basic prediction [1D(0), 5D(1), 1MO(2), 3MO(3), 6MO(4)]
     for (key in prediction) {
         var pred = prediction[key].action;
-        if (prediction_overall < 0 && pred == "hold") {
-            prediction_overall++;
-        } else if (prediction_overall > 0 && pred == "hold") {
-            prediction_overall--;
+        if (pred == "hold") {
+            hold += prediction_weight[key];
+        } else if (pred == "sell") {
+            sell += 0 - prediction_weight[key];
         } else {
-            prediction_overall += prediction_map[pred];
+            buy += prediction_weight[key];
         }
+    }
+
+    prediction_overall = sell + buy;
+    if (prediction_overall < 0 && hold > 0 - prediction_overall) {
+        prediction_overall = 0;
+    } else if (prediction_overall > 0 && hold > prediction_overall) {
+        prediction_overall = 0;
     }
 
     return prediction_overall;
@@ -409,6 +438,17 @@ ModuleStockAppend.prototype.GenerateSimplePredictionHtml = function(prediction) 
         "buy": 1
     }
 
+    var prediction_weight = {
+        0: 1,
+        1: 2,
+        2: 3,
+        3: 2,
+        4: 1
+    }
+
+    var hold = 0;
+    var buy = 0;
+    var sell = 0;
     var prediction_overall = 0;
 
     // Calculate overall basic prediction [1D(0), 5D(1), 1MO(2), 3MO(3), 6MO(4)]
@@ -422,16 +462,24 @@ ModuleStockAppend.prototype.GenerateSimplePredictionHtml = function(prediction) 
             html += `<div class="col text-center"><span style="color: orange;cursor: pointer;" data-feather="shield" data-placement="top" data-toggle="tooltip" title="Hold"></span></div>`;
         } else { }
 
-        if (prediction_overall < 0 && pred == "hold") {
-            prediction_overall++;
-        } else if (prediction_overall > 0 && pred == "hold") {
-            prediction_overall--;
+        if (pred == "hold") {
+            hold += prediction_weight[key];
+        } else if (pred == "sell") {
+            sell += 0 - prediction_weight[key];
         } else {
-            prediction_overall += prediction_map[pred];
+            buy += prediction_weight[key];
         }
     }
 
     html += `<div class="col text-center">=</div>`
+
+    prediction_overall = sell + buy;
+    console.log(prediction_overall, sell, buy, hold);
+    if (prediction_overall < 0 && hold > 0 - prediction_overall) {
+        prediction_overall = 0;
+    } else if (prediction_overall > 0 && hold > prediction_overall) {
+        prediction_overall = 0;
+    }
 
     if (prediction_overall < 0) {
         html += `<div class="col text-center"><span style="color: red; cursor: pointer;" data-feather="log-out" data-placement="top" data-toggle="tooltip" title="Sell"></span></div>`;
@@ -583,13 +631,13 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
         table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, `<span id="id_m_stock_append_table_price_summary_total_nvestment" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">0<span>`, "", "", ""])
         table.Build(document.getElementById("id_m_stock_append_stock_table"));
 
-        document.getElementById('d_m_stock_append_stock_find_ticker').addEventListener('keyup', function(event) {
+        /* document.getElementById('d_m_stock_append_stock_find_ticker').addEventListener('keyup', function(event) {
             if (event.code === 'Enter') {
                 event.preventDefault();
                 self.FindStockInMarket(document.getElementById('d_m_stock_append_stock_find_ticker').value);
             }
-        });
-        // document.getElementById('id_m_stock_append_stock_stocks_view').classList.remove("d-none");
+        }); */
+
         feather.replace();
         self.UpdateStockTableFromLocalMarket();
     });

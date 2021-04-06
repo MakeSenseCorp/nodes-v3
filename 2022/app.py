@@ -39,28 +39,29 @@ class Context():
 		}
 		# Handlers
 		self.Node.ApplicationRequestHandlers	= {
-			'get_sensor_info':			self.GetSensorInfoHandler,
-			'get_portfolios':			self.GetPortfoliosHandler,
-			'get_portfolio_stocks':		self.GetPortfolioStocksHandler,
-			'get_portfolio_statistics':	self.GetPortfolioStatistics,
-			'get_stock_history':		self.GetStockHistoryHandler,
-			'append_new_action':		self.AppendNewActionHandler,
-			'create_new_portfolio':		self.CreateNewPortfolioHandler,
-			'import_stocks':			self.ImportStocksHandler,
-			'export_stocks': 			self.ExportStocksHandler,
-			'upload_file':				self.Request_UploadFileHandler,
-			'load_csv':					self.LoadCSVHandler,
-			'download_stock_history':	self.DownloadStockHistoryHandler,
-			'download_stock_info':		self.DownloadStockInfoHandler,
-			'get_db_stocks':			self.GetDBStocksHandler,
-			'get_stock_portfolios':		self.GetStockPortfolios,
-			'set_stock_portfolios':		self.SetStockPortfolios,
-			'delete_portfolio':			self.DeletePortfolioHandler,
-			'db_insert_stock':			self.DBInsertStockHandler,
-			'db_delete_stock':			self.DBDeleteStockHandler,
-			'get_market_stocks':		self.GetMarketStocksHandler,
-			'db_delete_action':			self.DBDeleteActionHandler,
-			'undefined':				self.UndefindHandler
+			'get_sensor_info':					self.GetSensorInfoHandler,
+			'get_portfolios':					self.GetPortfoliosHandler,
+			'get_portfolio_stocks':				self.GetPortfolioStocksHandler,
+			'get_portfolio_statistics':			self.GetPortfolioStatistics,
+			'get_stock_history':				self.GetStockHistoryHandler,
+			'append_new_action':				self.AppendNewActionHandler,
+			'create_new_portfolio':				self.CreateNewPortfolioHandler,
+			'import_stocks':					self.ImportStocksHandler,
+			'export_stocks': 					self.ExportStocksHandler,
+			'upload_file':						self.Request_UploadFileHandler,
+			'load_csv':							self.LoadCSVHandler,
+			'download_stock_history':			self.DownloadStockHistoryHandler,
+			'download_stock_info':				self.DownloadStockInfoHandler,
+			'get_db_stocks':					self.GetDBStocksHandler,
+			'get_stock_portfolios':				self.GetStockPortfolios,
+			'set_stock_portfolios':				self.SetStockPortfolios,
+			'delete_portfolio':					self.DeletePortfolioHandler,
+			'db_insert_stock':					self.DBInsertStockHandler,
+			'db_delete_stock':					self.DBDeleteStockHandler,
+			'get_market_stocks':				self.GetMarketStocksHandler,
+			'db_delete_action':					self.DBDeleteActionHandler,
+			'calulate_basic_prediction':		self.CalculateBasicPredictionHandler,
+			'undefined':						self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
 			'undefined':				self.UndefindHandler
@@ -197,6 +198,33 @@ class Context():
 		except Exception as e:
 			print(e)
 
+	def CalculateBasicPredictionHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [CalculateBasicPredictionHandler] {0}".format(payload,classname=self.ClassName),5)
+		try:
+			ticker = payload["ticker"]
+			stock = self.Market.GenerateEmtpyStock()
+			stock["ticker"] = ticker
+			stock["price"]	= self.Market.API.GetStockCurrentPrice(ticker)
+			stock["1D"]		= self.Market.API.Get1D(ticker)
+			stock["5D"]		= self.Market.API.Get5D(ticker)
+			stock["1MO"]	= self.Market.API.Get1MO(ticker)
+			stock["3MO"]	= self.Market.API.Get3MO(ticker)
+			stock["6MO"]	= self.Market.API.Get6MO(ticker)
+
+			calc = StockMarket.StockCalculation()
+			calc.CalculateBasicPrediction(stock, "1D")
+			calc.CalculateBasicPrediction(stock, "5D")
+			calc.CalculateBasicPrediction(stock, "1MO")
+			calc.CalculateBasicPrediction(stock, "3MO")
+			calc.CalculateBasicPrediction(stock, "6MO")
+		except Exception as e:
+			self.Node.LogMSG("({classname})# [EXCEPTION] CalculateBasicPredictionHandler {0} {1}".format(payload,str(e),classname=self.ClassName), 5)
+
+		return {
+			"stock": stock
+		}
+
 	def GetMarketStocksHandler(self, sock, packet):
 		self.Node.LogMSG("({classname})# [GetMarketStocksHandler]".format(classname=self.ClassName),5)
 
@@ -237,7 +265,7 @@ class Context():
 						# earnings = float("{0:.3f}".format(db_stock["hist_price_sum"]))
 						if (market_price * db_stock["amount_sum"]) > 0 or db_stock["amount_sum"] == 0:
 							# TODO - market_price BUG (unsupported operand type(s) for *: 'int' and 'NoneType')
-							earnings = float("{0:.3f}".format(market_price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
+							earnings = float("{0:.3f}".format(market_price * db_stock["amount_sum"] + db_stock["hist_price_sum"]))
 						stocks_count += db_stock["amount_sum"]
 					else:
 						db_stock["amount_sum"] 	= 0.0
@@ -390,7 +418,7 @@ class Context():
 		self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0}".format(payload,classname=self.ClassName),5)
 		# Check if stock already in the DB
 		if self.SQL.StockExist(payload["ticker"]) is False:
-			info = self.Market.GetStockInfoRaw(payload["ticker"])
+			info = self.Market.API.GetStockInfoRaw(payload["ticker"])
 			self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0} Append to stock DB".format(payload,classname=self.ClassName),5)
 			self.SQL.InsertStock({
 				'name': info["shortName"],
@@ -568,7 +596,7 @@ class Context():
 					self.Node.LogMSG("({classname})# [ImportStocksHandler] Insert Stock {0}".format(ticker,classname=self.ClassName),5)
 					info = None
 					try:
-						info = self.Market.GetStockInfoRaw(ticker)
+						info = self.Market.API.GetStockInfoRaw(ticker)
 					except Exception as e:
 						self.Node.LogMSG("({classname})# [ImportStocksHandler] ERROR {0}".format(e,classname=self.ClassName),5)
 					
@@ -738,7 +766,7 @@ class Context():
 		info = None
 
 		try:
-			info = self.Market.GetStockInfoRaw(payload["ticker"])
+			info = self.Market.API.GetStockInfoRaw(payload["ticker"])
 		except Exception as e:
 			self.Node.LogMSG("({classname})# [DownloadStockInfoHandler] Exeption ({0})".format(e,classname=self.ClassName),5)
 
@@ -748,7 +776,7 @@ class Context():
 
 	def DownloadStockHistoryHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		hist = self.Market.GetStockHistory(payload["ticker"], payload["period"], payload["interval"])
+		hist = self.Market.API.GetStockHistory(payload["ticker"], payload["period"], payload["interval"])
 
 		if len(hist) == 0:
 			return {
@@ -785,8 +813,6 @@ class Context():
 		x 	 = output["output"]["x"]
 		y 	 = output["output"]["y"]
 
-		# pmin, pmax = self.Math.FindBufferMaxMin(stock_open)
-		#self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0} {1}".format(hist_open_x[low], hist_open_x[high], classname=self.ClassName),5)
 		return {
 			"ticker": payload["ticker"],
 			"data": {
@@ -813,13 +839,14 @@ class Context():
 
 	def GetPortfolioStatistics(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload, classname=self.ClassName),5)
+		self.Node.LogMSG("({classname})# [GetPortfolioStatistics] {0}".format(payload, classname=self.ClassName),5)
 
 		potrfolio_id = payload["portfolio_id"]
 		return {
 			"portfolio_id": potrfolio_id
 		}
 
+	# [CURRENTLY NOT IN USE]
 	def GetPortfolioStocksHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload, classname=self.ClassName),5)
@@ -869,7 +896,7 @@ class Context():
 						if db_stock["amount_sum"] is not None and db_stock["hist_price_sum"] is not None:
 							earnings = float("{0:.3f}".format(db_stock["hist_price_sum"]))
 							if (price * db_stock["amount_sum"]) > 0:
-								earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] - db_stock["hist_price_sum"]))
+								earnings = float("{0:.3f}".format(price * db_stock["amount_sum"] + db_stock["hist_price_sum"]))
 							stocks_count += db_stock["amount_sum"]
 							portfolio_earnings += earnings
 							portfolio_investment += price * db_stock["amount_sum"]
