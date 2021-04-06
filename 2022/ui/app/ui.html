@@ -83,6 +83,9 @@
 							<a class="nav-link" id="id_m_main_import" href="#" onclick="ui.OpenModalImportStocks();">Import</a>
 						</li>
 						<li class="nav-item">
+							<a class="nav-link" id="id_m_main_hunter" href="#">Hunter</a>
+						</li>
+						<li class="nav-item">
 							<a class="nav-link" id="id_m_main_export" href="#">Export</a>
 						</li>
 						<li class="nav-item">
@@ -171,8 +174,35 @@
 				
 				// User Code #1 - End
 			});
+
+			function Nasdaq() {
+				console.log("NASDAQ");
+				return this;
+			}
+
+			Nasdaq.prototype.UpcommingEvents = function(callback) {
+				var self = this;
+
+				node.API.SendCustomCommand(NodeUUID, "get_nasdaq_events", {
+					"event": "upcomming"
+				}, function(res) {
+					var payload = res.data.payload;
+					callback(payload.data.data);
+				});
+			}
+
+			Nasdaq.prototype.RecentArticles = function(callback) {
+				var self = this;
+
+				node.API.SendCustomCommand(NodeUUID, "get_nasdaq_events", {
+					"event": "recent-articles"
+				}, function(res) {
+					var payload = res.data.payload;
+					callback(payload.data);
+				});
+			}
 			
-			function StockMarket(api) {
+			function StockMarket() {
 				this.Stocks 		= {};
 				this.MarketStatus 	= null;
 				this.UpdateInterval	= 10000;
@@ -363,6 +393,7 @@
 			// Self-generated area
 			var ui 		= null;
 			var market 	= new StockMarket();
+			var nasdaq  = new Nasdaq();
 		</script>
 	</body>
 </html>

@@ -23,6 +23,7 @@ from mksdk import MkSFileUploader
 
 from classes import StockMarket
 from classes import StockDataBase
+from classes import NasdaqApi
 
 class Context():
 	def __init__(self, node):
@@ -32,6 +33,7 @@ class Context():
 		self.File						= MkSFile.File()
 		self.Market 					= StockMarket.StockMarket()
 		self.Math 						= StockMarket.AlgoMath()
+		self.Nasdaq						= NasdaqApi.Nasdaq()
 		self.BasicPrediction 			= StockMarket.AlgoBasicPrediction()
 		self.SQL 						= StockDataBase.StockDB("stocks.db")
 		# States
@@ -61,6 +63,7 @@ class Context():
 			'get_market_stocks':				self.GetMarketStocksHandler,
 			'db_delete_action':					self.DBDeleteActionHandler,
 			'calulate_basic_prediction':		self.CalculateBasicPredictionHandler,
+			'get_nasdaq_events':				self.GetNasdaqEventsHandler,
 			'undefined':						self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -197,6 +200,24 @@ class Context():
 			})
 		except Exception as e:
 			print(e)
+
+	def GetNasdaqEventsHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetNasdaqEventsHandler] {0}".format(payload,classname=self.ClassName),5)
+		data = None
+		try:
+			event = payload["event"]
+			if "upcomming" in event:
+				data = self.Nasdaq.UpcommingEvents()
+			elif "recent-articles" in event:
+				data = self.Nasdaq.RecentArticles(5)
+		except Exception as e:
+			self.Node.LogMSG("({classname})# [EXCEPTION] GetNasdaqEventsHandler {0} {1}".format(payload,str(e),classname=self.ClassName), 5)
+
+		return {
+			"event": payload["event"],
+			"data": data
+		}
 
 	def CalculateBasicPredictionHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
@@ -420,6 +441,12 @@ class Context():
 		if self.SQL.StockExist(payload["ticker"]) is False:
 			info = self.Market.API.GetStockInfoRaw(payload["ticker"])
 			self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0} Append to stock DB".format(payload,classname=self.ClassName),5)
+			sector = ""
+			if "sector" in info:
+				sector = info["sector"]
+			industry = ""
+			if "industry" in info:
+				industry = info["industry"]
 			self.SQL.InsertStock({
 				'name': info["shortName"],
 				'ticker': payload["ticker"],

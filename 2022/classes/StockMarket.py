@@ -191,7 +191,7 @@ class StockCalculation():
 					stock["predictions"]["basic"][index]["action"] = "sell"
 				else:
 					if "sell" not in stock["predictions"]["basic"][index]["action"]:
-						print("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to SELL".format(stock["ticker"],classname=self.ClassName))
+						print("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to SELL {1}".format(stock["ticker"],stock["price"],classname=self.ClassName))
 						# Call for update callback
 						#if self.StockSimplePredictionChangeCallback is not None:
 						#	self.StockSimplePredictionChangeCallback({
@@ -206,7 +206,7 @@ class StockCalculation():
 					stock["predictions"]["basic"][index]["action"] = "buy"
 				else:
 					if "buy" not in stock["predictions"]["basic"][index]["action"]:
-						print("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to BUY".format(stock["ticker"],classname=self.ClassName))
+						print("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to BUY {1}".format(stock["ticker"],stock["price"],classname=self.ClassName))
 						# Call for update callback
 						#if self.StockSimplePredictionChangeCallback is not None:
 						#	self.StockSimplePredictionChangeCallback({
@@ -221,7 +221,7 @@ class StockCalculation():
 					stock["predictions"]["basic"][index]["action"] = "hold"
 				else:
 					if "hold" not in stock["predictions"]["basic"][index]["action"]:
-						print("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to HOLD".format(stock["ticker"],classname=self.ClassName))
+						print("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to HOLD {1}".format(stock["ticker"],stock["price"],classname=self.ClassName))
 						# Call for update callback
 						#if self.StockSimplePredictionChangeCallback is not None:
 						#	self.StockSimplePredictionChangeCallback({

@@ -191,11 +191,11 @@ ModuleStockAppend.prototype.GetPortfolioStocks = function(id, name) {
             
             row = [];
             row.push(`<h6 class="my-0"><a href="#" onclick="`+this.DOMName+`.UpdateStockInfoView('`+stock.ticker+`');">`+stock.ticker+`</a></h6>`);
+            row.push(`<div id="id_m_stock_append_table_price_`+stock.ticker+`_simple_action"></div>`);
+            row.push(`<div id="id_m_stock_append_table_price_`+stock.ticker+`_price_event"></div>`);
             row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_market_price">`+stock.market_price+`<span>`);
             row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_number">`+stock.number+`<span>`);
             row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_earnings">`+stock.earnings+`<span>`);
-            row.push(`<div id="id_m_stock_append_table_price_`+stock.ticker+`_simple_action"></div>`);
-            row.push(`<div id="id_m_stock_append_table_price_`+stock.ticker+`_price_event"></div>`);
             row.push(`
                 <div class="d-flex flex-row-reverse">
                     <div class="dropdown">
@@ -218,7 +218,7 @@ ModuleStockAppend.prototype.GetPortfolioStocks = function(id, name) {
     table.ShowRowNumber(false);
     table.ShowHeader(false);
     table.SetData(data);
-    table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, `<span id="id_m_stock_append_table_price_summary_total_nvestment" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">`+this.Number+`<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">`+this.Earnings.toFixed(2)+`<span>`, "", "", ""])
+    table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, "", "", `<span id="id_m_stock_append_table_price_summary_total_nvestment" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">`+this.Number+`<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">`+this.Earnings.toFixed(2)+`<span>`, ""])
     table.Build(document.getElementById("id_m_stock_append_stock_table"));
     this.UpdateStockTableFromLocalMarket();
     feather.replace();
@@ -601,11 +601,11 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
             
             row = [];
             row.push(`<h6 class="my-0"><a href="#" onclick="`+self.DOMName+`.UpdateStockInfoView('`+stock.ticker+`');">`+stock.ticker+`</a></h6>`);
+            row.push(`<div id="id_m_stock_append_table_price_`+stock.ticker+`_simple_action"></div>`);
+            row.push(`<div id="id_m_stock_append_table_price_`+stock.ticker+`_price_event"></div>`);
             row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_market_price">`+stock.market_price+`<span>`);
             row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_number">0<span>`);
             row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_earnings">0<span>`);
-            row.push(`<div id="id_m_stock_append_table_price_`+stock.ticker+`_simple_action"></div>`);
-            row.push(`<div id="id_m_stock_append_table_price_`+stock.ticker+`_price_event"></div>`);
             row.push(`
                 <div class="d-flex flex-row-reverse">
                     <div class="dropdown">
@@ -628,7 +628,7 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
         table.ShowRowNumber(false);
         table.ShowHeader(false);
         table.SetData(data);
-        table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, `<span id="id_m_stock_append_table_price_summary_total_nvestment" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">0<span>`, "", "", ""])
+        table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, "", "", `<span id="id_m_stock_append_table_price_summary_total_nvestment" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">0<span>`, ""])
         table.Build(document.getElementById("id_m_stock_append_stock_table"));
 
         /* document.getElementById('d_m_stock_append_stock_find_ticker').addEventListener('keyup', function(event) {
