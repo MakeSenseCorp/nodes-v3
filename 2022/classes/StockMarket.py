@@ -239,6 +239,7 @@ class StockCalculation():
 class StockMarketApi():
 	def __init__(self):
 		self.ClassName	= "StockMarketApi"
+		self.Delay 		= 0.2
 	
 	def CheckForNan(self, value):
 		if value == value:
@@ -252,7 +253,9 @@ class StockMarketApi():
 		error = False
 		try:
 			objtk = yf.Ticker(ticker)
+			time.sleep(self.Delay)
 			df_stock = objtk.history(period="1d", interval="5m")
+			time.sleep(self.Delay)
 			price = "{0:.3f}".format(df_stock["Close"].iloc[-1])
 		except Exception as e:
 			print("({classname})# [EXCEPTION] (GetStockCurrentPrice) {0} {1}".format(ticker,str(e),classname=self.ClassName))
@@ -262,10 +265,12 @@ class StockMarketApi():
 	
 	def GetStockInfoRaw(self, ticker):
 		objtk = yf.Ticker(ticker)
+		time.sleep(self.Delay)
 		return objtk.info
 
 	def GetStockInfo(self, ticker):
 		objtk = yf.Ticker(ticker)
+		time.sleep(self.Delay)
 
 		ask  = 0
 		bid  = 0
@@ -306,11 +311,13 @@ class StockMarketApi():
 		hist = []
 		try:
 			objtk = yf.Ticker(ticker)
+			time.sleep(self.Delay)
 			'''
 				Valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
 				Valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
 			'''
 			data = objtk.history(period=period, interval=interval)
+			time.sleep(self.Delay)
 			for idx, row in data.iterrows():
 				if self.CheckForNan(row['Open']) is False or self.CheckForNan(row['Close']) is False or self.CheckForNan(row['High']) is False or self.CheckForNan(row['Low']) is False:
 					continue
@@ -506,7 +513,7 @@ class StockMarket():
 		self.ThreadPoolLocker.acquire()
 		self.JoblessMinions += 1
 		self.ThreadPoolLocker.release()
-		Interval = 0.5
+		Interval = 0.25
 
 		algos = StockCalculation()
 		algos.StockSimplePredictionChangeCallback = self.StockSimplePredictionChangeCallback
