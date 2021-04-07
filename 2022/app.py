@@ -226,12 +226,12 @@ class Context():
 			ticker = payload["ticker"]
 			stock = self.Market.GenerateEmtpyStock()
 			stock["ticker"] = ticker
-			stock["price"]	= self.Market.API.GetStockCurrentPrice(ticker)
-			stock["1D"]		= self.Market.API.Get1D(ticker)
-			stock["5D"]		= self.Market.API.Get5D(ticker)
-			stock["1MO"]	= self.Market.API.Get1MO(ticker)
-			stock["3MO"]	= self.Market.API.Get3MO(ticker)
-			stock["6MO"]	= self.Market.API.Get6MO(ticker)
+			error, stock["price"]	= self.Market.API.GetStockCurrentPrice(ticker)
+			error, stock["1D"]		= self.Market.API.Get1D(ticker)
+			error, stock["5D"]		= self.Market.API.Get5D(ticker)
+			error, stock["1MO"]		= self.Market.API.Get1MO(ticker)
+			error, stock["3MO"]		= self.Market.API.Get3MO(ticker)
+			error, stock["6MO"]		= self.Market.API.Get6MO(ticker)
 
 			calc = StockMarket.StockCalculation()
 			calc.CalculateBasicPrediction(stock, "1D")
@@ -250,20 +250,22 @@ class Context():
 		self.Node.LogMSG("({classname})# [GetMarketStocksHandler]".format(classname=self.ClassName),5)
 
 		# Stock market status
-		status 		= self.Market.GetMarketStatus()
-		mkt_stocks 	= self.Market.GetCacheDB()
-		if status["local_stock_market_ready"] is False:
-			updated_stocks 	= 0
-			# Get portfolio stocks
-			db_stocks  		= self.SQL.GetStocksByProfile(self.CurrentPortfolio)
-			for db_stock in db_stocks:
-				ticker = db_stock["ticker"]
-				if mkt_stocks[ticker]["updated"] is True:
-					updated_stocks += 1
-			status["percentage"] = float("{0:.1f}".format(float(updated_stocks) / float(len(db_stocks)) * 100.0))
-			return {
-				"status": status
-			}
+		#status 		= self.Market.GetMarketStatus()
+		#mkt_stocks 	= self.Market.GetCacheDB()
+		#if status["local_stock_market_ready"] is False:
+		#	self.Node.LogMSG("({classname})# [GetMarketStocksHandler] Local Market DB is NOT ready yet.".format(classname=self.ClassName),5)
+		#	updated_stocks 	= 0
+		#	# Get portfolio stocks
+		#	db_stocks  		= self.SQL.GetStocksByProfile(self.CurrentPortfolio)
+		#	for db_stock in db_stocks:
+		#		ticker = db_stock["ticker"]
+		#		if mkt_stocks[ticker]["updated"] is True:
+		#			updated_stocks += 1
+		#	status["percentage"] = float("{0:.1f}".format(float(updated_stocks) / float(len(db_stocks)) * 100.0))
+		#	return {
+		#		"status": status
+		#	}
+
 		# Get all stocks
 		db_stocks = self.SQL.GetPortfolioStocks(0)
 		# For each stock do calculation
@@ -342,7 +344,7 @@ class Context():
 			})
 		
 		return {
-			"status": status
+			"status": True
 		}
 
 	def StockChangeEvent(self, stock):
@@ -782,8 +784,10 @@ class Context():
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [GetStockHistoryHandler] {0}".format(payload,classname=self.ClassName),5)
 		
+		error, data = self.SQL.GetStockHistory(payload["ticker"])
 		return {
-			"history": self.SQL.GetStockHistory(payload["ticker"])
+			"history": data,
+			"error": error
 		}
 	
 	def GetPortfoliosHandler(self, sock, packet):
@@ -809,7 +813,7 @@ class Context():
 
 	def DownloadStockHistoryHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		hist = self.Market.API.GetStockHistory(payload["ticker"], payload["period"], payload["interval"])
+		error, hist = self.Market.API.GetStockHistory(payload["ticker"], payload["period"], payload["interval"])
 
 		if len(hist) == 0:
 			return {

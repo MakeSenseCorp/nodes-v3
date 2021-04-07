@@ -224,7 +224,7 @@
 
 			StockMarket.prototype.GetStocks = function() {
 				var self = this;
-
+				console.log("GetStocks");
 				node.API.SendCustomCommand(NodeUUID, "get_market_stocks", {
 				}, function(res) {
 					var payload = res.data.payload;
@@ -257,6 +257,7 @@
 			}
 
 			StockMarket.prototype.Publish = function(data) {
+				console.log("Publish", data.length);
 				for (key in data) {
 					var stock = data[key];
 					this.Stocks[stock.ticker] = stock;

@@ -166,7 +166,7 @@ class StockCalculation():
 	
 	def CalculateBasicPrediction(self, stock, period):
 		if stock["price"] <= 0:
-			print("({classname})# [CalculateBasicPrediction] ({0}) Error: Price not valid for prediction".format(stock["ticker"],classname=self.ClassName))
+			print("({classname})# [CalculateBasicPrediction] ({0}) Error: Price not valid for prediction ({1})".format(stock["ticker"],stock["price"],classname=self.ClassName))
 			return
 
 		stock_open = []
@@ -249,13 +249,16 @@ class StockMarketApi():
 		'''
 			Open,High,Low,Close,Volume,Dividends,Stock Splits
 		'''
+		error = False
 		try:
 			objtk = yf.Ticker(ticker)
 			df_stock = objtk.history(period="1d", interval="5m")
 			price = "{0:.3f}".format(df_stock["Close"].iloc[-1])
 		except:
+			print("({classname})# [EXCEPTION] (GetStockCurrentPrice) {0} {1}".format(stock["ticker"],str(e),classname=self.ClassName))
 			price = "0"
-		return float(price)
+			error = True
+		return error, float(price)
 	
 	def GetStockInfoRaw(self, ticker):
 		objtk = yf.Ticker(ticker)
@@ -321,8 +324,9 @@ class StockMarketApi():
 					"vol": row['Volume']
 				})
 		except Exception as e:
-			print("({classname})# [EXCEPTION] GetStockHistory".format(classname=self.ClassName))
-		return hist
+			print("({classname})# [EXCEPTION] GetStockHistory {0} {1} {2}".format(ticker,period,interval,classname=self.ClassName))
+			return True, []
+		return False, hist
 
 	def Get1D(self, ticker):
 		return self.GetStockHistory(ticker, "1d", "5m")
@@ -478,39 +482,59 @@ class StockMarket():
 		self.ThreadPoolLocker.acquire()
 		self.JoblessMinions += 1
 		self.ThreadPoolLocker.release()
-		Interval = 0.1
+		Interval = 0.25
 
 		algos = StockCalculation()
 		algos.StockSimplePredictionChangeCallback = self.StockSimplePredictionChangeCallback
 		atock_api = StockMarketApi()
+
 		while self.WorkerRunning is True:
 			try:
-				#if self.FirstStockUpdateRun is True:
-				#	Interval = 0.5
 				item = self.Queues[index].get(block=True,timeout=None)
-				self.ThreadPoolStatus[index] = True
-				ticker = item["ticker"]
-				stock  = self.CacheDB[ticker]
+				# Update pool thread status
+				self.ThreadPoolStatus[index] 	= True
+				# Initiate working variables
+				error  							= False
+				ticker 							= item["ticker"]
+				stock  							= self.CacheDB[ticker]
+				# Print working message
 				self.LogMSG("({classname})# [MINION] Update stock ({0}) ({1})".format(index,ticker,classname=self.ClassName), 5)
 				# Update local stock DB
-				stock["1D"]					= atock_api.Get1D(ticker)
-				stock["5D"] 	 			= atock_api.Get5D(ticker)
-				stock["1MO"] 	 			= atock_api.Get1MO(ticker)
-				stock["3MO"] 	 			= atock_api.Get3MO(ticker)
-				stock["6MO"] 	 			= atock_api.Get6MO(ticker)
-				stock["price"] 	 			= self.API.GetStockCurrentPrice(ticker)
-				stock["updated"] 			= True
-				stock["ts_last_updated"] 	= time.time()
+				error, stock["price"] = self.API.GetStockCurrentPrice(ticker) # Get stock price
+				if error is True:
+					stock["price"] = None
+				else:
+					error, stock["1D"] = atock_api.Get1D(ticker)	# Get 1 day history
+					if error is True:
+						stock["1D"] = None
+					else:
+						algos.CalculateBasicPrediction(stock, "1D")
+					error, stock["5D"] = atock_api.Get5D(ticker)	# Get 5 days history
+					if error is True:
+						stock["5D"] = None
+					else:
+						algos.CalculateBasicPrediction(stock, "5D")
+					error, stock["1MO"] = atock_api.Get1MO(ticker)	# Get 1 month history
+					if error is True:
+						stock["1MO"] = None
+					else:
+						algos.CalculateBasicPrediction(stock, "1MO")
+					error, stock["3MO"] = atock_api.Get3MO(ticker)	# Get 3 months history
+					if error is True:
+						stock["3MO"] = None
+					else:
+						algos.CalculateBasicPrediction(stock, "3MO")
+					error, stock["6MO"] = atock_api.Get6MO(ticker)	# Get 6 months history
+					if error is True:
+						stock["6MO"] = None
+					else:
+						algos.CalculateBasicPrediction(stock, "6MO")
+
 				#stock["1D_statistics"]  	= self.CalculateBasicStatistics(stock["1D"])
 				#stock["5D_statistics"]  	= self.CalculateBasicStatistics(stock["5D"])
 				#stock["1MO_statistics"] 	= self.CalculateBasicStatistics(stock["1MO"])
 
-				algos.CalculateBasicPrediction(stock, "1D")
-				algos.CalculateBasicPrediction(stock, "5D")
-				algos.CalculateBasicPrediction(stock, "1MO")
-				algos.CalculateBasicPrediction(stock, "3MO")
-				algos.CalculateBasicPrediction(stock, "6MO")
-
+				# Check for thresholds
 				for threshold in stock["thresholds"]:
 					threshold["activated"] = False
 					if threshold["type"] == 1:
@@ -529,10 +553,19 @@ class StockMarket():
 						if self.ThresholdEventCallback is not None:
 							self.ThresholdEventCallback(ticker, stock["price"], threshold)
 				
-				if self.StockChangeCallback is not None:
-					self.StockChangeLocker.acquire()
-					self.StockChangeCallback(stock)
-					self.StockChangeLocker.release()
+				#if self.StockChangeCallback is not None:
+				#	self.StockChangeLocker.acquire()
+				#	self.StockChangeCallback(stock)
+				#	self.StockChangeLocker.release()
+				
+				if error is True:
+					# Stock was not updated correctly
+					stock["updated"] = False
+				else:
+					# Update stock status to updated and update timestamp
+					stock["updated"] = True
+					stock["ts_last_updated"] 	= time.time()
+				# Wait several MS
 				time.sleep(Interval)
 				# Free to accept new job
 				self.ThreadPoolStatus[index] = False
