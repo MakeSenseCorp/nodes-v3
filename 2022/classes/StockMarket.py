@@ -301,24 +301,27 @@ class StockMarketApi():
 			Open,High,Low,Close,Volume,Dividends,Stock Splits
 		'''
 		hist = []
-		objtk = yf.Ticker(ticker)
-		'''
-			Valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
-			Valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
-		'''
-		data = objtk.history(period=period, interval=interval)
-		for idx, row in data.iterrows():
-			if self.CheckForNan(row['Open']) is False or self.CheckForNan(row['Close']) is False or self.CheckForNan(row['High']) is False or self.CheckForNan(row['Low']) is False:
-				continue
+		try:
+			objtk = yf.Ticker(ticker)
+			'''
+				Valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
+				Valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
+			'''
+			data = objtk.history(period=period, interval=interval)
+			for idx, row in data.iterrows():
+				if self.CheckForNan(row['Open']) is False or self.CheckForNan(row['Close']) is False or self.CheckForNan(row['High']) is False or self.CheckForNan(row['Low']) is False:
+					continue
 
-			hist.append({
-				"date": "{0}".format(idx),
-				"open": row['Open'],
-				"close": row['Close'],
-				"high": row['High'],
-				"low": row['Low'],
-				"vol": row['Volume']
-			})
+				hist.append({
+					"date": "{0}".format(idx),
+					"open": row['Open'],
+					"close": row['Close'],
+					"high": row['High'],
+					"low": row['Low'],
+					"vol": row['Volume']
+				})
+		except Exception as e:
+			print("({classname})# [EXCEPTION] GetStockHistory".format(classname=self.ClassName))
 		return hist
 
 	def Get1D(self, ticker):
@@ -462,6 +465,13 @@ class StockMarket():
 			time.sleep(0.5)
 		return
 
+	def StockUpdated(self):
+		self.LogMSG("({classname})# [StockUpdated]".format(classname=self.ClassName), 5)
+		for ticker in self.CacheDB:
+			if ticker["updated"] is False:
+				return False
+		return True
+
 	def StockMinion(self, index):
 		self.LogMSG("({classname})# [MINION] Reporting for duty ({0})".format(index,classname=self.ClassName), 5)
 		# Update jobless minons
@@ -530,6 +540,7 @@ class StockMarket():
 				self.Signal.set()
 			except Exception as e:
 				self.LogMSG("({classname})# [EXCEPTION] MINION {0} {1}".format(index,str(e),classname=self.ClassName), 5)
+				stock["updated"] = False
 				if self.StockChangeLocker.locked is True:
 					self.StockChangeLocker.release()
 				self.ThreadPoolStatus[index] = False
@@ -599,7 +610,9 @@ class StockMarket():
 							self.WaitForMinionsToFinish()
 							if self.FirstRunDoneCallback is not None:
 								self.FirstRunDoneCallback()
-					self.FirstStockUpdateRun = True
+					if self.FirstStockUpdateRun is False:
+						if self.StockUpdated() is True:
+							self.FirstStockUpdateRun = True
 				time.sleep(self.MarketPollingInterval)
 			except Exception as e:
 				self.LogMSG("({classname})# [Exeption] MASTER ({0}) ({1})".format(d_ticker,e,classname=self.ClassName), 5)
