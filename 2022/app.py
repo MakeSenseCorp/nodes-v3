@@ -283,8 +283,8 @@ class Context():
 				market_price 	= stock["price"]
 				earnings 		= 0.0
 				# Calculate actions min, max and summary
-				if market_price > 0:
-					try:
+				try:
+					if market_price > 0:
 						if db_stock["amount_sum"] is not None and db_stock["hist_price_sum"] is not None:
 							# earnings = float("{0:.3f}".format(db_stock["hist_price_sum"]))
 							if (market_price * db_stock["amount_sum"]) > 0 or db_stock["amount_sum"] == 0:
@@ -295,8 +295,8 @@ class Context():
 							db_stock["amount_sum"] 	= 0.0
 							db_stock["hist_min"] 	= 0.0
 							db_stock["hist_max"]	= 0.0
-					except Exception as e:
-						self.Node.LogMSG("({classname})# [EXCEPTION] GetMarketStocksHandler - Calculation {0} {1}".format(ticker,str(e),classname=self.ClassName), 5)
+				except Exception as e:
+					self.Node.LogMSG("({classname})# [EXCEPTION] GetMarketStocksHandler - Calculation {0} {1}".format(ticker,str(e),classname=self.ClassName), 5)
 				
 				if "warning" in stock["5D_statistics"] and "warning" in stock["1MO_statistics"]:
 					warning = stock["5D_statistics"]["warning"] & stock["1MO_statistics"]["warning"]

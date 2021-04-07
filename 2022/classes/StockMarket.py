@@ -254,8 +254,8 @@ class StockMarketApi():
 			objtk = yf.Ticker(ticker)
 			df_stock = objtk.history(period="1d", interval="5m")
 			price = "{0:.3f}".format(df_stock["Close"].iloc[-1])
-		except:
-			print("({classname})# [EXCEPTION] (GetStockCurrentPrice) {0} {1}".format(stock["ticker"],str(e),classname=self.ClassName))
+		except Exception as e:
+			print("({classname})# [EXCEPTION] (GetStockCurrentPrice) {0} {1}".format(ticker,str(e),classname=self.ClassName))
 			price = "0"
 			error = True
 		return error, float(price)
@@ -506,7 +506,7 @@ class StockMarket():
 		self.ThreadPoolLocker.acquire()
 		self.JoblessMinions += 1
 		self.ThreadPoolLocker.release()
-		Interval = 0.25
+		Interval = 0.5
 
 		algos = StockCalculation()
 		algos.StockSimplePredictionChangeCallback = self.StockSimplePredictionChangeCallback
@@ -633,29 +633,34 @@ class StockMarket():
 								# Get out
 								break
 							stock 	 = self.CacheDB[ticker]
+							# self.LogMSG("({classname})# [MASTER] {0} {1}".format(ticker,stock,classname=self.ClassName), 5)
 							d_ticker = ticker
-							# Check if stock need to be updated
-							if self.NeedUpdate(stock) is True:
-								stock["updated"] = False
-								# Find free queue
-								jobless_minion_found = False
-								while jobless_minion_found is False:
-									for idx, item in enumerate(self.ThreadPoolStatus):
-										if item is False:
-											# Send job to minion
-											self.Queues[idx].put({
-												"ticker": ticker
-											})
-											time.sleep(0.1)
-											jobless_minion_found = True
-											break
-									if jobless_minion_found is False:
-										# self.LogMSG("({classname})# [MASTER] Wait...".format(classname=self.ClassName), 5)
-										self.Signal.clear()
-										# free minion not found, wait
-										self.Signal.wait()
+							# Check if stock is not null
+							if stock is not None:
+								# Check if stock need to be updated
+								if self.NeedUpdate(stock) is True:
+									stock["updated"] = False
+									# Find free queue
+									jobless_minion_found = False
+									while jobless_minion_found is False:
+										for idx, item in enumerate(self.ThreadPoolStatus):
+											if item is False:
+												# Send job to minion
+												self.Queues[idx].put({
+													"ticker": ticker
+												})
+												time.sleep(0.1)
+												jobless_minion_found = True
+												break
+										if jobless_minion_found is False:
+											# self.LogMSG("({classname})# [MASTER] Wait...".format(classname=self.ClassName), 5)
+											self.Signal.clear()
+											# free minion not found, wait
+											self.Signal.wait()
+								else:
+									pass
 							else:
-								pass
+								self.LogMSG("({classname})# [Exception] MASTER Stock {0} is null".format(ticker,classname=self.ClassName), 5)
 						if self.FirstStockUpdateRun is False:
 							self.WaitForMinionsToFinish()
 							if self.FirstRunDoneCallback is not None:
