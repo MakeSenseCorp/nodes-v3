@@ -472,9 +472,33 @@ class StockMarket():
 	def StockUpdated(self):
 		self.LogMSG("({classname})# [StockUpdated]".format(classname=self.ClassName), 5)
 		for ticker in self.CacheDB:
-			if ticker["updated"] is False:
+			stock = self.CacheDB[ticker]
+			if stock["updated"] is False:
 				return False
 		return True
+	
+	def NeedUpdate(self, stock):
+		try:
+			ts = time.time()
+			if stock["updated"] is True:
+				vol = stock["1D"][0]["vol"]
+				if vol > 1000000:
+					return True
+				elif vol > 500000:
+					if ts - stock["ts_last_updated"] > 5.0:
+						return True
+				elif vol > 100000:
+					if ts - stock["ts_last_updated"] > 10.0:
+						return True
+				else:
+					if ts - stock["ts_last_updated"] > 30.0:
+						return True
+			else:
+				return True
+		except Exception as e:
+			self.LogMSG("({classname})# [Exeption] NeedUpdate ({0})".format(e,classname=self.ClassName), 5)
+		
+		return False
 
 	def StockMinion(self, index):
 		self.LogMSG("({classname})# [MINION] Reporting for duty ({0})".format(index,classname=self.ClassName), 5)
@@ -601,44 +625,35 @@ class StockMarket():
 							self.MarketPollingInterval = 10
 						else:
 							self.MarketPollingInterval = 1
+						# Itterate over all user stocks
 						for ticker in self.CacheDB:
 							if self.Halt is True:
 								# Get out
 								break
-							stock = self.CacheDB[ticker]
+							stock 	 = self.CacheDB[ticker]
 							d_ticker = ticker
-							ts = time.time()
-							if stock["updated"] is True:
-								vol = stock["1D"][0]["vol"]
-								if vol > 1000000:
-									stock["updated"] = False
-								elif vol > 500000:
-									if ts - stock["ts_last_updated"] > 5.0:
-										stock["updated"] = False
-								elif vol > 100000:
-									if ts - stock["ts_last_updated"] > 10.0:
-										stock["updated"] = False
-								else:
-									if ts - stock["ts_last_updated"] > 30.0:
-										stock["updated"] = False
-							
-							# Find free queue
-							jobless_minion_found = False
-							while jobless_minion_found is False:
-								for idx, item in enumerate(self.ThreadPoolStatus):
-									if item is False:
-										# Send job to minion
-										self.Queues[idx].put({
-											"ticker": ticker
-										})
-										time.sleep(0.1)
-										jobless_minion_found = True
-										break
-								if jobless_minion_found is False:
-									# self.LogMSG("({classname})# [MASTER] Wait...".format(classname=self.ClassName), 5)
-									self.Signal.clear()
-									# free minion not found, wait
-									self.Signal.wait()
+							# Check if stock need to be updated
+							if self.NeedUpdate(stock) is True:
+								stock["updated"] = False
+								# Find free queue
+								jobless_minion_found = False
+								while jobless_minion_found is False:
+									for idx, item in enumerate(self.ThreadPoolStatus):
+										if item is False:
+											# Send job to minion
+											self.Queues[idx].put({
+												"ticker": ticker
+											})
+											time.sleep(0.1)
+											jobless_minion_found = True
+											break
+									if jobless_minion_found is False:
+										# self.LogMSG("({classname})# [MASTER] Wait...".format(classname=self.ClassName), 5)
+										self.Signal.clear()
+										# free minion not found, wait
+										self.Signal.wait()
+							else:
+								pass
 						if self.FirstStockUpdateRun is False:
 							self.WaitForMinionsToFinish()
 							if self.FirstRunDoneCallback is not None:
