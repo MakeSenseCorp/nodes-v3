@@ -524,71 +524,72 @@ class StockMarket():
 				# Print working message
 				self.LogMSG("({classname})# [MINION] Update stock ({0}) ({1})".format(index,ticker,classname=self.ClassName), 5)
 				# Update local stock DB
-				error, stock["price"] = self.API.GetStockCurrentPrice(ticker) # Get stock price
-				if error is True:
-					stock["price"] = None
-				else:
-					error, stock["1D"] = atock_api.Get1D(ticker)	# Get 1 day history
+				if stock is not None:
+					error, stock["price"] = self.API.GetStockCurrentPrice(ticker) # Get stock price
 					if error is True:
-						stock["1D"] = None
+						stock["price"] = None
 					else:
-						algos.CalculateBasicPrediction(stock, "1D")
-					error, stock["5D"] = atock_api.Get5D(ticker)	# Get 5 days history
-					if error is True:
-						stock["5D"] = None
-					else:
-						algos.CalculateBasicPrediction(stock, "5D")
-					error, stock["1MO"] = atock_api.Get1MO(ticker)	# Get 1 month history
-					if error is True:
-						stock["1MO"] = None
-					else:
-						algos.CalculateBasicPrediction(stock, "1MO")
-					error, stock["3MO"] = atock_api.Get3MO(ticker)	# Get 3 months history
-					if error is True:
-						stock["3MO"] = None
-					else:
-						algos.CalculateBasicPrediction(stock, "3MO")
-					error, stock["6MO"] = atock_api.Get6MO(ticker)	# Get 6 months history
-					if error is True:
-						stock["6MO"] = None
-					else:
-						algos.CalculateBasicPrediction(stock, "6MO")
+						error, stock["1D"] = atock_api.Get1D(ticker)	# Get 1 day history
+						if error is True:
+							stock["1D"] = None
+						else:
+							algos.CalculateBasicPrediction(stock, "1D")
+						error, stock["5D"] = atock_api.Get5D(ticker)	# Get 5 days history
+						if error is True:
+							stock["5D"] = None
+						else:
+							algos.CalculateBasicPrediction(stock, "5D")
+						error, stock["1MO"] = atock_api.Get1MO(ticker)	# Get 1 month history
+						if error is True:
+							stock["1MO"] = None
+						else:
+							algos.CalculateBasicPrediction(stock, "1MO")
+						error, stock["3MO"] = atock_api.Get3MO(ticker)	# Get 3 months history
+						if error is True:
+							stock["3MO"] = None
+						else:
+							algos.CalculateBasicPrediction(stock, "3MO")
+						error, stock["6MO"] = atock_api.Get6MO(ticker)	# Get 6 months history
+						if error is True:
+							stock["6MO"] = None
+						else:
+							algos.CalculateBasicPrediction(stock, "6MO")
 
-				#stock["1D_statistics"]  	= self.CalculateBasicStatistics(stock["1D"])
-				#stock["5D_statistics"]  	= self.CalculateBasicStatistics(stock["5D"])
-				#stock["1MO_statistics"] 	= self.CalculateBasicStatistics(stock["1MO"])
+						#stock["1D_statistics"]  	= self.CalculateBasicStatistics(stock["1D"])
+						#stock["5D_statistics"]  	= self.CalculateBasicStatistics(stock["5D"])
+						#stock["1MO_statistics"] 	= self.CalculateBasicStatistics(stock["1MO"])
 
-				# Check for thresholds
-				for threshold in stock["thresholds"]:
-					threshold["activated"] = False
-					if threshold["type"] == 1:
-						if float(threshold["value"]) > float(stock["price"]):
-							threshold["activated"] = True
-					elif threshold["type"] == 2:
-						if float(threshold["value"]) == float(stock["price"]):
-							threshold["activated"] = True
-					elif threshold["type"] == 3:
-						if float(threshold["value"]) < float(stock["price"]):
-							threshold["activated"] = True
-					else:
-						pass
-					
-					if threshold["activated"] is True:
-						if self.ThresholdEventCallback is not None:
-							self.ThresholdEventCallback(ticker, stock["price"], threshold)
-				
-				#if self.StockChangeCallback is not None:
-				#	self.StockChangeLocker.acquire()
-				#	self.StockChangeCallback(stock)
-				#	self.StockChangeLocker.release()
-				
-				if error is True:
-					# Stock was not updated correctly
-					stock["updated"] = False
-				else:
-					# Update stock status to updated and update timestamp
-					stock["updated"] = True
-					stock["ts_last_updated"] 	= time.time()
+						# Check for thresholds
+						for threshold in stock["thresholds"]:
+							threshold["activated"] = False
+							if threshold["type"] == 1:
+								if float(threshold["value"]) > float(stock["price"]):
+									threshold["activated"] = True
+							elif threshold["type"] == 2:
+								if float(threshold["value"]) == float(stock["price"]):
+									threshold["activated"] = True
+							elif threshold["type"] == 3:
+								if float(threshold["value"]) < float(stock["price"]):
+									threshold["activated"] = True
+							else:
+								pass
+							
+							if threshold["activated"] is True:
+								if self.ThresholdEventCallback is not None:
+									self.ThresholdEventCallback(ticker, stock["price"], threshold)
+						
+						#if self.StockChangeCallback is not None:
+						#	self.StockChangeLocker.acquire()
+						#	self.StockChangeCallback(stock)
+						#	self.StockChangeLocker.release()
+						
+						if error is True:
+							# Stock was not updated correctly
+							stock["updated"] = False
+						else:
+							# Update stock status to updated and update timestamp
+							stock["updated"] = True
+							stock["ts_last_updated"] 	= time.time()
 				# Wait several MS
 				time.sleep(Interval)
 				# Free to accept new job
@@ -596,6 +597,7 @@ class StockMarket():
 				# Signal master in case he waits on signal
 				self.Signal.set()
 			except Exception as e:
+				# BUG #1 - name 'stock' is not defined
 				self.LogMSG("({classname})# [EXCEPTION] MINION {0} {1}".format(index,str(e),classname=self.ClassName), 5)
 				stock["updated"] = False
 				if self.StockChangeLocker.locked is True:

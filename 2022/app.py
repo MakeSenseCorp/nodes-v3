@@ -325,6 +325,7 @@ class Context():
 						"predictions": stock["predictions"]
 					})
 				except Exception as e:
+					# BUG #1 - unsupported operand type(s) for *: 'int' and 'NoneType'
 					self.Node.LogMSG("({classname})# [EXCEPTION] GetMarketStocksHandler - Append stock {0} {1}".format(ticker,str(e),classname=self.ClassName), 5)
 			else:
 				self.Node.LogMSG("({classname})# [GetMarketStocksHandler] TICKER NULL {0}".format(ticker, classname=self.ClassName),5)
