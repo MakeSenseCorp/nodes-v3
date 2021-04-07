@@ -10,12 +10,12 @@ function ModuleStockHistoryGraph(name, ticker) {
                     <div class="row">
                         <div class="col-lg-12 text-center">
                             <div id="id_m_stock_graph_period_selector_[ID]_[NAME]" class="btn-group btn-group-sm" role="group" aria-label="Basic example">
-                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraphUI(this,'1d','1m');">1D</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraphUI(this,'5d','5m');">5D</button>
-                                <button type="button" class="btn btn-outline-secondary active" onclick="[INSTANCE].UpdateGraphUI(this,'1mo','30m');">1MO</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraphUI(this,'3mo','60m');">3MO</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraphUI(this,'6mo','1d');">6MO</button>
-                                <button type="button" class="btn btn-outline-secondary" onclick="[INSTANCE].UpdateGraphUI(this,'1y','1d');">1Y</button>
+                                <button id="id_m_stock_graph_[ID]_[NAME]_1d" type="button" class="btn btn-outline-secondary [1D]" onclick="[INSTANCE].UpdateGraphUI(this,'1d','1m');">1D</button>
+                                <button id="id_m_stock_graph_[ID]_[NAME]_5d" type="button" class="btn btn-outline-secondary [5D]" onclick="[INSTANCE].UpdateGraphUI(this,'5d','5m');">5D</button>
+                                <button id="id_m_stock_graph_[ID]_[NAME]_1mo" type="button" class="btn btn-outline-secondary [1MO]" onclick="[INSTANCE].UpdateGraphUI(this,'1mo','30m');">1MO</button>
+                                <button id="id_m_stock_graph_[ID]_[NAME]_3mo" type="button" class="btn btn-outline-secondary [3MO]" onclick="[INSTANCE].UpdateGraphUI(this,'3mo','60m');">3MO</button>
+                                <button id="id_m_stock_graph_[ID]_[NAME]_6mo" type="button" class="btn btn-outline-secondary [6MO]" onclick="[INSTANCE].UpdateGraphUI(this,'6mo','1d');">6MO</button>
+                                <button id="id_m_stock_graph_[ID]_[NAME]_1y" type="button" class="btn btn-outline-secondary [1Y]" onclick="[INSTANCE].UpdateGraphUI(this,'1y','1d');">1Y</button>
                             </div>
                         </div>
                     </div>
@@ -45,12 +45,26 @@ function ModuleStockHistoryGraph(name, ticker) {
     this.Name                   = name;
     this.DOMName                = "";
     this.Ticker                 = ticker;
+    this.GraphViewType          = "1MO";
     // Objects section
     this.ComponentObject        = null;
     this.GraphHistoryCtx 	    = null;
     this.GraphHistogramCtx 	    = null;
+    // Data
+    this.ViewMap                = {
+        "1D":  ['1d','1m'],
+        "5D":  ['5d','5m'],
+        "1MO": ['1mo','30m'],
+        "3MO": ['3mo','60m'],
+        "6MO": ['6mo','1d'],
+        "1Y":  ['1y','1d']
+    }
 
     return this;
+}
+
+ModuleStockHistoryGraph.prototype.SetGraphViewType = function(type) {
+    this.GraphViewType = type;
 }
 
 ModuleStockHistoryGraph.prototype.SetObjectDOMName = function(name) {
@@ -65,14 +79,16 @@ ModuleStockHistoryGraph.prototype.SetHostingID = function(id) {
 }
 
 ModuleStockHistoryGraph.prototype.Build = function(data, callback) {
+    params = this.ViewMap[this.GraphViewType];
     var html = this.HTML;
     html = html.split("[ID]").join(this.HostingID);
     html = html.split("[NAME]").join(this.Name);
     html = html.split("[TICKER]").join(this.Ticker);
     html = html.split("[INSTANCE]").join(this.DOMName);
+    html = html.split("["+this.GraphViewType+"]").join("active");
     this.ComponentObject = document.getElementById("id_m_stock_graph_"+this.ID);
     document.getElementById(this.HostingID).innerHTML = html;
-    this.UpdateGraph('1mo','30m');
+    this.UpdateGraph(params[0],params[1]);
     if (callback !== undefined && callback != null) {
         callback(this);
     }

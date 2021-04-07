@@ -20,6 +20,8 @@ function ModuleStockAppend() {
     this.TotalInvestment            = 0.0;
     this.TotalCurrentInvestment     = 0.0;
     this.ModalDelete                = new MksBasicModal("m_stock_append_delete");
+    this.BasicPredictionViewType    = -1;
+    this.BasicPredictionViewName    = "1MO";
 
     return this;
 }
@@ -298,6 +300,7 @@ ModuleStockAppend.prototype.FindStockInMarket = function() {
     document.getElementById('id_m_stock_append_info_container').innerHTML = "";
 
     this.StockGraph = new ModuleStockHistoryGraph("stock_market", ticker);
+    this.StockGraph.SetGraphViewType(this.BasicPredictionViewName);
     this.StockGraph.SetHostingID("d_m_stock_append_stock_graph");
     this.StockGraph.SetObjectDOMName(this.DOMName+".StockGraph");
     this.StockGraph.Build(null, null);
@@ -493,15 +496,37 @@ ModuleStockAppend.prototype.GenerateSimplePredictionHtml = function(prediction) 
     return html;
 }
 
+ModuleStockAppend.prototype.SelectPredictionType = function(type, name) {
+    this.BasicPredictionViewType = type;
+    if (type == -1) {
+        this.BasicPredictionViewName = "1MO";
+    } else {
+        this.BasicPredictionViewName = name;
+    }
+    this.UpdateStockTableFromLocalMarket();
+}
+
 ModuleStockAppend.prototype.SimplePredictionUpdate = function(stock) {
     var simpleActionObj = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_simple_action");
-    var total = this.CalculateTotalSimplePrediction(stock.predictions.basic);
 
-    if (total < 0) {
+    var prediction_map = {
+        "sell": -1,
+        "hold": 0,
+        "buy": 1
+    }
+
+    var pred_value = 0;
+    if (this.BasicPredictionViewType == -1) {
+        pred_value = this.CalculateTotalSimplePrediction(stock.predictions.basic);
+    } else {
+        pred_value = prediction_map[stock.predictions.basic[this.BasicPredictionViewType].action];
+    }
+
+    if (pred_value < 0) {
         simpleActionObj.innerHTML = `<span style="color: red; cursor: pointer;" onclick="window.StockAppend.OpenBasicPredictionModal('`+stock.ticker+`');" data-feather="log-out" data-placement="top" data-toggle="tooltip" title="Sell"></span>`;
-    } else if (total > 0) {
+    } else if (pred_value > 0) {
         simpleActionObj.innerHTML = `<span style="color: green;cursor: pointer;" onclick="window.StockAppend.OpenBasicPredictionModal('`+stock.ticker+`');" data-feather="log-in" data-placement="top" data-toggle="tooltip" title="Buy"></span>`;
-    } else if (total == 0) {
+    } else if (pred_value == 0) {
         simpleActionObj.innerHTML = `<span style="color: orange;cursor: pointer;" onclick="window.StockAppend.OpenBasicPredictionModal('`+stock.ticker+`');" data-feather="shield" data-placement="top" data-toggle="tooltip" title="Hold"></span>`;
     } else { }
 }

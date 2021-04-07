@@ -282,16 +282,19 @@ class Context():
 				earnings 		= 0.0
 				# Calculate actions min, max and summary
 				if market_price > 0:
-					if db_stock["amount_sum"] is not None and db_stock["hist_price_sum"] is not None:
-						# earnings = float("{0:.3f}".format(db_stock["hist_price_sum"]))
-						if (market_price * db_stock["amount_sum"]) > 0 or db_stock["amount_sum"] == 0:
-							# TODO - market_price BUG (unsupported operand type(s) for *: 'int' and 'NoneType')
-							earnings = float("{0:.3f}".format(market_price * db_stock["amount_sum"] + db_stock["hist_price_sum"]))
-						stocks_count += db_stock["amount_sum"]
-					else:
-						db_stock["amount_sum"] 	= 0.0
-						db_stock["hist_min"] 	= 0.0
-						db_stock["hist_max"]	= 0.0
+					try:
+						if db_stock["amount_sum"] is not None and db_stock["hist_price_sum"] is not None:
+							# earnings = float("{0:.3f}".format(db_stock["hist_price_sum"]))
+							if (market_price * db_stock["amount_sum"]) > 0 or db_stock["amount_sum"] == 0:
+								# TODO - market_price BUG (unsupported operand type(s) for *: 'int' and 'NoneType')
+								earnings = float("{0:.3f}".format(market_price * db_stock["amount_sum"] + db_stock["hist_price_sum"]))
+							stocks_count += db_stock["amount_sum"]
+						else:
+							db_stock["amount_sum"] 	= 0.0
+							db_stock["hist_min"] 	= 0.0
+							db_stock["hist_max"]	= 0.0
+					except Exception as e:
+						self.Node.LogMSG("({classname})# [EXCEPTION] GetMarketStocksHandler - Calculation {0} {1}".format(ticker,str(e),classname=self.ClassName), 5)
 				
 				if "warning" in stock["5D_statistics"] and "warning" in stock["1MO_statistics"]:
 					warning = stock["5D_statistics"]["warning"] & stock["1MO_statistics"]["warning"]
@@ -299,25 +302,28 @@ class Context():
 				stock_portfolios = self.SQL.GetStockPortfolios(ticker)
 				
 				stocks_in_payload += 1
-				stocks_list.append({
-					"ticker":ticker,
-					"portfolios": stock_portfolios,
-					"name": db_stock["name"],
-					"number": db_stock["amount_sum"],
-					"earnings": earnings,
-					"total_investment": db_stock["hist_price_sum"],
-					"total_current_investment": market_price * db_stock["amount_sum"],
-					"market_price": market_price,
-					"hist_price_min": db_stock["hist_min"],
-					"hist_price_max": db_stock["hist_max"],
-					"warning": warning,
-					"statistics": {
-						"weekly": stock["5D_statistics"],
-						"monthly": stock["1MO_statistics"]
-					},
-					"thresholds": stock["thresholds"],
-					"predictions": stock["predictions"]
-				})
+				try:
+					stocks_list.append({
+						"ticker":ticker,
+						"portfolios": stock_portfolios,
+						"name": db_stock["name"],
+						"number": db_stock["amount_sum"],
+						"earnings": earnings,
+						"total_investment": db_stock["hist_price_sum"],
+						"total_current_investment": market_price * db_stock["amount_sum"],
+						"market_price": market_price,
+						"hist_price_min": db_stock["hist_min"],
+						"hist_price_max": db_stock["hist_max"],
+						"warning": warning,
+						"statistics": {
+							"weekly": stock["5D_statistics"],
+							"monthly": stock["1MO_statistics"]
+						},
+						"thresholds": stock["thresholds"],
+						"predictions": stock["predictions"]
+					})
+				except Exception as e:
+					self.Node.LogMSG("({classname})# [EXCEPTION] GetMarketStocksHandler - Append stock {0} {1}".format(ticker,str(e),classname=self.ClassName), 5)
 			else:
 				self.Node.LogMSG("({classname})# [GetMarketStocksHandler] TICKER NULL {0}".format(ticker, classname=self.ClassName),5)
 	
