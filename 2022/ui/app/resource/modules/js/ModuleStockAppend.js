@@ -18,6 +18,7 @@ function ModuleStockAppend() {
     this.Earnings                   = 0.0;
     this.Number                     = 0;
     this.TotalInvestment            = 0.0;
+    this.TotalStockDiff             = 0.0;
     this.TotalCurrentInvestment     = 0.0;
     this.ModalDelete                = new MksBasicModal("m_stock_append_delete");
     this.BasicPredictionViewType    = -1;
@@ -181,7 +182,7 @@ ModuleStockAppend.prototype.GetPortfolioStocks = function(id, name) {
     this.TotalCurrentInvestment = 0.0;
     
     var table = new MksBasicTable();
-    table.SetSchema(["", "", "", "", "", "", ""]);
+    table.SetSchema(["", "", "", "", "", "", "", ""]);
     var data = [];
     for (key in market.Stocks) {
         stock = market.Stocks[key];
@@ -195,7 +196,8 @@ ModuleStockAppend.prototype.GetPortfolioStocks = function(id, name) {
             row.push(`<h6 class="my-0"><a href="#" onclick="`+this.DOMName+`.UpdateStockInfoView('`+stock.ticker+`');">`+stock.ticker+`</a></h6>`);
             row.push(`<div id="id_m_stock_append_table_price_`+stock.ticker+`_simple_action"></div>`);
             row.push(`<div id="id_m_stock_append_table_price_`+stock.ticker+`_price_event"></div>`);
-            row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_market_price">`+stock.market_price+`<span>`);
+            row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_market_price">`+stock.market_price+`</span>`);
+            row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_market_price_diff"></span>`);
             row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_number">`+stock.number+`<span>`);
             row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_earnings">`+stock.earnings+`<span>`);
             row.push(`
@@ -220,7 +222,7 @@ ModuleStockAppend.prototype.GetPortfolioStocks = function(id, name) {
     table.ShowRowNumber(false);
     table.ShowHeader(false);
     table.SetData(data);
-    table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, "", "", `<span id="id_m_stock_append_table_price_summary_total_nvestment" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">`+this.Number+`<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">`+this.Earnings.toFixed(2)+`<span>`, ""])
+    table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, "", "", `<span id="id_m_stock_append_table_price_summary_total_nvestment" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summary_total_stock_diff" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">`+this.Number+`<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">`+this.Earnings.toFixed(2)+`<span>`, ""])
     table.Build(document.getElementById("id_m_stock_append_stock_table"));
     this.UpdateStockTableFromLocalMarket();
     feather.replace();
@@ -538,6 +540,7 @@ ModuleStockAppend.prototype.UpdateStockTableFromLocalMarket = function() {
     this.Number                 = 0;
     this.TotalInvestment        = 0.0;
     this.TotalCurrentInvestment = 0.0;
+    this.TotalStockDiff         = 0.0;
 
     for (key in market.Stocks) {
         var stock = market.Stocks[key];
@@ -547,14 +550,23 @@ ModuleStockAppend.prototype.UpdateStockTableFromLocalMarket = function() {
             continue;
         }
         
+        var stockPriceDiff  = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_market_price_diff");
+        var stock_diff = stock.market_price - stock.prev_market_price;
         var priceEventObj   = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_price_event");
         priceObj.innerHTML  = stock.market_price;
         document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_number").innerHTML = stock.number;
         document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_earnings").innerHTML = stock.earnings;
+        stockPriceDiff.innerHTML = stock_diff.toFixed(2);
         this.Earnings               += stock.earnings;
         this.Number                 += stock.number;
         this.TotalInvestment        += stock.total_investment;
         this.TotalCurrentInvestment += stock.number * stock.market_price;
+        this.TotalStockDiff         += stock_diff;
+
+        stockPriceDiff.style.color = "green";
+        if (stock_diff < 0) {
+            stockPriceDiff.style.color = "red";
+        }
 
         this.SimplePredictionUpdate(stock);
         if (this.CheckThreshold(stock) == true) {
@@ -564,6 +576,7 @@ ModuleStockAppend.prototype.UpdateStockTableFromLocalMarket = function() {
         }
     }
 
+    document.getElementById("id_m_stock_append_table_price_summary_total_stock_diff").innerHTML = this.TotalStockDiff.toFixed(2);
     document.getElementById("id_m_stock_append_table_price_summery_number").innerHTML           = this.Number;
     document.getElementById("id_m_stock_append_table_price_summery_earnings").innerHTML         = this.Earnings.toFixed(2);
     document.getElementById("id_m_stock_append_table_price_summary_total_nvestment").innerHTML  = `${this.TotalCurrentInvestment.toFixed(2)} (${this.TotalInvestment.toFixed(2)}) $`;
@@ -579,6 +592,7 @@ ModuleStockAppend.prototype.UpdateStockTableAsync = function(data, scope) {
         var amountObj       = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_number");
         var earningsObj     = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_earnings");
         var priceEventObj   = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_price_event");
+        var stockPriceDiff  = document.getElementById("id_m_stock_append_table_price_"+stock.ticker+"_market_price_diff");
 
         if (priceObj === undefined || priceObj === null) {
             continue;
@@ -591,18 +605,27 @@ ModuleStockAppend.prototype.UpdateStockTableAsync = function(data, scope) {
             priceEventObj.innerHTML = "";
         }
         
+        var price_diff                  = stock.market_price - stock.prev_market_price;
+
         scope.Number                    -= parseFloat(amountObj.innerHTML);
         scope.Earnings                  -= parseFloat(earningsObj.innerHTML);
         scope.TotalCurrentInvestment    -= parseFloat(amountObj.innerHTML) * parseFloat(priceObj.innerHTML);
+        scope.TotalStockDiff            -= parseFloat(stockPriceDiff.innerHTML);
         scope.Number                    += stock.number;
         scope.Earnings                  += stock.earnings;
         scope.TotalCurrentInvestment    += stock.number * stock.market_price;
-        
+        scope.TotalStockDiff            += price_diff;
 
-        priceObj.innerHTML      = stock.market_price;
-        amountObj.innerHTML     = stock.number;
-        earningsObj.innerHTML   = stock.earnings;
+        priceObj.innerHTML          = stock.market_price;
+        amountObj.innerHTML         = stock.number;
+        earningsObj.innerHTML       = stock.earnings;
+        stockPriceDiff.innerHTML    = `${price_diff.toFixed(2)}`;
+        stockPriceDiff.style.color = "green";
+        if (price_diff < 0) {
+            stockPriceDiff.style.color = "red";
+        }
 
+        document.getElementById("id_m_stock_append_table_price_summary_total_stock_diff").innerHTML = scope.TotalStockDiff.toFixed(2);
         document.getElementById("id_m_stock_append_table_price_summery_number").innerHTML           = scope.Number;
         document.getElementById("id_m_stock_append_table_price_summery_earnings").innerHTML         = scope.Earnings.toFixed(2);
         document.getElementById("id_m_stock_append_table_price_summary_total_nvestment").innerHTML  = `${scope.TotalCurrentInvestment.toFixed(2)} (${scope.TotalInvestment.toFixed(2)}) $`;
@@ -619,7 +642,7 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
     }, function(res) {
         var payload = res.data.payload;
         var table = new MksBasicTable();
-        table.SetSchema(["", "", "", "", "", "", ""]);
+        table.SetSchema(["", "", "", "", "", "", "", ""]);
         var data = [];
         for (key in payload.stocks) {
             stock = payload.stocks[key];
@@ -628,7 +651,8 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
             row.push(`<h6 class="my-0"><a href="#" onclick="`+self.DOMName+`.UpdateStockInfoView('`+stock.ticker+`');">`+stock.ticker+`</a></h6>`);
             row.push(`<div id="id_m_stock_append_table_price_`+stock.ticker+`_simple_action"></div>`);
             row.push(`<div id="id_m_stock_append_table_price_`+stock.ticker+`_price_event"></div>`);
-            row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_market_price">`+stock.market_price+`<span>`);
+            row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_market_price">`+stock.market_price+`</span>`);
+            row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_market_price_diff"></span>`);
             row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_number">0<span>`);
             row.push(`<span id="id_m_stock_append_table_price_`+stock.ticker+`_earnings">0<span>`);
             row.push(`
@@ -653,7 +677,7 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
         table.ShowRowNumber(false);
         table.ShowHeader(false);
         table.SetData(data);
-        table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, "", "", `<span id="id_m_stock_append_table_price_summary_total_nvestment" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">0<span>`, ""])
+        table.AppendSummary([`<h6 style="color: BLUE">Overall</h6>`, "", "", `<span id="id_m_stock_append_table_price_summary_total_nvestment" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summary_total_stock_diff" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_number" style="color: BLUE">0<span>`, `<span id="id_m_stock_append_table_price_summery_earnings" style="color: BLUE">0<span>`, ""])
         table.Build(document.getElementById("id_m_stock_append_stock_table"));
 
         /* document.getElementById('d_m_stock_append_stock_find_ticker').addEventListener('keyup', function(event) {

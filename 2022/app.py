@@ -302,7 +302,11 @@ class Context():
 					warning = stock["5D_statistics"]["warning"] & stock["1MO_statistics"]["warning"]
 				
 				stock_portfolios = self.SQL.GetStockPortfolios(ticker)
-				
+
+				prev_market_price = market_price
+				if "prev_market_price" in stock:
+					prev_market_price = stock["prev_market_price"]
+
 				stocks_in_payload += 1
 				try:
 					stocks_list.append({
@@ -314,6 +318,7 @@ class Context():
 						"total_investment": db_stock["hist_price_sum"],
 						"total_current_investment": market_price * db_stock["amount_sum"],
 						"market_price": market_price,
+						"prev_market_price": prev_market_price,
 						"hist_price_min": db_stock["hist_min"],
 						"hist_price_max": db_stock["hist_max"],
 						"warning": warning,

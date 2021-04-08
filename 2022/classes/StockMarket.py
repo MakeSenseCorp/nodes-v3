@@ -339,7 +339,7 @@ class StockMarketApi():
 		return self.GetStockHistory(ticker, "1d", "5m")
 
 	def Get5D(self, ticker):
-		return self.GetStockHistory(ticker, "5d", "30m")
+		return self.GetStockHistory(ticker, "5d", "5m")
 	
 	def Get1MO(self, ticker):
 		return self.GetStockHistory(ticker, "1mo", "1h")
@@ -561,6 +561,12 @@ class StockMarket():
 							stock["6MO"] = None
 						else:
 							algos.CalculateBasicPrediction(stock, "6MO")
+						
+						if stock["1D"] is not None and stock["5D"] is not None:
+							today_open = stock["1D"][0]
+							for idx, item in enumerate(stock["5D"]):
+								if item["date"] == today_open["date"]:
+									stock["prev_market_price"] = stock["5D"][idx-1]["close"]
 
 						#stock["1D_statistics"]  	= self.CalculateBasicStatistics(stock["1D"])
 						#stock["5D_statistics"]  	= self.CalculateBasicStatistics(stock["5D"])
