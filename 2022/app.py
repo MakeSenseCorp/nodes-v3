@@ -804,7 +804,20 @@ class Context():
 		info = None
 
 		try:
-			info = self.Market.API.GetStockInfoRaw(payload["ticker"])
+			ticker = payload["ticker"]
+			# Check if info can be downloaded from local DB
+			info_db = self.SQL.SelectYFInfo(ticker)
+			if info_db is None:
+				info = self.Market.API.GetStockInfoRaw(ticker)
+				self.SQL.UpdateYFInfo(ticker, json.dumps(info))
+				info["price"] = info["previousClose"]
+			else:
+				info = json.loads(info_db)
+				stock = self.Market.CacheDB[ticker]
+				if stock is not None:
+					info["price"] = stock["price"]
+				else:
+					info["price"] = info["previousClose"]
 		except Exception as e:
 			self.Node.LogMSG("({classname})# [DownloadStockInfoHandler] Exeption ({0})".format(e,classname=self.ClassName),5)
 

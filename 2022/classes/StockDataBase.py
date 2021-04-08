@@ -41,7 +41,8 @@ class StockDB():
 							"ticker"		TEXT NOT NULL,
 							"sector"		TEXT,
 							"industry"		TEXT,
-							"market_price"	REAL
+							"market_price"	REAL,
+							"yf_info"		TEXT
 						);''')
 				
 		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "portfolios" (
@@ -129,7 +130,8 @@ class StockDB():
 					"ticker": 		row[2],
 					"sector": 		row[3],
 					"industry": 	row[4],
-					"market_price": row[5]
+					"market_price": row[5],
+					"yf_info":		row[6]
 				})
 		return stocks
 	
@@ -157,7 +159,8 @@ class StockDB():
 					"ticker": 		row[2],
 					"sector": 		row[3],
 					"industry": 	row[4],
-					"market_price": row[5]
+					"market_price": row[5],
+					"yf_info":		row[6]
 				})
 		return stocks
 	
@@ -174,7 +177,7 @@ class StockDB():
 
 	def GetStockExtetendedInfo(self, ticker):
 		query = '''
-		SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, hist_max, hist_min FROM stocks_info 
+		SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, hist_max, hist_min, stocks_info.yf_info FROM stocks_info 
 		LEFT JOIN (
 			SELECT ticker, ABS(SUM(price * action * amount)) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum
 			FROM stocks_history 
@@ -192,14 +195,15 @@ class StockDB():
 		
 		if len(rows) > 0:
 			return {
-					"ticker": rows[0][0],
-					"name": rows[0][1],
-					"market_price": rows[0][2],
-					"curr_price_sum": rows[0][3],
-					"hist_price_sum": rows[0][4],
-					"amount_sum": rows[0][5],
-					"hist_max": rows[0][6],
-					"hist_min": rows[0][7]
+					"ticker": 			rows[0][0],
+					"name": 			rows[0][1],
+					"market_price": 	rows[0][2],
+					"curr_price_sum": 	rows[0][3],
+					"hist_price_sum": 	rows[0][4],
+					"amount_sum": 		rows[0][5],
+					"hist_max": 		rows[0][6],
+					"hist_min": 		rows[0][7],
+					"yf_info":			rows[0][8]
 				}
 		return None
 
@@ -207,7 +211,7 @@ class StockDB():
 		stocks = []
 		if 0 == id:
 			query = '''
-			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.portfolio_id, hist_max, hist_min FROM stocks_info 
+			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.portfolio_id, hist_max, hist_min, stocks_info.yf_info FROM stocks_info 
 			LEFT JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
 			LEFT JOIN (
 				SELECT ticker, SUM(price * action * amount) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum
@@ -222,7 +226,7 @@ class StockDB():
 			'''
 		else:
 			query = '''
-			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.portfolio_id, hist_max, hist_min FROM stocks_info 
+			SELECT stocks_info.ticker, name, stocks_info.market_price, ABS(market_price * amount_sum) as curr_price_sum, hist_price_sum, amount_sum, stock_to_portfolio.portfolio_id, hist_max, hist_min, stocks_info.yf_info FROM stocks_info 
 			LEFT JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
 			LEFT JOIN (
 				SELECT ticker, SUM(price * action * amount) as hist_price_sum, ABS(SUM(action * amount)) as amount_sum
@@ -241,15 +245,16 @@ class StockDB():
 		if len(rows) > 0:
 			for row in rows:
 				stocks.append({
-					"ticker": row[0],
-					"name": row[1],
-					"market_price": row[2],
-					"curr_price_sum": row[3],
-					"hist_price_sum": row[4],
-					"amount_sum": row[5],
-					"portfolio_id": row[6],
-					"hist_max": row[7],
-					"hist_min": row[8]
+					"ticker": 			row[0],
+					"name": 			row[1],
+					"market_price": 	row[2],
+					"curr_price_sum": 	row[3],
+					"hist_price_sum": 	row[4],
+					"amount_sum": 		row[5],
+					"portfolio_id": 	row[6],
+					"hist_max": 		row[7],
+					"hist_min": 		row[8],
+					"yf_info": 			row[9]
 				})
 		return stocks
 	
@@ -400,10 +405,22 @@ class StockDB():
 				})
 		return stocks
 	
+	def SelectYFInfo(self, ticker):
+		query = '''
+			SELECT yf_info FROM stocks_info
+			WHERE ticker = '{0}'
+		'''.format(ticker)
+		self.CURS.execute(query)
+
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			return rows[0][0]
+		return None
+	
 	def InsertStock(self, stock):
 		query = '''
-			INSERT INTO stocks_info (id,name,ticker,sector,industry,market_price)
-			VALUES (NULL,'{0}','{1}','{2}','{3}',{4})
+			INSERT INTO stocks_info (id,name,ticker,sector,industry,market_price,yf_info)
+			VALUES (NULL,'{0}','{1}','{2}','{3}',{4},'')
 		'''.format(stock["name"],stock["ticker"].upper(),stock["sector"],stock["industry"],stock["market_price"])
 		self.CURS.execute(query)
 		self.DB.commit()
@@ -462,6 +479,21 @@ class StockDB():
 
 		self.CURS.execute(query)
 		self.DB.commit()
+		return self.CURS.lastrowid
+	
+	def UpdateYFInfo(self, ticker, info):
+		query = '''
+			UPDATE stocks_info
+			SET yf_info = '{0}'
+			WHERE ticker = '{1}'
+		'''.format(info,ticker)
+
+		try:
+			self.CURS.execute(query)
+			self.DB.commit()
+		except:
+			return -1
+		
 		return self.CURS.lastrowid
 	
 	def UpdateStockActionLeftoverById(self, act_id, leftover):
