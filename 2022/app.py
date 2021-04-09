@@ -21,6 +21,7 @@ from mksdk import MkSSlaveNode
 from mksdk import MkSScheduling
 from mksdk import MkSFileUploader
 
+from classes import StockMarketRemote
 from classes import StockMarket
 from classes import StockDataBase
 from classes import NasdaqApi
@@ -31,10 +32,11 @@ class Context():
 		self.Timer						= MkSScheduling.TimeSchedulerThreadless()
 		self.Node						= node
 		self.File						= MkSFile.File()
-		self.Market 					= StockMarket.StockMarket()
-		self.Math 						= StockMarket.AlgoMath()
-		self.Nasdaq						= NasdaqApi.Nasdaq()
-		self.BasicPrediction 			= StockMarket.AlgoBasicPrediction()
+		self.MarketRemote 				= StockMarketRemote.StockMarket()
+		self.Market 					= StockMarket.StockMarket(node, self.MarketRemote)
+		self.Math 						= StockMarketRemote.AlgoMath()
+		self.Nasdaq						= NasdaqApi.Nasdaq(node)
+		self.BasicPrediction 			= StockMarketRemote.AlgoBasicPrediction()
 		self.SQL 						= StockDataBase.StockDB("stocks.db")
 		# States
 		self.States = {
@@ -60,10 +62,8 @@ class Context():
 			'delete_portfolio':					self.DeletePortfolioHandler,
 			'db_insert_stock':					self.DBInsertStockHandler,
 			'db_delete_stock':					self.DBDeleteStockHandler,
-			'get_market_stocks':				self.GetMarketStocksHandler,
 			'db_delete_action':					self.DBDeleteActionHandler,
 			'calulate_basic_prediction':		self.CalculateBasicPredictionHandler,
-			'get_nasdaq_events':				self.GetNasdaqEventsHandler,
 			'undefined':						self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -78,14 +78,17 @@ class Context():
 		self.LocalStoragePath 			= "import"
 
 		self.Timer.AddTimeItem(10, self.PrintConnections)
-		self.Market.FullLoopPerformedCallback 				= self.FullLoopPerformedEvent
-		# self.Market.StockChangeCallback 					= self.StockChangeEvent
-		self.Market.FirstRunDoneCallback					= self.FirstRunDoneEvent
-		self.Market.StockMarketOpenCallback					= self.StockMarketOpenEvent
-		self.Market.StockMarketCloseCallback				= self.StockMarketCloseEvent
-		self.Market.StockSimplePredictionChangeCallback 	= self.StockSimplePredictionChangeEvent
-		self.Market.ThresholdEventCallback 					= self.ThresholdEvent
+		self.MarketRemote.FullLoopPerformedCallback 				= self.FullLoopPerformedEvent
+		# self.MarketRemote.StockChangeCallback 					= self.StockChangeEvent
+		self.MarketRemote.FirstRunDoneCallback						= self.FirstRunDoneEvent
+		self.MarketRemote.StockMarketOpenCallback					= self.StockMarketOpenEvent
+		self.MarketRemote.StockMarketCloseCallback					= self.StockMarketCloseEvent
+		self.MarketRemote.StockSimplePredictionChangeCallback 		= self.StockSimplePredictionChangeEvent
+		self.MarketRemote.ThresholdEventCallback 					= self.ThresholdEvent
 		self.CurrentPortfolio 			= 0
+
+		self.Nasdaq.BindHandler()
+		self.Market.BindHandler()
 	
 	def ThresholdEvent(self, ticker, price, threshold):
 		self.Node.LogMSG("({classname})# [StockSimplePredictionChangeEvent]".format(classname=self.ClassName),5)
@@ -142,7 +145,7 @@ class Context():
 	def FirstRunDoneEvent(self):
 		self.Node.LogMSG("({classname})# [FirstRunDoneEvent]".format(classname=self.ClassName),5)
 		try:
-			stocks = self.Market.GetCacheDB()
+			stocks = self.MarketRemote.GetCacheDB()
 			html_rows = ""
 			for ticker in stocks:
 				stock = stocks[ticker]
@@ -191,7 +194,7 @@ class Context():
 				2 - Equal
 				3 - Above
 			'''
-			self.Market.AppendThreshold(ticker, {
+			self.MarketRemote.AppendThreshold(ticker, {
 				"stock_action_id": act_id,
 				"value": float(price) * ((100.0 - float(risk)) / 100.0),
 				"type": 1,
@@ -201,39 +204,21 @@ class Context():
 		except Exception as e:
 			print(e)
 
-	def GetNasdaqEventsHandler(self, sock, packet):
-		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
-		self.Node.LogMSG("({classname})# [GetNasdaqEventsHandler] {0}".format(payload,classname=self.ClassName),5)
-		data = None
-		try:
-			event = payload["event"]
-			if "upcomming" in event:
-				data = self.Nasdaq.UpcommingEvents()
-			elif "recent-articles" in event:
-				data = self.Nasdaq.RecentArticles(5)
-		except Exception as e:
-			self.Node.LogMSG("({classname})# [EXCEPTION] GetNasdaqEventsHandler {0} {1}".format(payload,str(e),classname=self.ClassName), 5)
-
-		return {
-			"event": payload["event"],
-			"data": data
-		}
-
 	def CalculateBasicPredictionHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [CalculateBasicPredictionHandler] {0}".format(payload,classname=self.ClassName),5)
 		try:
 			ticker = payload["ticker"]
-			stock = self.Market.GenerateEmtpyStock()
+			stock = self.MarketRemote.GenerateEmtpyStock()
 			stock["ticker"] = ticker
-			error, stock["price"]	= self.Market.API.GetStockCurrentPrice(ticker)
-			error, stock["1D"]		= self.Market.API.Get1D(ticker)
-			error, stock["5D"]		= self.Market.API.Get5D(ticker)
-			error, stock["1MO"]		= self.Market.API.Get1MO(ticker)
-			error, stock["3MO"]		= self.Market.API.Get3MO(ticker)
-			error, stock["6MO"]		= self.Market.API.Get6MO(ticker)
+			error, stock["price"]	= self.MarketRemote.API.GetStockCurrentPrice(ticker)
+			error, stock["1D"]		= self.MarketRemote.API.Get1D(ticker)
+			error, stock["5D"]		= self.MarketRemote.API.Get5D(ticker)
+			error, stock["1MO"]		= self.MarketRemote.API.Get1MO(ticker)
+			error, stock["3MO"]		= self.MarketRemote.API.Get3MO(ticker)
+			error, stock["6MO"]		= self.MarketRemote.API.Get6MO(ticker)
 
-			calc = StockMarket.StockCalculation()
+			calc = StockMarketRemote.StockCalculation()
 			calc.CalculateBasicPrediction(stock, "1D")
 			calc.CalculateBasicPrediction(stock, "5D")
 			calc.CalculateBasicPrediction(stock, "1MO")
@@ -244,113 +229,6 @@ class Context():
 
 		return {
 			"stock": stock
-		}
-
-	def GetMarketStocksHandler(self, sock, packet):
-		self.Node.LogMSG("({classname})# [GetMarketStocksHandler]".format(classname=self.ClassName),5)
-
-		# Stock market status
-		#status 		= self.Market.GetMarketStatus()
-		#mkt_stocks 	= self.Market.GetCacheDB()
-		#if status["local_stock_market_ready"] is False:
-		#	self.Node.LogMSG("({classname})# [GetMarketStocksHandler] Local Market DB is NOT ready yet.".format(classname=self.ClassName),5)
-		#	updated_stocks 	= 0
-		#	# Get portfolio stocks
-		#	db_stocks  		= self.SQL.GetStocksByProfile(self.CurrentPortfolio)
-		#	for db_stock in db_stocks:
-		#		ticker = db_stock["ticker"]
-		#		if mkt_stocks[ticker]["updated"] is True:
-		#			updated_stocks += 1
-		#	status["percentage"] = float("{0:.1f}".format(float(updated_stocks) / float(len(db_stocks)) * 100.0))
-		#	return {
-		#		"status": status
-		#	}
-
-		# Get all stocks
-		db_stocks = self.SQL.GetPortfolioStocks(0)
-		# For each stock do calculation
-		stocks_in_payload 	= 0
-		stocks_per_payload 	= 50
-		stocks_list 		= []
-		stocks_count  		= 0
-		for db_stock in db_stocks:
-			# For each stock in DB
-			ticker = db_stock["ticker"]
-			# Get stock information from cache DB
-			stock = self.Market.GetStockInformation(ticker)
-			if stock is not None:
-				warning 		= 0
-				market_price 	= stock["price"]
-				earnings 		= 0.0
-				# Calculate actions min, max and summary
-				try:
-					if market_price > 0:
-						if db_stock["amount_sum"] is not None and db_stock["hist_price_sum"] is not None:
-							# earnings = float("{0:.3f}".format(db_stock["hist_price_sum"]))
-							if (market_price * db_stock["amount_sum"]) > 0 or db_stock["amount_sum"] == 0:
-								# TODO - market_price BUG (unsupported operand type(s) for *: 'int' and 'NoneType')
-								earnings = float("{0:.3f}".format(market_price * db_stock["amount_sum"] + db_stock["hist_price_sum"]))
-							stocks_count += db_stock["amount_sum"]
-						else:
-							db_stock["amount_sum"] 	= 0.0
-							db_stock["hist_min"] 	= 0.0
-							db_stock["hist_max"]	= 0.0
-				except Exception as e:
-					self.Node.LogMSG("({classname})# [EXCEPTION] GetMarketStocksHandler - Calculation {0} {1}".format(ticker,str(e),classname=self.ClassName), 5)
-				
-				if "warning" in stock["5D_statistics"] and "warning" in stock["1MO_statistics"]:
-					warning = stock["5D_statistics"]["warning"] & stock["1MO_statistics"]["warning"]
-				
-				stock_portfolios = self.SQL.GetStockPortfolios(ticker)
-
-				prev_market_price = market_price
-				if "prev_market_price" in stock:
-					prev_market_price = stock["prev_market_price"]
-
-				stocks_in_payload += 1
-				try:
-					stocks_list.append({
-						"ticker":ticker,
-						"portfolios": stock_portfolios,
-						"name": db_stock["name"],
-						"number": db_stock["amount_sum"],
-						"earnings": earnings,
-						"total_investment": db_stock["hist_price_sum"],
-						"total_current_investment": market_price * db_stock["amount_sum"],
-						"market_price": market_price,
-						"prev_market_price": prev_market_price,
-						"hist_price_min": db_stock["hist_min"],
-						"hist_price_max": db_stock["hist_max"],
-						"warning": warning,
-						"statistics": {
-							"weekly": stock["5D_statistics"],
-							"monthly": stock["1MO_statistics"]
-						},
-						"thresholds": stock["thresholds"],
-						"predictions": stock["predictions"]
-					})
-				except Exception as e:
-					# BUG #1 - unsupported operand type(s) for *: 'int' and 'NoneType'
-					self.Node.LogMSG("({classname})# [EXCEPTION] GetMarketStocksHandler - Append stock {0} {1}".format(ticker,str(e),classname=self.ClassName), 5)
-			else:
-				self.Node.LogMSG("({classname})# [GetMarketStocksHandler] TICKER NULL {0}".format(ticker, classname=self.ClassName),5)
-	
-			if stocks_in_payload == stocks_per_payload:
-				THIS.Node.EmitOnNodeChange({
-					'event': "stock_info",
-					'data': stocks_list
-				})
-				
-				stocks_in_payload 	= 0
-				stocks_list 		= []
-		if stocks_in_payload != 0:
-			THIS.Node.EmitOnNodeChange({
-				'event': "stock_info",
-				'data': stocks_list
-			})
-		
-		return {
-			"status": True
 		}
 
 	def StockChangeEvent(self, stock):
@@ -403,7 +281,7 @@ class Context():
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [DBDeleteStockHandler] {0}".format(payload,classname=self.ClassName),5)
 		self.SQL.DeleteStock(payload["ticker"])
-		self.Market.RemoveStock(payload["ticker"])
+		self.MarketRemote.RemoveStock(payload["ticker"])
 		return {
 			"status": True
 		}
@@ -434,7 +312,7 @@ class Context():
 		# Delete action
 		self.SQL.DeleteActionById(del_act_id)
 		# Remove risk monitor for this action
-		self.Market.RemoveThresholdByStockActionId(ticker, del_act_id)
+		self.MarketRemote.RemoveThresholdByStockActionId(ticker, del_act_id)
 
 		return {
 			"status": True
@@ -453,7 +331,7 @@ class Context():
 		self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0}".format(payload,classname=self.ClassName),5)
 		# Check if stock already in the DB
 		if self.SQL.StockExist(payload["ticker"]) is False:
-			info = self.Market.API.GetStockInfoRaw(payload["ticker"])
+			info = self.MarketRemote.API.GetStockInfoRaw(payload["ticker"])
 			self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0} Append to stock DB".format(payload,classname=self.ClassName),5)
 			sector = ""
 			if "sector" in info:
@@ -470,7 +348,7 @@ class Context():
 			})
 			self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0} Append to stock monitoring".format(payload,classname=self.ClassName),5)
 			# Append to stock monitoring
-			self.Market.AppendStock({
+			self.MarketRemote.AppendStock({
 				"ticker": 	payload["ticker"].upper(),
 				"price": 	self.CheckForDict(info["previousClose"], "previousClose"),
 				"1MO": 		None,
@@ -593,7 +471,7 @@ class Context():
 	def ImportStocksHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [ImportStocksHandler]".format(classname=self.ClassName),5)
-		self.Market.PauseMarket()
+		self.MarketRemote.PauseMarket()
 		
 		portfolio_id = 1
 		if payload["portfolio_checked"] is True:
@@ -637,7 +515,7 @@ class Context():
 					self.Node.LogMSG("({classname})# [ImportStocksHandler] Insert Stock {0}".format(ticker,classname=self.ClassName),5)
 					info = None
 					try:
-						info = self.Market.API.GetStockInfoRaw(ticker)
+						info = self.MarketRemote.API.GetStockInfoRaw(ticker)
 					except Exception as e:
 						self.Node.LogMSG("({classname})# [ImportStocksHandler] ERROR {0}".format(e,classname=self.ClassName),5)
 					
@@ -670,7 +548,7 @@ class Context():
 							'industry': industry
 						})
 					
-					self.Market.AppendStock({
+					self.MarketRemote.AppendStock({
 						"ticker": 	ticker,
 						"price": 	0,
 						"1MO": 		None,
@@ -695,8 +573,8 @@ class Context():
 				if False == self.SQL.StockToPortfolioExist(ticker, portfolio_id):
 					self.SQL.InsertStockToPortfolio(ticker, portfolio_id)
 					
-		self.Market.ContinueMarket()
-		self.Market.UpdateStocks()
+		self.MarketRemote.ContinueMarket()
+		self.MarketRemote.UpdateStocks()
 
 		THIS.Node.EmitOnNodeChange({
 			'event': "upload_progress",
@@ -813,12 +691,12 @@ class Context():
 			# Check if info can be downloaded from local DB
 			info_db = self.SQL.SelectYFInfo(ticker)
 			if info_db is None:
-				info = self.Market.API.GetStockInfoRaw(ticker)
+				info = self.MarketRemote.API.GetStockInfoRaw(ticker)
 				self.SQL.UpdateYFInfo(ticker, json.dumps(info))
 				info["price"] = info["previousClose"]
 			else:
 				info = json.loads(info_db)
-				stock = self.Market.CacheDB[ticker]
+				stock = self.MarketRemote.CacheDB[ticker]
 				if stock is not None:
 					info["price"] = stock["price"]
 				else:
@@ -832,7 +710,7 @@ class Context():
 
 	def DownloadStockHistoryHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		error, hist = self.Market.API.GetStockHistory(payload["ticker"], payload["period"], payload["interval"])
+		error, hist = self.MarketRemote.API.GetStockHistory(payload["ticker"], payload["period"], payload["interval"])
 
 		if len(hist) == 0:
 			return {
@@ -846,7 +724,7 @@ class Context():
 		stock_low 			= []
 		stock_vol 			= []
 		stock_regression 	= []
-		w_slope, w_b, w_r2 = self.Market.GetRegressionLineStatistics(hist)
+		w_slope, w_b, w_r2 = self.MarketRemote.GetRegressionLineStatistics(hist)
 		for idx in range(len(hist)):
 			stock_regression.append(w_slope*idx+w_b)
 
@@ -915,8 +793,8 @@ class Context():
 		db_stocks 				= []
 
 		# Stock market status
-		status 			= self.Market.GetMarketStatus()
-		mkt_stocks 		= self.Market.GetCacheDB()
+		status 			= self.MarketRemote.GetMarketStatus()
+		mkt_stocks 		= self.MarketRemote.GetCacheDB()
 		if status["local_stock_market_ready"] is False:
 			updated_stocks 	= 0
 			# Get portfolio stocks
@@ -942,7 +820,7 @@ class Context():
 				# For each stock in DB
 				ticker = db_stock["ticker"]
 				# Get stock information from cache DB
-				stock = self.Market.GetStockInformation(ticker)
+				stock = self.MarketRemote.GetStockInformation(ticker)
 				if stock is not None:
 					warning 	= 0
 					price 		= stock["price"]
@@ -1040,13 +918,13 @@ class Context():
 
 	def NodeSystemLoadedHandler(self):
 		self.Node.LogMSG("({classname})# Loading system ...".format(classname=self.ClassName),5)
-		self.Market.SetLogger(self.Node.Logger)
+		self.MarketRemote.SetLogger(self.Node.Logger)
 		stocks = self.SQL.GetStocks()
 		if stocks is not None:
 			if len(stocks) > 0:
 				for stock in stocks:
 					#self.Node.LogMSG("({classname})# {0}".format(stock,classname=self.ClassName),5)
-					self.Market.AppendStock({
+					self.MarketRemote.AppendStock({
 						"ticker": 	stock["ticker"],
 						"price": 	0,
 						"1MO": 		None,
@@ -1055,7 +933,7 @@ class Context():
 						"pulled": 	False
 					})
 					self.AddRiskThresholdToStock(stock["ticker"])
-		self.Market.Start()
+		self.MarketRemote.Start()
 
 		# Create file system for storing videos
 		if not os.path.exists(self.LocalStoragePath):
@@ -1086,7 +964,7 @@ Node = MkSSlaveNode.SlaveNode()
 THIS = Context(Node)
 
 def signal_handler(signal, frame):
-	THIS.Market.Stop()
+	THIS.MarketRemote.Stop()
 	THIS.Uploader.Stop()
 	THIS.Node.Stop("Accepted signal from other app")
 

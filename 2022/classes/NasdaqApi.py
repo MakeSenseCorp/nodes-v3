@@ -8,9 +8,10 @@ import urllib.request
 import requests
 
 class Nasdaq():
-	def __init__(self):
-		self.ClassName = "Nasdaq"
-		self.Headers = {
+	def __init__(self, node):
+		self.ClassName 	= "Nasdaq"
+		self.Node	 	= node
+		self.Headers 	= {
 			"authority":"www.nasdaq.com",
 			"method":"GET",
 			"path":"/api/calendar/upcoming",
@@ -25,6 +26,28 @@ class Nasdaq():
 			"sec-fetch-user":"?1",
 			"upgrade-insecure-requests":"1",
 			"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36"
+		}
+	
+	def BindHandler(self):
+		# Handlers
+		self.Node.ApplicationRequestHandlers['get_nasdaq_events'] = self.GetNasdaqEventsHandler
+	
+	def GetNasdaqEventsHandler(self, sock, packet):
+		payload = self.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetNasdaqEventsHandler] {0}".format(payload,classname=self.ClassName),5)
+		data = None
+		try:
+			event = payload["event"]
+			if "upcomming" in event:
+				data = self.UpcommingEvents()
+			elif "recent-articles" in event:
+				data = self.RecentArticles(5)
+		except Exception as e:
+			self.Node.LogMSG("({classname})# [EXCEPTION] GetNasdaqEventsHandler {0} {1}".format(payload,str(e),classname=self.ClassName), 5)
+
+		return {
+			"event": payload["event"],
+			"data": data
 		}
 	
 	def UpcommingEvents(self):
