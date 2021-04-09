@@ -37,6 +37,7 @@ ModuleStockInfo.prototype.Build = function(data, callback) {
         self.Beta                   = document.getElementById("id_m_info_stock_stock_beta");
         self.FloatShares            = document.getElementById("id_m_stock_info_stock_float_shares");
         self.ComponentObject        = document.getElementById("id_m_stock_info_"+self.HostingID);
+        self.PercentileAmplitudeObj = document.getElementById("id_m_stock_info_stock_percentile_amplitude");
         self.Hide();
         callback(self);
     });
@@ -78,6 +79,10 @@ ModuleStockInfo.prototype.GetStockInfo = function(ticker, callback) {
         self.HideLoader();
         callback(self);
     });
+}
+
+ModuleStockInfo.prototype.UpdatePercentileAnplitudeValue = function(value) {
+    this.PercentileAmplitudeObj.innerHTML = value.toFixed(2);
 }
 
 ModuleStockInfo.prototype.HideLoader = function() {

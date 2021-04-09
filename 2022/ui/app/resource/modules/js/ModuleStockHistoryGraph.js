@@ -59,8 +59,17 @@ function ModuleStockHistoryGraph(name, ticker) {
         "6MO": ['6mo','1d'],
         "1Y":  ['1y','1d']
     }
+    this.PercentileLow          = 0
+    this.PercentileHigh         = 0
+    this.PercentileMiddle       = 0
+
+    this.DataChangeCallback   = null;
 
     return this;
+}
+
+ModuleStockHistoryGraph.prototype.SetDataChangeCallback = function(callback) {
+    this.DataChangeCallback = callback;
 }
 
 ModuleStockHistoryGraph.prototype.SetGraphViewType = function(type) {
@@ -129,6 +138,10 @@ ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
             pmin.push(data.data.min);
             pmax.push(data.data.max);
         }
+
+        self.PercentileLow           = data.data.algo.perc_low[0];
+        self.PercentileHigh          = data.data.algo.perc_high[0];
+        self.PercentileMiddle        = data.data.algo.perc_mid[0];
 
         self.GraphHistoryCtx.Configure({
             "type": "line",
@@ -220,6 +233,10 @@ ModuleStockHistoryGraph.prototype.UpdateGraph = function(period, interval) {
         });
         
         self.GraphHistogramCtx.Build(document.getElementById("id_m_stock_histograme_graph_"+self.HostingID+"_"+self.Name));
+
+        if (self.DataChangeCallback !== null) {
+            self.DataChangeCallback();
+        }
     });
 }
 

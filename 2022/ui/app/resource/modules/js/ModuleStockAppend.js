@@ -9,6 +9,7 @@ function ModuleStockAppend() {
     this.HostingObject              = null;
     this.ComponentObject            = null;
     this.StockGraph                 = null;
+    this.StockInfo                  = null;
     this.Selector                   = null;
     this.PortfolioList              = null;
     this.StockLoaderProgressBar	    = null;
@@ -296,6 +297,10 @@ ModuleStockAppend.prototype.DeleteStock = function(ticker) {
     this.ModalDelete.Show();
 }
 
+ModuleStockAppend.prototype.StockGraphDataChangeHandler = function() {
+    window.StockAppend.StockInfo.UpdatePercentileAnplitudeValue(window.StockAppend.StockGraph.PercentileHigh - window.StockAppend.StockGraph.PercentileLow);
+}
+
 ModuleStockAppend.prototype.FindStockInMarket = function() {
     var self = this;
     var ticker = document.getElementById('d_m_stock_append_stock_find_ticker').value;
@@ -305,14 +310,15 @@ ModuleStockAppend.prototype.FindStockInMarket = function() {
     this.StockGraph.SetGraphViewType(this.BasicPredictionViewName);
     this.StockGraph.SetHostingID("d_m_stock_append_stock_graph");
     this.StockGraph.SetObjectDOMName(this.DOMName+".StockGraph");
+    this.StockGraph.SetDataChangeCallback(this.StockGraphDataChangeHandler);
     this.StockGraph.Build(null, null);
 
     document.getElementById('id_m_stock_append_info_basic_prediction').classList.add("d-none");
     document.getElementById('id_m_stock_append_add_new_stock').classList.add("d-none");
     // document.getElementById('id_m_stock_append_stock_stocks_view').classList.add("d-none");
-    var info = new ModuleStockInfo();
-    info.SetHostingID("id_m_stock_append_info_container");
-    info.Build(null, function(module) {
+    this.StockInfo = new ModuleStockInfo();
+    this.StockInfo.SetHostingID("id_m_stock_append_info_container");
+    this.StockInfo.Build(null, function(module) {
         module.GetStockInfo(ticker, function(module) {
             var stock = market.GetStockFromCache(ticker);
             if (stock !== undefined && stock !== null) {
