@@ -266,7 +266,8 @@ class StockDB():
 		'''.format(ticker)
 		self.CURS.execute(query)
 		
-		stocks = []
+		error 	= False
+		stocks 	= []
 		rows = self.CURS.fetchall()
 		if len(rows) > 0:
 			for row in rows:
@@ -280,7 +281,7 @@ class StockDB():
 					"action": 	 	row[6],
 					"fee": 			row[7]
 				})
-		return stocks
+		return error, stocks
 	
 	def GetBuyStocksWithLeftovers(self, ticker):
 		query = '''
