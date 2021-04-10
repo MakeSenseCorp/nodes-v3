@@ -343,16 +343,19 @@ class StockMarketApi():
 			Open,High,Low,Close,Volume,Dividends,Stock Splits
 		'''
 		error = False
-		try:
-			objtk = yf.Ticker(ticker)
-			time.sleep(self.Delay)
-			df_stock = objtk.history(period="1d", interval="5m")
-			time.sleep(self.Delay)
-			price = "{0:.3f}".format(df_stock["Close"].iloc[-1])
-		except Exception as e:
-			print("({classname})# [EXCEPTION] (GetStockCurrentPrice) {0} {1}".format(ticker,str(e),classname=self.ClassName))
-			price = "0"
-			error = True
+		for retry in range(3):
+			try:
+				objtk = yf.Ticker(ticker)
+				time.sleep(self.Delay)
+				df_stock = objtk.history(period="1d", interval="5m")
+				time.sleep(self.Delay)
+				price = "{0:.3f}".format(df_stock["Close"].iloc[-1])
+			except Exception as e:
+				if retry == 3:
+					print("({classname})# [EXCEPTION] GetStockCurrentPrice FAILED {0} {1}".format(ticker,str(e),classname=self.ClassName))
+					return True, 0.0
+				print("({classname})# [EXCEPTION] GetStockCurrentPrice RETRY [{1}] {0}".format(ticker,retry,classname=self.ClassName))
+				
 		return error, float(price)
 	
 	def GetStockInfoRaw(self, ticker):
@@ -401,30 +404,35 @@ class StockMarketApi():
 			Open,High,Low,Close,Volume,Dividends,Stock Splits
 		'''
 		hist = []
-		try:
-			objtk = yf.Ticker(ticker)
-			time.sleep(self.Delay)
-			'''
-				Valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
-				Valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
-			'''
-			data = objtk.history(period=period, interval=interval)
-			time.sleep(self.Delay)
-			for idx, row in data.iterrows():
-				if self.CheckForNan(row['Open']) is False or self.CheckForNan(row['Close']) is False or self.CheckForNan(row['High']) is False or self.CheckForNan(row['Low']) is False:
-					continue
+		for retry in range(3):
+			try:
+				objtk = yf.Ticker(ticker)
+				time.sleep(self.Delay)
+				'''
+					Valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
+					Valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
+				'''
+				data = objtk.history(period=period, interval=interval)
+				time.sleep(self.Delay)
+				for idx, row in data.iterrows():
+					if self.CheckForNan(row['Open']) is False or self.CheckForNan(row['Close']) is False or self.CheckForNan(row['High']) is False or self.CheckForNan(row['Low']) is False:
+						continue
 
-				hist.append({
-					"date": "{0}".format(idx),
-					"open": row['Open'],
-					"close": row['Close'],
-					"high": row['High'],
-					"low": row['Low'],
-					"vol": row['Volume']
-				})
-		except Exception as e:
-			print("({classname})# [EXCEPTION] GetStockHistory {0} {1} {2}".format(ticker,period,interval,classname=self.ClassName))
-			return True, []
+					hist.append({
+						"date": "{0}".format(idx),
+						"open": row['Open'],
+						"close": row['Close'],
+						"high": row['High'],
+						"low": row['Low'],
+						"vol": row['Volume']
+					})
+				return False, hist
+			except Exception as e:
+				if retry == 3:
+					print("({classname})# [EXCEPTION] GetStockHistory {0} {1} {2} FAILED".format(ticker,period,interval,classname=self.ClassName))
+					return True, []
+				print("({classname})# [EXCEPTION] GetStockHistory RETRY [{3}] {0} {1} {2}".format(ticker,period,interval,retry,classname=self.ClassName))
+				time.sleep(0.5)
 		return False, hist
 
 	def Get1D(self, ticker):
@@ -477,7 +485,7 @@ class StockMarket():
 		self.StockChangeLocker 						= threading.Lock()
 
 		# Threading section
-		self.ThreadCount				= 5
+		self.ThreadCount				= 10
 		self.Signal 					= threading.Event()
 		self.Queues		    			= []
 		self.ThreadPool 				= []
@@ -560,6 +568,7 @@ class StockMarket():
 	'''
 	
 	def WaitForMinionsToFinish(self):
+		self.LogMSG("({classname})# [WaitForMinionsToFinish]".format(classname=self.ClassName), 5)
 		wait_for_all_minions = True
 		while wait_for_all_minions is True:
 			wait_for_all_minions = False
@@ -579,6 +588,8 @@ class StockMarket():
 		return True
 	
 	def NeedUpdate(self, stock):
+		if stock is None:
+			return False
 		try:
 			ts = time.time()
 			if stock["updated"] is True:
@@ -633,7 +644,7 @@ class StockMarket():
 				self.LogMSG("({classname})# [MINION] Update stock ({0}) ({1})".format(index,ticker,classname=self.ClassName), 5)
 				# Update local stock DB
 				if stock is not None:
-					error, stock["price"] = self.API.GetStockCurrentPrice(ticker) # Get stock price
+					error, stock["price"] = atock_api.GetStockCurrentPrice(ticker) # Get stock price
 					if error is True:
 						stock["price"] = None
 					else:
@@ -672,14 +683,13 @@ class StockMarket():
 							algos.CalculateBasicPrediction(stock, "6MO")
 							stock_prices = self.GetPriceListFromStockPeriod(stock["6MO"], "close")
 							stock["statistics"]["basic"][4] = algos.GetBasicStatistics(stock_prices)
-						
-						#error, stock["1Y"] = atock_api.Get1Y(ticker)	# Get 1 year history
-						#if error is True:
-						#	stock["1Y"] = None
-						#else:
-						#	algos.CalculateBasicPrediction(stock, "1Y")
-						#	stock_prices = self.GetPriceListFromStockPeriod(stock["1Y"], "close")
-						#	stock["statistics"]["basic"][5] = algos.GetBasicStatistics(stock_prices)
+						error, stock["1Y"] = atock_api.Get1Y(ticker)	# Get 1 year history
+						if error is True:
+							stock["1Y"] = None
+						else:
+							algos.CalculateBasicPrediction(stock, "1Y")
+							stock_prices = self.GetPriceListFromStockPeriod(stock["1Y"], "close")
+							stock["statistics"]["basic"][5] = algos.GetBasicStatistics(stock_prices)
 						
 						# Calculate price difference bteween today and previouse day
 						if stock["1D"] is not None and stock["5D"] is not None:
