@@ -107,6 +107,71 @@ class AlgoMath():
 					pmax = (hist_len - 1) - idx
 		
 		return pmin, low_perc, mid_perc, high_perc, pmax
+	
+	def CalculateRegression(self, coordinates):
+		avg_x = 0
+		avg_y = 0
+		x_dist_2_sum = 0
+		y_dist_2_sum = 0
+		# Calculate avgs
+		for sample in coordinates:
+			avg_x += sample["x"]
+			avg_y += sample["y"]
+			
+		avg_x = (avg_x) / (len(coordinates))
+		avg_y = (avg_y) / (len(coordinates))
+
+		for sample in coordinates:
+			sample["x_dist"] = sample["x"] - avg_x
+			sample["y_dist"] = sample["y"] - avg_y
+
+			sample["x_dist_2"] = sample["x_dist"] * sample["x_dist"]
+			sample["y_dist_2"] = sample["x_dist"] * sample["y_dist"]
+
+			x_dist_2_sum += sample["x_dist_2"]
+			y_dist_2_sum += sample["y_dist_2"]
+		
+		if x_dist_2_sum <= 0:
+			return 0, 0
+		
+		slope = (y_dist_2_sum) / (x_dist_2_sum)
+		b = avg_y - slope * avg_x
+
+		return slope, b
+		
+	def RValue(self, coordinates, slope, b):
+		avg_y = 0
+		y_dist_2_sum = 0
+		estimated_y_dist_2_sum = 0
+		# Calculate avgs
+		for sample in coordinates:
+			avg_y += sample["y"]
+		avg_y = float(avg_y) / float(len(coordinates))
+
+		for sample in coordinates:
+			sample["y_dist"] = sample["y"] - avg_y
+			sample["y_dist_2"] = sample["y_dist"] * sample["y_dist"]
+			sample["estimated_y"] = sample["x"] * slope + b
+			sample["estimated_y_dist"] = sample["estimated_y"] - avg_y
+			sample["estimated_y_dist_2"] = sample["estimated_y_dist"] * sample["estimated_y_dist"]
+			y_dist_2_sum += sample["y_dist_2"]
+			estimated_y_dist_2_sum += sample["estimated_y_dist_2"]
+		
+		if float(y_dist_2_sum) <= 0.0:
+			return 0.0
+		
+		r = float(estimated_y_dist_2_sum) / float(y_dist_2_sum)
+		return r
+	
+	def Variance(self, data, ddof=0):
+		n = len(data)
+		mean = sum(data) / n
+		return sum((x - mean) ** 2 for x in data) / (n - ddof)
+
+	def Stdev(self, data):
+		var = self.Variance(data)
+		std_dev = math.sqrt(var)
+		return std_dev
 
 class AlgoBasicPrediction():
 	def __init__(self):
@@ -157,10 +222,12 @@ class StockCalculation():
 			"5D":  1,
 			"1MO": 2,
 			"3MO": 3,
-			"6MO": 4
+			"6MO": 4,
+			"1Y":  5
 		}
 		# Algo
 		self.BasicPrediction = AlgoBasicPrediction()
+		self.Math 			 = AlgoMath()
 
 		self.StockSimplePredictionChangeCallback 	= None
 	
@@ -236,6 +303,31 @@ class StockCalculation():
 		
 		return stock
 
+	def GetBasicStatistics(self, data):
+		regression_line = []
+		close_line = []
+		for idx, sample in enumerate(data):
+			regression_line.append({
+				"y": sample,
+				"x": idx
+			})
+			close_line.append(sample)
+			
+		var 	 = self.Math.Variance(close_line)
+		std 	 = self.Math.Stdev(close_line)
+		slope, b = self.Math.CalculateRegression(regression_line)
+		r2 		 = self.Math.RValue(regression_line, slope, b)
+
+		return {
+			"var": var,
+			"std": std,
+			"regression": {
+				"slope": slope,
+				"offset": b,
+				"r_value": r2
+			}
+		}
+	
 class StockMarketApi():
 	def __init__(self):
 		self.ClassName	= "StockMarketApi"
@@ -420,6 +512,7 @@ class StockMarket():
 		currTime = datetime.datetime.now().time()
 		return (currTime > datetime.time(16,25) and currTime < datetime.time(23,5))
 
+	'''
 	def CalculateBasicStatistics(self, data):
 		s_min = s_max = s_slope = s_b = s_r2 = s_var = s_std = 0
 		warning = False
@@ -464,6 +557,7 @@ class StockMarket():
 				"varience": float("{0:.2f}".format(s_var))
 			}
 		}
+	'''
 	
 	def WaitForMinionsToFinish(self):
 		wait_for_all_minions = True
@@ -507,6 +601,13 @@ class StockMarket():
 		
 		return False
 
+	def GetPriceListFromStockPeriod(self, data, p_type):
+		prices = []
+		if data is not None:
+			for item in data:
+				prices.append(item[p_type])
+		return prices
+
 	def StockMinion(self, index):
 		self.LogMSG("({classname})# [MINION] Reporting for duty ({0})".format(index,classname=self.ClassName), 5)
 		# Update jobless minons
@@ -541,36 +642,51 @@ class StockMarket():
 							stock["1D"] = None
 						else:
 							algos.CalculateBasicPrediction(stock, "1D")
+							stock_prices = self.GetPriceListFromStockPeriod(stock["1D"], "close")
+							stock["statistics"]["basic"][0] = algos.GetBasicStatistics(stock_prices)
 						error, stock["5D"] = atock_api.Get5D(ticker)	# Get 5 days history
 						if error is True:
 							stock["5D"] = None
 						else:
 							algos.CalculateBasicPrediction(stock, "5D")
+							stock_prices = self.GetPriceListFromStockPeriod(stock["5D"], "close")
+							stock["statistics"]["basic"][1] = algos.GetBasicStatistics(stock_prices)
 						error, stock["1MO"] = atock_api.Get1MO(ticker)	# Get 1 month history
 						if error is True:
 							stock["1MO"] = None
 						else:
 							algos.CalculateBasicPrediction(stock, "1MO")
+							stock_prices = self.GetPriceListFromStockPeriod(stock["1MO"], "close")
+							stock["statistics"]["basic"][2] = algos.GetBasicStatistics(stock_prices)
 						error, stock["3MO"] = atock_api.Get3MO(ticker)	# Get 3 months history
 						if error is True:
 							stock["3MO"] = None
 						else:
 							algos.CalculateBasicPrediction(stock, "3MO")
+							stock_prices = self.GetPriceListFromStockPeriod(stock["3MO"], "close")
+							stock["statistics"]["basic"][3] = algos.GetBasicStatistics(stock_prices)
 						error, stock["6MO"] = atock_api.Get6MO(ticker)	# Get 6 months history
 						if error is True:
 							stock["6MO"] = None
 						else:
 							algos.CalculateBasicPrediction(stock, "6MO")
+							stock_prices = self.GetPriceListFromStockPeriod(stock["6MO"], "close")
+							stock["statistics"]["basic"][4] = algos.GetBasicStatistics(stock_prices)
 						
+						#error, stock["1Y"] = atock_api.Get1Y(ticker)	# Get 1 year history
+						#if error is True:
+						#	stock["1Y"] = None
+						#else:
+						#	algos.CalculateBasicPrediction(stock, "1Y")
+						#	stock_prices = self.GetPriceListFromStockPeriod(stock["1Y"], "close")
+						#	stock["statistics"]["basic"][5] = algos.GetBasicStatistics(stock_prices)
+						
+						# Calculate price difference bteween today and previouse day
 						if stock["1D"] is not None and stock["5D"] is not None:
 							today_open = stock["1D"][0]
 							for idx, item in enumerate(stock["5D"]):
 								if item["date"] == today_open["date"]:
 									stock["prev_market_price"] = stock["5D"][idx-1]["close"]
-
-						stock["1D_statistics"]  	= self.CalculateBasicStatistics(stock["1D"])
-						stock["5D_statistics"]  	= self.CalculateBasicStatistics(stock["5D"])
-						stock["1MO_statistics"] 	= self.CalculateBasicStatistics(stock["1MO"])
 
 						# Check for thresholds
 						for threshold in stock["thresholds"]:
@@ -590,11 +706,6 @@ class StockMarket():
 							if threshold["activated"] is True:
 								if self.ThresholdEventCallback is not None:
 									self.ThresholdEventCallback(ticker, stock["price"], threshold)
-						
-						#if self.StockChangeCallback is not None:
-						#	self.StockChangeLocker.acquire()
-						#	self.StockChangeCallback(stock)
-						#	self.StockChangeLocker.release()
 						
 						if error is True:
 							# Stock was not updated correctly
@@ -746,61 +857,116 @@ class StockMarket():
 			"1MO"				: None,
 			"3MO"				: None,
 			"6MO"				: None,
+			"1Y"				: None,
 			"updated"			: False,
 			"pulled"			: False,
 			"ts_last_updated"	: 0,
-			"1D_statistics"		: {},
-			"5D_statistics"		: {},
-			"1MO_statistics"	: {},
 			"thresholds"		: [],
-			"predictions"		: {
+			"statistics"		: {
 				"basic": [
 					{
-						"action"		: "none"
+						"std"	: 0.0,
+						"var"	: 0.0,
+						"regression": {
+							"slope": 0.0,
+							"offset": 0.0,
+							"r_value": 0.0
+						}
 					},
 					{
-						"action"		: "none"
+						"std"	: 0.0,
+						"var"	: 0.0,
+						"regression": {
+							"slope": 0.0,
+							"offset": 0.0,
+							"r_value": 0.0
+						}
 					},
 					{
-						"action"		: "none"
+						"std"	: 0.0,
+						"var"	: 0.0,
+						"regression": {
+							"slope": 0.0,
+							"offset": 0.0,
+							"r_value": 0.0
+						}
 					},
 					{
-						"action"		: "none"
+						"std"	: 0.0,
+						"var"	: 0.0,
+						"regression": {
+							"slope": 0.0,
+							"offset": 0.0,
+							"r_value": 0.0
+						}
 					},
 					{
-						"action"		: "none"
+						"std"	: 0.0,
+						"var"	: 0.0,
+						"regression": {
+							"slope": 0.0,
+							"offset": 0.0,
+							"r_value": 0.0
+						}
+					},
+					{
+						"std"	: 0.0,
+						"var"	: 0.0,
+						"regression": {
+							"slope": 0.0,
+							"offset": 0.0,
+							"r_value": 0.0
+						}
+					}
+				]
+			},
+			"predictions": {
+				"basic": [
+					{
+						"action" : "none",
+						"high"	 : 0.0,
+						"middle" : 0.0,
+						"low"	 : 0.0
+					},
+					{
+						"action" : "none",
+						"high"	 : 0.0,
+						"middle" : 0.0,
+						"low"	 : 0.0
+					},
+					{
+						"action" : "none",
+						"high"	 : 0.0,
+						"middle" : 0.0,
+						"low"	 : 0.0
+					},
+					{
+						"action" : "none",
+						"high"	 : 0.0,
+						"middle" : 0.0,
+						"low"	 : 0.0
+					},
+					{
+						"action" : "none",
+						"high"	 : 0.0,
+						"middle" : 0.0,
+						"low"	 : 0.0
+					},
+					{
+						"action" : "none",
+						"high"	 : 0.0,
+						"middle" : 0.0,
+						"low"	 : 0.0
 					}
 				]
 			}
 		}
 	
-	def AppendStock(self, stock):
+	def AppendStock(self, ticker):
 		self.Locker.acquire()
 		try:
-			stock["ts_last_updated"] 		= 0
-			stock["1D_statistics"] 			= {}
-			stock["5D_statistics"] 			= {}
-			stock["1MO_statistics"] 		= {}
-			stock["thresholds"] 			= []
-			stock["predictions"]			= {
-				"basic": [
-					{
-						"action"		: "none"
-					},
-					{
-						"action"		: "none"
-					},
-					{
-						"action"		: "none"
-					},
-					{
-						"action"		: "none"
-					},
-					{
-						"action"		: "none"
-					}
-				]
-			}
+			stock = self.GenerateEmtpyStock()
+			stock["ticker"] 				= ticker
 			self.CacheDB[stock["ticker"]] 	= stock
 			self.FirstStockUpdateRun 		= False
 		except:
@@ -833,100 +999,3 @@ class StockMarket():
 			except:
 				pass
 			self.Locker.release()
-	
-	def CalculateMinMax(self, data):
-		pmax = 0
-		pmin = 0
-		if len(data) > 0:
-			pmin = data[0]["close"]
-			for item in data:
-				if pmax < item["close"]:
-					pmax = item["close"]
-				if pmin > item["close"]:
-					pmin = item["close"]
-		return pmin, pmax
-
-	def CalculateRegression(self, coordinates):
-		avg_x = 0
-		avg_y = 0
-		x_dist_2_sum = 0
-		y_dist_2_sum = 0
-		# Calculate avgs
-		for sample in coordinates:
-			avg_x += sample["x"]
-			avg_y += sample["y"]
-			
-		avg_x = (avg_x) / (len(coordinates))
-		avg_y = (avg_y) / (len(coordinates))
-
-		for sample in coordinates:
-			sample["x_dist"] = sample["x"] - avg_x
-			sample["y_dist"] = sample["y"] - avg_y
-
-			sample["x_dist_2"] = sample["x_dist"] * sample["x_dist"]
-			sample["y_dist_2"] = sample["x_dist"] * sample["y_dist"]
-
-			x_dist_2_sum += sample["x_dist_2"]
-			y_dist_2_sum += sample["y_dist_2"]
-		
-		if x_dist_2_sum <= 0:
-			return 0, 0
-		
-		slope = (y_dist_2_sum) / (x_dist_2_sum)
-		b = avg_y - slope * avg_x
-
-		return slope, b
-		
-	def RValue(self, coordinates, slope, b):
-		avg_y = 0
-		y_dist_2_sum = 0
-		estimated_y_dist_2_sum = 0
-		# Calculate avgs
-		for sample in coordinates:
-			avg_y += sample["y"]
-		avg_y = float(avg_y) / float(len(coordinates))
-
-		for sample in coordinates:
-			sample["y_dist"] = sample["y"] - avg_y
-			sample["y_dist_2"] = sample["y_dist"] * sample["y_dist"]
-			sample["estimated_y"] = sample["x"] * slope + b
-			sample["estimated_y_dist"] = sample["estimated_y"] - avg_y
-			sample["estimated_y_dist_2"] = sample["estimated_y_dist"] * sample["estimated_y_dist"]
-			y_dist_2_sum += sample["y_dist_2"]
-			estimated_y_dist_2_sum += sample["estimated_y_dist_2"]
-		
-		if float(y_dist_2_sum) <= 0.0:
-			return 0.0
-		
-		r = float(estimated_y_dist_2_sum) / float(y_dist_2_sum)
-		return r
-
-	def Variance(self, data, ddof=0):
-		n = len(data)
-		mean = sum(data) / n
-		return sum((x - mean) ** 2 for x in data) / (n - ddof)
-
-	def Stdev(self, data):
-		var = self.Variance(data)
-		std_dev = math.sqrt(var)
-		return std_dev
-
-	def GetRegressionLineStatistics(self, data):
-		line = []
-		for idx, item in enumerate(data):
-			line.append({
-				"y": item["close"],
-				"x": idx
-			})
-		
-		slope, b = self.CalculateRegression(line)
-		r2 = self.RValue(line, slope, b)
-		return slope, b, r2
-
-	def GetBasicStatistics(self, data):
-		line = []
-		for item in data:
-			line.append(item["close"])
-		var = self.Variance(line)
-		std = self.Stdev(line)
-		return var, std

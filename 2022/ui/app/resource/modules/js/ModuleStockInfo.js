@@ -11,6 +11,9 @@ function ModuleStockInfo() {
     this.CompanySectorObject 	= null;
     this.CompanyIndustryObject 	= null;
 
+    this.PercentileAmplitude    = 0.0;
+    this.STD                    = 0.0;
+
     return this;
 }
 
@@ -38,6 +41,7 @@ ModuleStockInfo.prototype.Build = function(data, callback) {
         self.FloatShares            = document.getElementById("id_m_stock_info_stock_float_shares");
         self.ComponentObject        = document.getElementById("id_m_stock_info_"+self.HostingID);
         self.PercentileAmplitudeObj = document.getElementById("id_m_stock_info_stock_percentile_amplitude");
+        self.STDobj                 = document.getElementById("id_m_stock_info_stock_std");
         self.Hide();
         callback(self);
     });
@@ -75,6 +79,8 @@ ModuleStockInfo.prototype.GetStockInfo = function(ticker, callback) {
         self.Divident.innerHTML                 = self.GetDataFromObject(payload.info.dividendRate);
         self.Beta.innerHTML                     = self.GetDataFromObject(payload.info.beta);
         self.FloatShares.innerHTML              = self.GetDataFromObject(payload.info.floatShares);
+        self.PercentileAmplitudeObj.innerHTML   = self.PercentileAmplitude.toFixed(2);
+        self.STDobj.innerHTML                   = self.STD.toFixed(2);
         self.Show();
         self.HideLoader();
         callback(self);
@@ -82,7 +88,17 @@ ModuleStockInfo.prototype.GetStockInfo = function(ticker, callback) {
 }
 
 ModuleStockInfo.prototype.UpdatePercentileAnplitudeValue = function(value) {
-    this.PercentileAmplitudeObj.innerHTML = value.toFixed(2);
+    this.PercentileAmplitude = value;
+    if (this.PercentileAmplitudeObj !== undefined) {
+        this.PercentileAmplitudeObj.innerHTML = value.toFixed(2);
+    }
+}
+
+ModuleStockInfo.prototype.UpdateSTDValue = function(value) {
+    this.STD = value;
+    if (this.STDobj !== undefined) {
+        this.STDobj.innerHTML = value.toFixed(2);
+    }
 }
 
 ModuleStockInfo.prototype.HideLoader = function() {

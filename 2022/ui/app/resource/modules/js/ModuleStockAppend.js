@@ -297,8 +297,9 @@ ModuleStockAppend.prototype.DeleteStock = function(ticker) {
     this.ModalDelete.Show();
 }
 
-ModuleStockAppend.prototype.StockGraphDataChangeHandler = function() {
+ModuleStockAppend.prototype.StockGraphDataChangeHandler = function(ticker) {
     window.StockAppend.StockInfo.UpdatePercentileAnplitudeValue(window.StockAppend.StockGraph.PercentileHigh - window.StockAppend.StockGraph.PercentileLow);
+    window.StockAppend.StockInfo.UpdateSTDValue(window.StockAppend.StockGraph.Statistics.std);
 }
 
 ModuleStockAppend.prototype.FindStockInMarket = function() {
@@ -401,11 +402,12 @@ ModuleStockAppend.prototype.CalculateTotalSimplePrediction = function(prediction
         1: 2,
         2: 3,
         3: 2,
-        4: 1
+        4: 1,
+        5: 1
     }
 
     var hold = 0;
-    var buy = 0;
+    var buy  = 0;
     var sell = 0;
 
     var prediction_overall = 0;
@@ -454,7 +456,8 @@ ModuleStockAppend.prototype.GenerateSimplePredictionHtml = function(prediction) 
         1: 2,
         2: 3,
         3: 2,
-        4: 1
+        4: 1,
+        5: 1
     }
 
     var hold = 0;

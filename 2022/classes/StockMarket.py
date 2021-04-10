@@ -54,7 +54,6 @@ class StockMarket():
 			# Get stock information from cache DB
 			stock = self.Market.GetStockInformation(ticker)
 			if stock is not None:
-				warning 		= 0
 				market_price 	= stock["price"]
 				earnings 		= 0.0
 				# Calculate actions min, max and summary
@@ -73,9 +72,6 @@ class StockMarket():
 				except Exception as e:
 					self.Node.LogMSG("({classname})# [EXCEPTION] GetMarketStocksHandler - Calculation {0} {1}".format(ticker,str(e),classname=self.ClassName), 5)
 				
-				if "warning" in stock["5D_statistics"] and "warning" in stock["1MO_statistics"]:
-					warning = stock["5D_statistics"]["warning"] & stock["1MO_statistics"]["warning"]
-				
 				# Get all portfolios binded to this ticker
 				stock_portfolios = self.SQL.GetStockPortfolios(ticker)
 				# Get price from day before
@@ -86,24 +82,20 @@ class StockMarket():
 				stocks_in_payload += 1
 				try:
 					stocks_list.append({
-						"ticker":ticker,
-						"portfolios": stock_portfolios,
-						"name": db_stock["name"],
-						"number": db_stock["amount_sum"],
-						"earnings": earnings,
-						"total_investment": db_stock["hist_price_sum"],
+						"ticker":					ticker,
+						"portfolios": 				stock_portfolios,
+						"name": 					db_stock["name"],
+						"number": 					db_stock["amount_sum"],
+						"earnings": 				earnings,
+						"total_investment": 		db_stock["hist_price_sum"],
 						"total_current_investment": market_price * db_stock["amount_sum"],
-						"market_price": market_price,
-						"prev_market_price": prev_market_price,
-						"hist_price_min": db_stock["hist_min"],
-						"hist_price_max": db_stock["hist_max"],
-						"warning": warning,
-						"statistics": {
-							"weekly": stock["5D_statistics"],
-							"monthly": stock["1MO_statistics"]
-						},
-						"thresholds": stock["thresholds"],
-						"predictions": stock["predictions"]
+						"market_price": 			market_price,
+						"prev_market_price": 		prev_market_price,
+						"hist_price_min": 			db_stock["hist_min"],
+						"hist_price_max": 			db_stock["hist_max"],
+						"statistics": 				stock["statistics"],
+						"thresholds": 				stock["thresholds"],
+						"predictions": 				stock["predictions"]
 					})
 				except Exception as e:
 					# BUG #1 - unsupported operand type(s) for *: 'int' and 'NoneType'

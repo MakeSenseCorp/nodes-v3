@@ -37,6 +37,7 @@ class Context():
 		self.Math 						= StockMarketRemote.AlgoMath()
 		self.Nasdaq						= NasdaqApi.Nasdaq(node)
 		self.BasicPrediction 			= StockMarketRemote.AlgoBasicPrediction()
+		self.StockCalulator 			= StockMarketRemote.StockCalculation()
 		self.SQL 						= StockDataBase.StockDB("stocks.db")
 		# States
 		self.States = {
@@ -231,9 +232,10 @@ class Context():
 			"stock": stock
 		}
 
+	# [CURRENTLY NOT IN USE]
 	def StockChangeEvent(self, stock):
 		self.Node.LogMSG("({classname})# [StockChangeEvent]".format(classname=self.ClassName),5)
-		warning 				= 0
+		'''
 		price 					= stock["price"]
 		earnings 				= 0.0
 		earnings 				= 0.0
@@ -252,9 +254,6 @@ class Context():
 					db_stock["hist_min"] 	= 0.0
 					db_stock["hist_max"]	= 0.0
 			
-			if "warning" in stock["5D_statistics"] and "warning" in stock["1MO_statistics"]:
-				warning = stock["5D_statistics"]["warning"] & stock["1MO_statistics"]["warning"]
-			
 			THIS.Node.EmitOnNodeChange({
 				'event': "stock_info",
 				'data': [
@@ -266,16 +265,14 @@ class Context():
 						"market_price": price,
 						"hist_price_min": db_stock["hist_min"],
 						"hist_price_max": db_stock["hist_max"],
-						"warning": warning,
 						"statistics": {
-							"weekly": stock["5D_statistics"],
-							"monthly": stock["1MO_statistics"]
 						}
 					} 	
 				]
 			})
 		except Exception as e:
 			self.Node.LogMSG("({classname})# [StockChangeEvent] ERROR {0} {1}".format(ticker,e,classname=self.ClassName),5)
+		'''
 
 	def DBDeleteStockHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
@@ -348,14 +345,7 @@ class Context():
 			})
 			self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0} Append to stock monitoring".format(payload,classname=self.ClassName),5)
 			# Append to stock monitoring
-			self.MarketRemote.AppendStock({
-				"ticker": 	payload["ticker"].upper(),
-				"price": 	self.CheckForDict(info["previousClose"], "previousClose"),
-				"1MO": 		None,
-				"5D": 		None,
-				"updated": 	False,
-				"pulled": 	False
-			})
+			self.MarketRemote.AppendStock(payload["ticker"].upper())
 		return {
 			"status": True
 		}
@@ -548,14 +538,7 @@ class Context():
 							'industry': industry
 						})
 					
-					self.MarketRemote.AppendStock({
-						"ticker": 	ticker,
-						"price": 	0,
-						"1MO": 		None,
-						"5D": 		None,
-						"updated": 	False,
-						"pulled": 	False
-					})
+					self.MarketRemote.AppendStock(ticker)
 
 					# Append threshold
 					# self.AddRiskThresholdToStock(ticker)
@@ -701,6 +684,8 @@ class Context():
 					info["price"] = stock["price"]
 				else:
 					info["price"] = info["previousClose"]
+			
+			#info["std"] = 
 		except Exception as e:
 			self.Node.LogMSG("({classname})# [DownloadStockInfoHandler] Exeption ({0})".format(e,classname=self.ClassName),5)
 
@@ -723,10 +708,6 @@ class Context():
 		stock_high 			= []
 		stock_low 			= []
 		stock_vol 			= []
-		stock_regression 	= []
-		w_slope, w_b, w_r2 = self.MarketRemote.GetRegressionLineStatistics(hist)
-		for idx in range(len(hist)):
-			stock_regression.append(w_slope*idx+w_b)
 
 		for stock in hist:
 			stock_date.append(stock["date"])
@@ -738,6 +719,7 @@ class Context():
 		
 		self.BasicPrediction.SetBuffer(stock_open)
 		error, output = self.BasicPrediction.Execute()
+		statistics = self.StockCalulator.GetBasicStatistics(stock_close)
 		
 		high = output["output"]["index_high"]
 		mid  = output["output"]["index_middle"]
@@ -758,7 +740,7 @@ class Context():
 				"high": stock_high,
 				"low": stock_low,
 				"vol": stock_vol,
-				"regression": stock_regression,
+				"statistics": statistics,
 				"hist_open": {
 					"x": x,
 					"y": y
@@ -785,6 +767,7 @@ class Context():
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload, classname=self.ClassName),5)
 
+		'''
 		self.CurrentPortfolio	= int(payload["portfolio_id"])
 		portfolio_earnings		= 0.0
 		portfolio_investment	= 0.0
@@ -822,7 +805,6 @@ class Context():
 				# Get stock information from cache DB
 				stock = self.MarketRemote.GetStockInformation(ticker)
 				if stock is not None:
-					warning 	= 0
 					price 		= stock["price"]
 					earnings 	= 0.0
 					# Calculate actions min, max and summary
@@ -839,9 +821,6 @@ class Context():
 							db_stock["hist_min"] 	= 0.0
 							db_stock["hist_max"]	= 0.0
 					
-					if "warning" in stock["5D_statistics"] and "warning" in stock["1MO_statistics"]:
-						warning = stock["5D_statistics"]["warning"] & stock["1MO_statistics"]["warning"]
-					
 					stocks_in_payload += 1
 					stocks_list.append({
 						"ticker":ticker,
@@ -851,10 +830,7 @@ class Context():
 						"market_price": price,
 						"hist_price_min": db_stock["hist_min"],
 						"hist_price_max": db_stock["hist_max"],
-						"warning": warning,
 						"statistics": {
-							"weekly": stock["5D_statistics"],
-							"monthly": stock["1MO_statistics"]
 						}
 					})
 				else:
@@ -884,6 +860,7 @@ class Context():
 			},
 			"status": status
 		}
+		'''
 	
 	def UndefindHandler(self, sock, packet):
 		print ("UndefindHandler")
@@ -924,14 +901,7 @@ class Context():
 			if len(stocks) > 0:
 				for stock in stocks:
 					#self.Node.LogMSG("({classname})# {0}".format(stock,classname=self.ClassName),5)
-					self.MarketRemote.AppendStock({
-						"ticker": 	stock["ticker"],
-						"price": 	0,
-						"1MO": 		None,
-						"5D": 		None,
-						"updated": 	False,
-						"pulled": 	False
-					})
+					self.MarketRemote.AppendStock(stock["ticker"])
 					self.AddRiskThresholdToStock(stock["ticker"])
 		self.MarketRemote.Start()
 
