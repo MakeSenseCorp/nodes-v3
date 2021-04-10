@@ -25,6 +25,8 @@ from classes import StockMarketRemote
 from classes import StockMarket
 from classes import StockDataBase
 from classes import NasdaqApi
+from classes import AlgoMath
+from classes import Algos
 
 class Context():
 	def __init__(self, node):
@@ -34,9 +36,9 @@ class Context():
 		self.File						= MkSFile.File()
 		self.MarketRemote 				= StockMarketRemote.StockMarket()
 		self.Market 					= StockMarket.StockMarket(node, self.MarketRemote)
-		self.Math 						= StockMarketRemote.AlgoMath()
+		self.Math 						= AlgoMath.AlgoMath()
 		self.Nasdaq						= NasdaqApi.Nasdaq(node)
-		self.BasicPrediction 			= StockMarketRemote.AlgoBasicPrediction()
+		self.BasicPrediction 			= Algos.BasicPrediction()
 		self.StockCalulator 			= StockMarketRemote.StockCalculation()
 		self.SQL 						= StockDataBase.StockDB("stocks.db")
 		# States

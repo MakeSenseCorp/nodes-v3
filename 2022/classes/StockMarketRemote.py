@@ -10,209 +10,11 @@ import base64
 import datetime
 from datetime import date
 import queue
-
-import yfinance as yf
-import pandas as pd
 import math
 
-class AlgoMath():
-	def __init__(self):
-		self.ClassName = "AlgoMath"
-	
-	def FindBufferMaxMin(self, buffer):
-		pmax = 0		
-		pmin = 0
-		if len(buffer) > 0:
-			pmin = buffer[0]
-			for item in buffer:
-				if pmax < item:
-					pmax = item
-				if pmin > item:
-					pmin = item
-		return pmin, pmax
-
-	def CreateHistogram(self, buffer, bin_size):
-		ret_hist_buffer_y = []
-		ret_hist_buffer_x = []
-		freq = 1
-		try:
-			if len(buffer) > 0:
-				# Find min and max for this buffer
-				pmin, pmax = self.FindBufferMaxMin(buffer)
-				# Calculate freq
-				freq = (float(pmax) - float(pmin)) / float(bin_size)
-				if freq == 0:
-					return 0, [pmin], [pmax]
-				# Generate x scale
-				ret_hist_buffer_x = [(x * freq) + pmin for x in range(0, bin_size)]
-				ret_hist_buffer_y = [0] * bin_size
-				# Generate y scale
-				for sample in buffer:
-					index = int((float(sample) - float(pmin)) / freq)
-					if index == 25:
-						index = 24
-					#print(index, sample, freq, pmin, pmax)
-					ret_hist_buffer_y[index] += 1
-		except Exception as e:
-			print("Histograme exception {0}".format(e))
-			return 1, [], []
-		return 0, ret_hist_buffer_y, ret_hist_buffer_x
-	
-	def CalculatePercentile(self, low, high, histogram):
-		low_perc  			= 0
-		low_perc_found  	= False
-
-		mid_perc 			= 0
-		mid_perc_found 		= False
-
-		high_perc 			= 0
-		high_perc_found 	= False
-
-		pmin 				= 0
-		pmin_found 			= False
-	
-		pmax 				= 0
-		pmax_found 			= False
-
-		perc_integral 		= 0.0
-		hist_sum 			= 0.0
-
-		hist_len 			= len(histogram)
-
-		for sample in histogram:
-			hist_sum += sample
-
-		# TODO - use liniar interpulation
-		for idx, sample in enumerate(histogram):
-			perc_integral += sample
-			if low_perc_found is False:
-				if (perc_integral / hist_sum) > low:
-					low_perc_found = True
-					low_perc = idx
-			if high_perc_found is False:
-				if (perc_integral / hist_sum) > high:
-					high_perc_found = True
-					high_perc = idx
-			if mid_perc_found is False:
-				if (perc_integral / hist_sum) >= 0.5:
-					mid_perc_found = True
-					mid_perc = idx
-			if pmin_found is False:
-				if sample > 0:
-					pmin_found = True
-					pmin = idx
-			if pmax_found is False:
-				if histogram[(hist_len - 1) - idx] > 0:
-					pmax_found = True
-					pmax = (hist_len - 1) - idx
-		
-		return pmin, low_perc, mid_perc, high_perc, pmax
-	
-	def CalculateRegression(self, coordinates):
-		avg_x = 0
-		avg_y = 0
-		x_dist_2_sum = 0
-		y_dist_2_sum = 0
-		# Calculate avgs
-		for sample in coordinates:
-			avg_x += sample["x"]
-			avg_y += sample["y"]
-			
-		avg_x = (avg_x) / (len(coordinates))
-		avg_y = (avg_y) / (len(coordinates))
-
-		for sample in coordinates:
-			sample["x_dist"] = sample["x"] - avg_x
-			sample["y_dist"] = sample["y"] - avg_y
-
-			sample["x_dist_2"] = sample["x_dist"] * sample["x_dist"]
-			sample["y_dist_2"] = sample["x_dist"] * sample["y_dist"]
-
-			x_dist_2_sum += sample["x_dist_2"]
-			y_dist_2_sum += sample["y_dist_2"]
-		
-		if x_dist_2_sum <= 0:
-			return 0, 0
-		
-		slope = (y_dist_2_sum) / (x_dist_2_sum)
-		b = avg_y - slope * avg_x
-
-		return slope, b
-		
-	def RValue(self, coordinates, slope, b):
-		avg_y = 0
-		y_dist_2_sum = 0
-		estimated_y_dist_2_sum = 0
-		# Calculate avgs
-		for sample in coordinates:
-			avg_y += sample["y"]
-		avg_y = float(avg_y) / float(len(coordinates))
-
-		for sample in coordinates:
-			sample["y_dist"] = sample["y"] - avg_y
-			sample["y_dist_2"] = sample["y_dist"] * sample["y_dist"]
-			sample["estimated_y"] = sample["x"] * slope + b
-			sample["estimated_y_dist"] = sample["estimated_y"] - avg_y
-			sample["estimated_y_dist_2"] = sample["estimated_y_dist"] * sample["estimated_y_dist"]
-			y_dist_2_sum += sample["y_dist_2"]
-			estimated_y_dist_2_sum += sample["estimated_y_dist_2"]
-		
-		if float(y_dist_2_sum) <= 0.0:
-			return 0.0
-		
-		r = float(estimated_y_dist_2_sum) / float(y_dist_2_sum)
-		return r
-	
-	def Variance(self, data, ddof=0):
-		n = len(data)
-		mean = sum(data) / n
-		return sum((x - mean) ** 2 for x in data) / (n - ddof)
-
-	def Stdev(self, data):
-		var = self.Variance(data)
-		std_dev = math.sqrt(var)
-		return std_dev
-
-class AlgoBasicPrediction():
-	def __init__(self):
-		self.ClassName 				= "AlgoBasicPrediction"
-		self.Math 					= AlgoMath()
-		self.HistogramWindowSize 	= 25
-		self.PercentileLow 			= 0.15
-		self.PercentileHigh 		= 0.85
-		self.Buffer 				= None
-	
-	def SetBuffer(self, buffer):
-		self.Buffer = buffer
-	
-	def Execute(self):
-		error, Y, X = self.Math.CreateHistogram(self.Buffer, self.HistogramWindowSize)
-		if error != 0 or len(X) == 0:
-			return -1, {
-				"output": {
-					"x"				: [],
-					"y"				: [],
-					"index_min"		: 0,
-					"index_low"		: 0,
-					"index_middle"	: 0,
-					"index_high"	: 0,
-					"index_max"		: 0
-				}
-			}
-		
-		idxMIN, idxLOW, idxMID, idxHIGH, idxMAX = self.Math.CalculatePercentile(self.PercentileLow, self.PercentileHigh, Y)
-
-		return 0, {
-			"output": {
-				"x"				: X,
-				"y"				: Y,
-				"index_min"		: idxMIN,
-				"index_low"		: idxLOW,
-				"index_middle"	: idxMID,
-				"index_high"	: idxHIGH,
-				"index_max"		: idxMAX
-			}
-		}
+from classes import StockMarketAPI
+from classes import AlgoMath
+from classes import Algos
 
 class StockCalculation():
 	def __init__(self):
@@ -226,8 +28,8 @@ class StockCalculation():
 			"1Y":  5
 		}
 		# Algo
-		self.BasicPrediction = AlgoBasicPrediction()
-		self.Math 			 = AlgoMath()
+		self.BasicPrediction = Algos.BasicPrediction()
+		self.Math 			 = AlgoMath.AlgoMath()
 
 		self.StockSimplePredictionChangeCallback 	= None
 	
@@ -328,137 +130,6 @@ class StockCalculation():
 			}
 		}
 	
-class StockMarketApi():
-	def __init__(self):
-		self.ClassName	= "StockMarketApi"
-		self.Delay 		= 0.2
-	
-	def CheckForNan(self, value):
-		if value == value:
-			return True
-		return False
-	
-	def GetStockCurrentPrice(self, ticker):
-		'''
-			Open,High,Low,Close,Volume,Dividends,Stock Splits
-		'''
-		error = False
-		for retry in range(3):
-			try:
-				objtk = yf.Ticker(ticker)
-				time.sleep(self.Delay)
-				df_stock = objtk.history(period="1d", interval="5m")
-				time.sleep(self.Delay)
-				price = "{0:.3f}".format(df_stock["Close"].iloc[-1])
-			except Exception as e:
-				if retry == 3:
-					print("({classname})# [EXCEPTION] GetStockCurrentPrice FAILED {0} {1}".format(ticker,str(e),classname=self.ClassName))
-					return True, 0.0
-				print("({classname})# [EXCEPTION] GetStockCurrentPrice RETRY [{1}] {0}".format(ticker,retry,classname=self.ClassName))
-				
-		return error, float(price)
-	
-	def GetStockInfoRaw(self, ticker):
-		objtk = yf.Ticker(ticker)
-		time.sleep(self.Delay)
-		return objtk.info
-
-	def GetStockInfo(self, ticker):
-		objtk = yf.Ticker(ticker)
-		time.sleep(self.Delay)
-
-		ask  = 0
-		bid  = 0
-		high = 0
-		low  = 0
-
-		if type(objtk.info["ask"]) == dict:
-			ask = objtk.info["ask"]["raw"]
-		else:
-			ask = objtk.info["ask"]
-		
-		if type(objtk.info["bid"]) == dict:
-			bid = objtk.info["bid"]["raw"]
-		else:
-			bid = objtk.info["bid"]
-		
-		if type(objtk.info["dayHigh"]) == dict:
-			high = objtk.info["dayHigh"]["raw"]
-		else:
-			high = objtk.info["dayHigh"]
-		
-		if type(objtk.info["dayLow"]) == dict:
-			low = objtk.info["dayLow"]["raw"]
-		else:
-			low = objtk.info["dayLow"]
-
-		return {
-			"ask": ask,
-			"bid": bid,
-			"high": high,
-			"low": low
-		}
-	
-	def GetStockHistory(self, ticker, period, interval):
-		'''
-			Open,High,Low,Close,Volume,Dividends,Stock Splits
-		'''
-		hist = []
-		for retry in range(3):
-			try:
-				objtk = yf.Ticker(ticker)
-				time.sleep(self.Delay)
-				'''
-					Valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
-					Valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
-				'''
-				data = objtk.history(period=period, interval=interval)
-				time.sleep(self.Delay)
-				for idx, row in data.iterrows():
-					if self.CheckForNan(row['Open']) is False or self.CheckForNan(row['Close']) is False or self.CheckForNan(row['High']) is False or self.CheckForNan(row['Low']) is False:
-						continue
-
-					hist.append({
-						"date": "{0}".format(idx),
-						"open": row['Open'],
-						"close": row['Close'],
-						"high": row['High'],
-						"low": row['Low'],
-						"vol": row['Volume']
-					})
-				return False, hist
-			except Exception as e:
-				if retry == 3:
-					print("({classname})# [EXCEPTION] GetStockHistory {0} {1} {2} FAILED".format(ticker,period,interval,classname=self.ClassName))
-					return True, []
-				print("({classname})# [EXCEPTION] GetStockHistory RETRY [{3}] {0} {1} {2}".format(ticker,period,interval,retry,classname=self.ClassName))
-				time.sleep(0.5)
-		return False, hist
-
-	def Get1D(self, ticker):
-		return self.GetStockHistory(ticker, "1d", "5m")
-
-	def Get5D(self, ticker):
-		return self.GetStockHistory(ticker, "5d", "5m")
-	
-	def Get1MO(self, ticker):
-		return self.GetStockHistory(ticker, "1mo", "1h")
-	
-	def Get3MO(self, ticker):
-		return self.GetStockHistory(ticker, "3mo", "1d")
-	
-	def Get6MO(self, ticker):
-		return self.GetStockHistory(ticker, "6mo", "5d")
-	
-	def Get1Y(self, ticker):
-		return self.GetStockHistory(ticker, "1y", "5d")
-	
-	def Get2Y(self, ticker):
-		return self.GetStockHistory(ticker, "2y", "1wk")
-	
-	def Get5Y(self, ticker):
-		return self.GetStockHistory(ticker, "5y", "1mo")
-
 class StockMarket():
 	def __init__(self):
 		self.ClassName					= "StockMarket"
@@ -472,7 +143,7 @@ class StockMarket():
 		self.Halt 						= False
 
 		self.Algos 						= StockCalculation()
-		self.API 						= StockMarketApi()
+		self.API 						= StockMarketAPI.API()
 
 		# Callbacks
 		self.FullLoopPerformedCallback 				= None
@@ -629,7 +300,7 @@ class StockMarket():
 
 		algos = StockCalculation()
 		algos.StockSimplePredictionChangeCallback = self.StockSimplePredictionChangeCallback
-		atock_api = StockMarketApi()
+		atock_api = StockMarketAPI.API()
 
 		while self.WorkerRunning is True:
 			try:
