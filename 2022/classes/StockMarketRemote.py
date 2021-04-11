@@ -153,7 +153,6 @@ class StockMarket():
 		self.StockMarketOpenCallback 				= None
 		self.StockMarketCloseCallback				= None
 		self.StockSimplePredictionChangeCallback 	= None
-		self.StockChangeLocker 						= threading.Lock()
 
 		# Threading section
 		self.ThreadCount				= 10
@@ -405,8 +404,6 @@ class StockMarket():
 				# BUG #1 - name 'stock' is not defined
 				self.LogMSG("({classname})# [EXCEPTION] MINION {0} {1}".format(index,str(e),classname=self.ClassName), 5)
 				stock["updated"] = False
-				if self.StockChangeLocker.locked is True:
-					self.StockChangeLocker.release()
 				self.ThreadPoolStatus[index] = False
 				self.Signal.set()
 	
@@ -664,12 +661,15 @@ class StockMarket():
 		return self.CacheDB
 
 	def GetStockInformation(self, ticker):
+		self.Locker.acquire()
 		try:
 			if ticker in self.CacheDB:
 				stock = self.CacheDB[ticker]
+				self.Locker.release()
 				return stock
 		except:
 			pass
+		self.Locker.release()
 		return None
 
 	def RemoveStock(self, ticker):

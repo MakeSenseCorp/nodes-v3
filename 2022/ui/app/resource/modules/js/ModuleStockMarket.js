@@ -37,6 +37,17 @@ StockMarket.prototype.GetStocks = function() {
     });
 }
 
+StockMarket.prototype.GetPortfolioStatistics = function(portfolio_id, callback) {
+    var self = this;
+    console.log("GetPortfolioStatistics");
+    node.API.SendCustomCommand(NodeUUID, "get_portfolio_statistics", {
+        "portfolio_id": portfolio_id
+    }, function(res) {
+        var payload = res.data.payload;
+        callback(payload);
+    });
+}
+
 StockMarket.prototype.Start = function() {
     console.log("StockMarket Start");
     this.DoWork = true;

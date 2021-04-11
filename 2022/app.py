@@ -49,7 +49,6 @@ class Context():
 			'get_sensor_info':					self.GetSensorInfoHandler,
 			'get_portfolios':					self.GetPortfoliosHandler,
 			'get_portfolio_stocks':				self.GetPortfolioStocksHandler,
-			'get_portfolio_statistics':			self.GetPortfolioStatistics,
 			'get_stock_history':				self.GetStockHistoryHandler,
 			'append_new_action':				self.AppendNewActionHandler,
 			'create_new_portfolio':				self.CreateNewPortfolioHandler,
@@ -753,15 +752,6 @@ class Context():
 					"perc_high": [x[high]]*len(hist)
 				}
 			}
-		}
-
-	def GetPortfolioStatistics(self, sock, packet):
-		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
-		self.Node.LogMSG("({classname})# [GetPortfolioStatistics] {0}".format(payload, classname=self.ClassName),5)
-
-		potrfolio_id = payload["portfolio_id"]
-		return {
-			"portfolio_id": potrfolio_id
 		}
 
 	# [CURRENTLY NOT IN USE]

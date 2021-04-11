@@ -19,7 +19,8 @@ class StockMarket():
 	
 	def BindHandler(self):
 		# Handlers
-		self.Node.ApplicationRequestHandlers['get_market_stocks'] = self.GetMarketStocksHandler
+		self.Node.ApplicationRequestHandlers['get_market_stocks'] 			= self.GetMarketStocksHandler
+		self.Node.ApplicationRequestHandlers['get_portfolio_statistics'] 	= self.GetPortfolioStatistics
 	
 	def GetMarketStocksHandler(self, sock, packet):
 		self.Node.LogMSG("({classname})# [GetMarketStocksHandler]".format(classname=self.ClassName),5)
@@ -44,10 +45,12 @@ class StockMarket():
 		# Get all stocks
 		db_stocks = self.SQL.GetPortfolioStocks(0)
 		# For each stock do calculation
-		stocks_in_payload 	= 0
-		stocks_per_payload 	= 50
-		stocks_list 		= []
-		stocks_count  		= 0
+		stocks_in_payload 			= 0
+		stocks_per_payload 			= 50
+		stocks_list 				= []
+		stocks_count  				= 0
+		total_investment 			= 0.0
+		total_current_investment 	= 0.0
 		for db_stock in db_stocks:
 			# For each stock in DB
 			ticker = db_stock["ticker"]
@@ -64,6 +67,8 @@ class StockMarket():
 							if (market_price * db_stock["amount_sum"]) > 0 or db_stock["amount_sum"] == 0:
 								# TODO - market_price BUG (unsupported operand type(s) for *: 'int' and 'NoneType')
 								earnings = float("{0:.3f}".format(market_price * db_stock["amount_sum"] + db_stock["hist_price_sum"]))
+								total_current_investment += market_price * db_stock["amount_sum"]
+								total_investment += db_stock["hist_price_sum"]
 							stocks_count += db_stock["amount_sum"]
 						else:
 							db_stock["amount_sum"] 	= 0.0
@@ -87,8 +92,8 @@ class StockMarket():
 						"name": 					db_stock["name"],
 						"number": 					db_stock["amount_sum"],
 						"earnings": 				earnings,
-						"total_investment": 		db_stock["hist_price_sum"],
-						"total_current_investment": market_price * db_stock["amount_sum"],
+						"total_investment": 		total_investment,
+						"total_current_investment": total_current_investment,
 						"market_price": 			market_price,
 						"prev_market_price": 		prev_market_price,
 						"hist_price_min": 			db_stock["hist_min"],
@@ -99,7 +104,7 @@ class StockMarket():
 					})
 				except Exception as e:
 					# BUG #1 - unsupported operand type(s) for *: 'int' and 'NoneType'
-					self.Node.LogMSG("({classname})# [EXCEPTION] GetMarketStocksHandler - Append stock {0} {1}".format(ticker,str(e),classname=self.ClassName), 5)
+					self.Node.LogMSG("({classname})# [EXCEPTION] GetMarketStocksHandler - Append stock {0} {1} {2}".format(ticker,str(e),classname=self.ClassName), 5)
 			else:
 				self.Node.LogMSG("({classname})# [GetMarketStocksHandler] TICKER NULL {0}".format(ticker, classname=self.ClassName),5)
 	
@@ -119,4 +124,55 @@ class StockMarket():
 		
 		return {
 			"status": True
+		}
+	
+	def GetPortfolioStatistics(self, sock, packet):
+		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetPortfolioStatistics] {0}".format(payload, classname=self.ClassName),5)
+
+		potrfolio_id 				= payload["portfolio_id"]
+		earnings					= 0.0
+		stocks_count  				= 0
+		total_investment 			= 0.0
+		total_current_investment 	= 0.0
+		total_stock_diff 			= 0.0
+		# Get all stocks
+		db_stocks = self.SQL.GetPortfolioStocks(potrfolio_id)
+		for db_stock in db_stocks:
+			# For each stock in DB
+			ticker = db_stock["ticker"]
+			# Get stock information from cache DB
+			stock = self.Market.GetStockInformation(ticker)
+			if stock is not None:
+				# Curent price
+				market_price 	= stock["price"]
+				# Get price from day before
+				prev_market_price = market_price
+				if "prev_market_price" in stock:
+					prev_market_price = stock["prev_market_price"]
+				# Calculate earnings and other
+				try:
+					if market_price > 0:
+						if db_stock["amount_sum"] is not None and db_stock["hist_price_sum"] is not None:
+							if (market_price * db_stock["amount_sum"]) > 0 or db_stock["amount_sum"] == 0:
+								# TODO - market_price BUG (unsupported operand type(s) for *: 'int' and 'NoneType')
+								earnings += float("{0:.3f}".format(market_price * db_stock["amount_sum"] + db_stock["hist_price_sum"]))
+							stocks_count += db_stock["amount_sum"]
+							total_current_investment += market_price * db_stock["amount_sum"]
+							total_investment += db_stock["hist_price_sum"]
+						else:
+							pass
+						total_stock_diff += (market_price - prev_market_price)
+					else:
+						pass
+				except Exception as e:
+					self.Node.LogMSG("({classname})# [EXCEPTION] GetPortfolioStatistics {0} {1}".format(ticker,str(e),classname=self.ClassName), 5)
+				
+		return {
+			"portfolio_id": 			potrfolio_id,
+			"stocks_count":				stocks_count,
+			"earnings": 				earnings,
+			"total_investment": 		total_investment,
+			"total_current_investment": total_current_investment,
+			"total_stock_diff":			total_stock_diff
 		}
