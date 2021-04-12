@@ -188,7 +188,7 @@ ModuleStockAppend.prototype.UpdateTableSammaryUI = function(data) {
     document.getElementById("id_m_stock_append_table_price_summary_total_stock_diff").innerHTML = data.total_stock_diff.toFixed(2);
     document.getElementById("id_m_stock_append_table_price_summery_number").innerHTML           = data.stocks_count;
     document.getElementById("id_m_stock_append_table_price_summery_earnings").innerHTML         = data.earnings.toFixed(2);
-    document.getElementById("id_m_stock_append_table_price_summary_total_nvestment").innerHTML  = `${data.total_current_investment.toFixed(2)} (${data.total_investment.toFixed(2)}) $`;
+    document.getElementById("id_m_stock_append_table_price_summary_total_nvestment").innerHTML  = data.total_current_investment.toFixed(2); // `${data.total_current_investment.toFixed(2)} (${data.total_investment.toFixed(2)}) $`;
 }
 
 ModuleStockAppend.prototype.GetPortfolioStocks = function(id, name) {

@@ -678,6 +678,10 @@ class Context():
 				info = self.MarketRemote.API.GetStockInfoRaw(ticker)
 				self.SQL.UpdateYFInfo(ticker, json.dumps(info))
 				info["price"] = info["previousClose"]
+			elif info_db == "":
+				info = self.MarketRemote.API.GetStockInfoRaw(ticker)
+				self.SQL.UpdateYFInfo(ticker, json.dumps(info))
+				info["price"] = info["previousClose"]
 			else:
 				info = json.loads(info_db)
 				stock = self.MarketRemote.CacheDB[ticker]
@@ -685,8 +689,6 @@ class Context():
 					info["price"] = stock["price"]
 				else:
 					info["price"] = info["previousClose"]
-			
-			#info["std"] = 
 		except Exception as e:
 			self.Node.LogMSG("({classname})# [DownloadStockInfoHandler] Exeption ({0})".format(e,classname=self.ClassName),5)
 
