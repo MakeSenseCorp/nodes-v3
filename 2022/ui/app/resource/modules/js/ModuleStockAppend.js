@@ -384,7 +384,7 @@ ModuleStockAppend.prototype.CalculateTotalSimplePrediction = function(prediction
     var prediction_overall = 0;
     // Calculate overall basic prediction [1D(0), 5D(1), 1MO(2), 3MO(3), 6MO(4)]
     for (key in prediction) {
-        var pred = prediction[key].action;
+        var pred = prediction[key].action.current;
         if (pred == "hold") {
             hold += prediction_weight[key];
         } else if (pred == "sell") {
@@ -439,7 +439,7 @@ ModuleStockAppend.prototype.GenerateSimplePredictionHtml = function(prediction) 
 
     // Calculate overall basic prediction [1D(0), 5D(1), 1MO(2), 3MO(3), 6MO(4)]
     for (key in prediction) {
-        var pred = prediction[key].action;
+        var pred = prediction[key].action.current;
         if (pred == "sell") {
             html += `<div class="col text-center"><span style="color: red; cursor: pointer;" data-feather="log-out" data-placement="top" data-toggle="tooltip" title="Sell"></span></div>`;
         } else if (pred == "buy") {
@@ -502,7 +502,7 @@ ModuleStockAppend.prototype.SimplePredictionUpdate = function(stock) {
     if (this.BasicPredictionViewType == -1) {
         pred_value = this.CalculateTotalSimplePrediction(stock.predictions.basic);
     } else {
-        pred_value = prediction_map[stock.predictions.basic[this.BasicPredictionViewType].action];
+        pred_value = prediction_map[stock.predictions.basic[this.BasicPredictionViewType].action.current];
     }
 
     if (pred_value < 0) {

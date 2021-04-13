@@ -56,50 +56,38 @@ class StockCalculation():
 
 			index = self.BasicPredictionPeriodToIndexMap[period]
 			if x[high] < stock["price"]:
-				if "none" in stock["predictions"]["basic"][index]["action"]:
-					stock["predictions"]["basic"][index]["action"] = "sell"
+				if "none" in stock["predictions"]["basic"][index]["action"]["current"]:
+					stock["predictions"]["basic"][index]["action"]["current"] = "sell"
 				else:
-					if "sell" not in stock["predictions"]["basic"][index]["action"]:
+					if "sell" not in stock["predictions"]["basic"][index]["action"]["current"]:
 						print("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to SELL {1}".format(stock["ticker"],stock["price"],classname=self.ClassName))
+						stock["predictions"]["basic"][index]["action"]["previouse"] = stock["predictions"]["basic"][index]["action"]["current"]
+						stock["predictions"]["basic"][index]["action"]["current"] = "sell"
 						# Call for update callback
-						#if self.StockSimplePredictionChangeCallback is not None:
-						#	self.StockSimplePredictionChangeCallback({
-						#		"ticker"	: stock["ticker"],
-						#		"price"		: stock["price"],
-						#		"pred_prev"	: stock["predictions"]["basic"][index]["action"],
-						#		"pred_curr"	: "sell"
-						#	})
-						stock["predictions"]["basic"][index]["action"] = "sell"
+						if self.StockSimplePredictionChangeCallback is not None:
+							self.StockSimplePredictionChangeCallback(stock["ticker"], index)
 			elif x[low] > stock["price"]:
-				if "none" in stock["predictions"]["basic"][index]["action"]:
-					stock["predictions"]["basic"][index]["action"] = "buy"
+				if "none" in stock["predictions"]["basic"][index]["action"]["current"]:
+					stock["predictions"]["basic"][index]["action"]["current"] = "buy"
 				else:
-					if "buy" not in stock["predictions"]["basic"][index]["action"]:
+					if "buy" not in stock["predictions"]["basic"][index]["action"]["current"]:
 						print("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to BUY {1}".format(stock["ticker"],stock["price"],classname=self.ClassName))
+						stock["predictions"]["basic"][index]["action"]["previouse"] = stock["predictions"]["basic"][index]["action"]["current"]
+						stock["predictions"]["basic"][index]["action"]["current"] = "buy"
 						# Call for update callback
-						#if self.StockSimplePredictionChangeCallback is not None:
-						#	self.StockSimplePredictionChangeCallback({
-						#		"ticker"	: stock["ticker"],
-						#		"price"		: stock["price"],
-						#		"pred_prev"	: stock["predictions"]["basic"][index]["action"],
-						#		"pred_curr"	: "buy"
-						#	})
-						stock["predictions"]["basic"][index]["action"] = "buy"
+						if self.StockSimplePredictionChangeCallback is not None:
+							self.StockSimplePredictionChangeCallback(stock["ticker"], index)
 			else:
-				if "none" in stock["predictions"]["basic"][index]["action"]:
-					stock["predictions"]["basic"][index]["action"] = "hold"
+				if "none" in stock["predictions"]["basic"][index]["action"]["current"]:
+					stock["predictions"]["basic"][index]["action"]["current"] = "hold"
 				else:
-					if "hold" not in stock["predictions"]["basic"][index]["action"]:
+					if "hold" not in stock["predictions"]["basic"][index]["action"]["current"]:
 						print("({classname})# [CalculateBasicPrediction] ({0}) Prediction changed to HOLD {1}".format(stock["ticker"],stock["price"],classname=self.ClassName))
+						stock["predictions"]["basic"][index]["action"]["previouse"] = stock["predictions"]["basic"][index]["action"]["current"]
+						stock["predictions"]["basic"][index]["action"]["current"] = "hold"
 						# Call for update callback
-						#if self.StockSimplePredictionChangeCallback is not None:
-						#	self.StockSimplePredictionChangeCallback({
-						#		"ticker"	: stock["ticker"],
-						#		"price"		: stock["price"],
-						#		"pred_prev"	: stock["predictions"]["basic"][index]["action"],
-						#		"pred_curr"	: "hold"
-						#	})
-						stock["predictions"]["basic"][index]["action"] = "hold"
+						if self.StockSimplePredictionChangeCallback is not None:
+							self.StockSimplePredictionChangeCallback(stock["ticker"], index)
 		except Exception as e:
 			print("({classname})# [EXCEPTION] (CalculateBasicPrediction) {0} {1}".format(stock["ticker"],str(e),classname=self.ClassName))
 		
@@ -601,40 +589,64 @@ class StockMarket():
 			"predictions": {
 				"basic": [
 					{
-						"action" : "none",
+						"action" : {
+							"current": "none",
+							"previouse": "none"
+						},
 						"high"	 : 0.0,
 						"middle" : 0.0,
-						"low"	 : 0.0
+						"low"	 : 0.0,
+						"action_flags": [0,0,0]
 					},
 					{
-						"action" : "none",
+						"action" : {
+							"current": "none",
+							"previouse": "none"
+						},
 						"high"	 : 0.0,
 						"middle" : 0.0,
-						"low"	 : 0.0
+						"low"	 : 0.0,
+						"action_flags": [0,0,0]
 					},
 					{
-						"action" : "none",
+						"action" : {
+							"current": "none",
+							"previouse": "none"
+						},
 						"high"	 : 0.0,
 						"middle" : 0.0,
-						"low"	 : 0.0
+						"low"	 : 0.0,
+						"action_flags": [0,0,0]
 					},
 					{
-						"action" : "none",
+						"action" : {
+							"current": "none",
+							"previouse": "none"
+						},
 						"high"	 : 0.0,
 						"middle" : 0.0,
-						"low"	 : 0.0
+						"low"	 : 0.0,
+						"action_flags": [0,0,0]
 					},
 					{
-						"action" : "none",
+						"action" : {
+							"current": "none",
+							"previouse": "none"
+						},
 						"high"	 : 0.0,
 						"middle" : 0.0,
-						"low"	 : 0.0
+						"low"	 : 0.0,
+						"action_flags": [0,0,0]
 					},
 					{
-						"action" : "none",
+						"action" : {
+							"current": "none",
+							"previouse": "none"
+						},
 						"high"	 : 0.0,
 						"middle" : 0.0,
-						"low"	 : 0.0
+						"low"	 : 0.0,
+						"action_flags": [0,0,0]
 					}
 				]
 			}
