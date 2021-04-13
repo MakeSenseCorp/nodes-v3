@@ -1,0 +1,48 @@
+{
+	"node":
+	{
+		"system": {
+			"log_level": 3,
+			"log_to_file": "True"
+		},
+		"info": {
+			"uuid":"12345678-1234-1234-1234-000000000102",
+			"isHW":"False",
+			"type":2023,
+			"ostype":"Linux",
+			"osversion":"Unknown",
+			"brandname":"Funder Monitor",
+			"name":"Funder Monitor",
+			"description":"Slave Node",
+			"isMasterNode":"True",
+			"is_service":"False",
+			"isLocalServerEnabled":"True",
+			"isWebEnabled":"True",
+			"boardType": "VirtualBox",
+			"is_application_ui_enabled": "False",
+			"tagging": {
+				"cat_1": "application",
+				"cat_2": "finance",
+				"cat_3": "monitor"
+			}
+		},
+		"service": {
+			"depend": [
+			]
+		}
+	},
+	"user":
+	{
+		
+	},
+	"device": {
+		
+	},
+	"deploymnet": {
+		"dependencies_cmd": [
+		],
+		"script": {
+
+		}
+	}
+}
