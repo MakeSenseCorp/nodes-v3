@@ -283,7 +283,8 @@ class StockMarket():
 		self.ThreadPoolLocker.acquire()
 		self.JoblessMinions += 1
 		self.ThreadPoolLocker.release()
-		Interval = 0.25
+		Interval 	= 0.25
+		Itterations = 0
 
 		algos = StockCalculation()
 		algos.StockSimplePredictionChangeCallback = self.StockSimplePredictionChangeCallback
@@ -306,48 +307,59 @@ class StockMarket():
 					if error is True:
 						stock["price"] = None
 					else:
-						error, stock["1D"] = atock_api.Get1D(ticker)	# Get 1 day history
+						# Get 1 day history
+						error, stock["1D"] = atock_api.Get1D(ticker)
 						if error is True:
 							stock["1D"] = None
 						else:
 							algos.CalculateBasicPrediction(stock, "1D")
 							stock_prices = self.GetPriceListFromStockPeriod(stock["1D"], "close")
 							stock["statistics"]["basic"][0] = algos.GetBasicStatistics(stock_prices)
-						error, stock["5D"] = atock_api.Get5D(ticker)	# Get 5 days history
-						if error is True:
-							stock["5D"] = None
-						else:
-							algos.CalculateBasicPrediction(stock, "5D")
-							stock_prices = self.GetPriceListFromStockPeriod(stock["5D"], "close")
-							stock["statistics"]["basic"][1] = algos.GetBasicStatistics(stock_prices)
-						error, stock["1MO"] = atock_api.Get1MO(ticker)	# Get 1 month history
-						if error is True:
-							stock["1MO"] = None
-						else:
-							algos.CalculateBasicPrediction(stock, "1MO")
-							stock_prices = self.GetPriceListFromStockPeriod(stock["1MO"], "close")
-							stock["statistics"]["basic"][2] = algos.GetBasicStatistics(stock_prices)
-						error, stock["3MO"] = atock_api.Get3MO(ticker)	# Get 3 months history
-						if error is True:
-							stock["3MO"] = None
-						else:
-							algos.CalculateBasicPrediction(stock, "3MO")
-							stock_prices = self.GetPriceListFromStockPeriod(stock["3MO"], "close")
-							stock["statistics"]["basic"][3] = algos.GetBasicStatistics(stock_prices)
-						error, stock["6MO"] = atock_api.Get6MO(ticker)	# Get 6 months history
-						if error is True:
-							stock["6MO"] = None
-						else:
-							algos.CalculateBasicPrediction(stock, "6MO")
-							stock_prices = self.GetPriceListFromStockPeriod(stock["6MO"], "close")
-							stock["statistics"]["basic"][4] = algos.GetBasicStatistics(stock_prices)
-						error, stock["1Y"] = atock_api.Get1Y(ticker)	# Get 1 year history
-						if error is True:
-							stock["1Y"] = None
-						else:
-							algos.CalculateBasicPrediction(stock, "1Y")
-							stock_prices = self.GetPriceListFromStockPeriod(stock["1Y"], "close")
-							stock["statistics"]["basic"][5] = algos.GetBasicStatistics(stock_prices)
+						# Get 5 days history
+						if Itterations % 2 == 0 or stock["5D"] is None:
+							error, stock["5D"] = atock_api.Get5D(ticker)
+							if error is True:
+								stock["5D"] = None
+							else:
+								algos.CalculateBasicPrediction(stock, "5D")
+								stock_prices = self.GetPriceListFromStockPeriod(stock["5D"], "close")
+								stock["statistics"]["basic"][1] = algos.GetBasicStatistics(stock_prices)
+						# Get 1 month history
+						if Itterations % 4 == 0 or stock["1MO"] is None:
+							error, stock["1MO"] = atock_api.Get1MO(ticker)
+							if error is True:
+								stock["1MO"] = None
+							else:
+								algos.CalculateBasicPrediction(stock, "1MO")
+								stock_prices = self.GetPriceListFromStockPeriod(stock["1MO"], "close")
+								stock["statistics"]["basic"][2] = algos.GetBasicStatistics(stock_prices)
+						# Get 3 months history
+						if Itterations % 8 == 0 or stock["3MO"] is None:
+							error, stock["3MO"] = atock_api.Get3MO(ticker)
+							if error is True:
+								stock["3MO"] = None
+							else:
+								algos.CalculateBasicPrediction(stock, "3MO")
+								stock_prices = self.GetPriceListFromStockPeriod(stock["3MO"], "close")
+								stock["statistics"]["basic"][3] = algos.GetBasicStatistics(stock_prices)
+						# Get 6 months history
+						if Itterations % 16 == 0 or stock["6MO"] is None:
+							error, stock["6MO"] = atock_api.Get6MO(ticker)
+							if error is True:
+								stock["6MO"] = None
+							else:
+								algos.CalculateBasicPrediction(stock, "6MO")
+								stock_prices = self.GetPriceListFromStockPeriod(stock["6MO"], "close")
+								stock["statistics"]["basic"][4] = algos.GetBasicStatistics(stock_prices)
+						# Get 1 year history
+						if Itterations % 32 == 0 or stock["1Y"] is None:
+							error, stock["1Y"] = atock_api.Get1Y(ticker)
+							if error is True:
+								stock["1Y"] = None
+							else:
+								algos.CalculateBasicPrediction(stock, "1Y")
+								stock_prices = self.GetPriceListFromStockPeriod(stock["1Y"], "close")
+								stock["statistics"]["basic"][5] = algos.GetBasicStatistics(stock_prices)
 						
 						# Calculate price difference bteween today and previouse day
 						if stock["1D"] is not None and stock["5D"] is not None:
@@ -382,8 +394,6 @@ class StockMarket():
 							# Update stock status to updated and update timestamp
 							stock["updated"] = True
 							stock["ts_last_updated"] 	= time.time()
-				# Wait several MS
-				time.sleep(Interval)
 				# Free to accept new job
 				self.ThreadPoolStatus[index] = False
 				# Signal master in case he waits on signal
@@ -394,6 +404,9 @@ class StockMarket():
 				stock["updated"] = False
 				self.ThreadPoolStatus[index] = False
 				self.Signal.set()
+			# Wait several MS
+			time.sleep(Interval)
+			Itterations += 1
 	
 	def StockMonitorWorker(self):
 		self.MarketPollingInterval = 0.5
