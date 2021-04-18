@@ -71,25 +71,13 @@
 				<div class="collapse navbar-collapse">
 					<ul class="navbar-nav">
 						<li class="nav-item">
-							<a class="nav-link active" id="id_m_main_dashboard" href="#" onclick="ui.ViewDashboard();">Dashboard</a>
+							<a class="nav-link active" id="id_m_main_funder_dashboard" href="#" onclick="ui.BindDashboardView();">Dashboard</a>
 						</li>
 						<li class="nav-item">
-							<a class="nav-link" id="id_m_main_stocks" href="#" onclick="ui.OpenModalAppendNewStock();">Stocks</a>
+							<a class="nav-link" id="id_m_main_funder_statistics" href="#" onclick="ui.BindStatisticsView();">Statistics</a>
 						</li>
 						<li class="nav-item">
-							<a class="nav-link" id="id_m_main_portfolio" href="#" onclick="ui.OpenModalPortfolio();">Portfolios</a>
-						</li>
-						<li class="nav-item">
-							<a class="nav-link" id="id_m_main_import" href="#" onclick="ui.OpenModalImportStocks();">Import</a>
-						</li>
-						<li class="nav-item">
-							<a class="nav-link" id="id_m_main_hunter" href="#">Hunter</a>
-						</li>
-						<li class="nav-item">
-							<a class="nav-link" id="id_m_main_export" href="#">Export</a>
-						</li>
-						<li class="nav-item">
-							<a class="nav-link" id="id_m_main_settings" href="#">Settings</a>
+							<a class="nav-link" id="id_m_main_funder_settings" href="#" onclick="ui.BindSettingsView();">Settings</a>
 						</li>
 					</ul>
 				</div>
@@ -156,20 +144,8 @@
 			console.log("Gateway IP address - " + GatewayIP);
 
 			// User Code #1 - Start
-			require ModuleStocksAdaptor
-			require ModuleDashboardView
-			require ModuleStockLine
-			require ModuleStockInfo
-			require ModuleStockHistoryGraph
-			require ModuleStockDetails
-			require ModulePortfolioView
-			require ModuleAction
-			require ModuleStockAppend
-			require ModuleImportActions
-			require ModulePortfolioSelectorView
-			require ModuleNasdaq
-			require ModuleStockMarket
 			require ModuleMainUI
+			require ModuleStatisticsView
 			// User Code #1 - End
 
 			$(document).ready(function() {
@@ -192,31 +168,11 @@
 
 			var UserNodeLoaded = function() {
 				// User Code #1 - Start
-				market 	= new StockMarket();
-				nasdaq  = new Nasdaq();
-
-				window.DashboardView = new ModuleDashboardView();
-				window.DashboardView.SetHostingID("id_application_view_module");
-				window.DashboardView.SetObjectDOMName("window.DashboardView");
-				
-				window.DashboardView.Build(null, function(module) {
-				});	
-				
-				window.StockAppend = new ModuleStockAppend();
-				window.StockAppend.SetHostingID("id_application_view_module");
-				window.StockAppend.SetObjectDOMName("window.StockAppend");
-				market.Register("window.StockAppend", window.StockAppend.UpdateStockTableAsync, window.StockAppend);
-
-				window.Portfolio = new ModulePortfolioView();
-				window.Portfolio.SetHostingID("id_application_view_module");
-				window.Portfolio.SetObjectDOMName("window.Portfolio");
-
-				window.ImportActions = new ModuleImportActions();
-				window.ImportActions.SetHostingID("id_application_view_module");
-				window.ImportActions.SetObjectDOMName("window.ImportActions");
+				window.SettingsView = new ModuleStatisticsView();
+				window.SettingsView.SetHostingID("id_application_view_module");
+				window.SettingsView.SetObjectDOMName("window.SettingsView");
 
 				ui = new NodeUI(node.API);
-				market.Start();
 				// User Code #1 - End
 			}
 
@@ -225,12 +181,10 @@
 				// User Code #1 - Start
 				switch(event) {
 					case "upload_progress": {
-						window.ImportActions.Uploader.UpdateProgress(data);
+						
 					}
 					break;
 					case "stock_info": {
-						// window.DashboardView.BuildStockAsync(data);
-						market.Publish(data);
 					}
 					break;
 				}
@@ -241,8 +195,6 @@
 			[NODE_INSTANCE]
 			// Self-generated area
 			var ui 		= null;
-			var market 	= null;
-			var nasdaq  = null;
 		</script>
 	</body>
 </html>

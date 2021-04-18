@@ -11,13 +11,13 @@ import datetime
 from datetime import date
 from datetime import datetime
 
-import math
-import sqlite3
-
 from mksdk import MkSFile
 from mksdk import MkSSlaveNode
 from mksdk import MkSScheduling
 from mksdk import MkSFileUploader
+
+from classes import FunderAPI
+from classes import DataBase
 
 class Context():
 	def __init__(self, node):
@@ -25,13 +25,15 @@ class Context():
 		self.Timer						= MkSScheduling.TimeSchedulerThreadless()
 		self.Node						= node
 		self.File						= MkSFile.File()
-		self.SQL 						= StockDataBase.StockDB("funder.db")
+		self.Funder 					= FunderAPI.Funder(self.Node)
+		self.SQL 						= DataBase.DB("funder.db")
 		# States
 		self.States = {
 		}
 		# Handlers
 		self.Node.ApplicationRequestHandlers	= {
 			'get_sensor_info':					self.GetSensorInfoHandler,
+			'confuguration': 					self.ConfigurationHandler,
 			'undefined':						self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -47,6 +49,22 @@ class Context():
 	
 	def UndefindHandler(self, sock, packet):
 		print ("UndefindHandler")
+	
+	def ConfigurationHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [ConfigurationHandler] {0}".format(payload,classname=self.ClassName),5)
+		operation = payload["operation"]
+
+		if "clean" in operation:
+			self.SQL.CleanDB()
+		elif "update" in operation:
+			pass
+		else:
+			pass
+		
+		return {
+
+		}
 	
 	def GetSensorInfoHandler(self, sock, packet):
 		print ("({classname})# GetSensorInfoHandler ...".format(classname=self.ClassName))
@@ -76,8 +94,89 @@ class Context():
 	def OnGetNodeInfoHandler(self, info):
 		self.Node.LogMSG("({classname})# [OnGetNodeInfoHandler] [{0}, {1}, {2}]".format(info["uuid"],info["name"],info["type"],classname=self.ClassName),5)
 
+	def CheckValidity(self, fund):
+		if fund["number"] is None:
+			return False, None
+		
+		if fund["name"] is None:
+			fund["name"] = ""
+		if fund["mngr"] is None:
+			fund["mngr"] = ""
+		if fund["ivest_mngr"] is None:
+			fund["ivest_mngr"] = ""
+		if fund["d_change"] is None:
+			fund["d_change"] = 0.0
+		if fund["month_begin"] is None:
+			fund["month_begin"] = 0.0
+		if fund["y_change"] is None:
+			fund["y_change"] = 0.0
+		if fund["year_begin"] is None:
+			fund["year_begin"] = 0.0
+		if fund["fee"] is None:
+			fund["fee"] = 0.0
+		if fund["fund_size"] is None:
+			fund["fund_size"] = 0.0
+		if fund["last_updated"] is None:
+			fund["last_updated"] = ""
+		if fund["mimic"] is None:
+			fund["mimic"] = ""
+		
+		return True, fund
+
 	def NodeSystemLoadedHandler(self):
 		self.Node.LogMSG("({classname})# Loading system ...".format(classname=self.ClassName),5)
+		# Get all funds from Funder
+		self.Node.LogMSG("({classname})# Request all funds from Funnder".format(classname=self.ClassName),5)
+		funds = self.Funder.GetFunderJsonDB()
+		if funds is not None:
+			for fund in funds[:10]:
+				fund_db = {
+					"number": 		fund["fundNum"],
+					"name":			fund["fundName"],
+					"mngr":			fund["fundMng"],
+					"ivest_mngr":	fund["invstMng"],
+					"d_change":		fund["1day"],
+					"month_begin":	fund["monthBegin"],
+					"y_change":		fund["1year"],
+					"year_begin":	fund["yearBegin"],
+					"fee":			fund["nihol"],
+					"fund_size":	fund["rSize"],
+					"last_updated":	fund["lastUpdate"],
+					"mimic":		fund["mehaka"],
+					"json":			"" # json.dumps(fund,ensure_ascii=False)
+				}
+				valid, data = self.CheckValidity(fund_db)
+				if valid is True:
+					self.Node.LogMSG("({classname})# Update local DB with fund ({0}) info ".format(fund["fundNum"],classname=self.ClassName),5)
+					if self.SQL.IsFundInfoExist(fund["fundNum"]) is False:
+						self.SQL.InsertFundInfo(data)
+					else:
+						self.SQL.UpdateFundInfo(data)
+					
+					self.Node.LogMSG("({classname})# Request fund's holdings".format(classname=self.ClassName),5)
+					# Get fund info
+					info = self.Funder.GetFundInfoFromDB(fund["fundNum"])
+					if info is not None:
+						for holds in info:
+							holding_list = holds["holdingItemsList"]
+							for hold in holding_list:
+								stock_db = {
+									"name": 	hold["aName"],
+									"ticker": 	hold["TICKER"],
+									"type": 	hold["fType"]
+								}
+								bond_db = {
+									"number": 	fund["fundNum"],
+									"ticker": 	hold["TICKER"],
+									"perc": 	hold["perc"],
+									"val": 		hold["valShk"],
+									"amount": 	hold["amount"]
+								}
+								self.Node.LogMSG("({classname})# Update local DB with holding ({0}) ".format(hold["TICKER"],classname=self.ClassName),5)
+								if self.SQL.IsStockExist(hold["TICKER"]) is False:
+									self.SQL.InsertStock(stock_db)
+									self.SQL.InsertStockToFund(bond_db)
+		self.Node.LogMSG("({classname})# Loading system ... Done.".format(classname=self.ClassName),5)
 	
 	def OnGetNodesListHandler(self, uuids):
 		print ("OnGetNodesListHandler", uuids)
@@ -97,8 +196,6 @@ Node = MkSSlaveNode.SlaveNode()
 THIS = Context(Node)
 
 def signal_handler(signal, frame):
-	THIS.MarketRemote.Stop()
-	THIS.Uploader.Stop()
 	THIS.Node.Stop("Accepted signal from other app")
 
 def main():
