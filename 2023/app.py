@@ -122,14 +122,50 @@ class Context():
 			fund["mimic"] = ""
 		
 		return True, fund
+	
+	def UpdateFundHoldings(self, fund):
+		self.Node.LogMSG("({classname})# Request fund's holdings".format(classname=self.ClassName),5)
+		# Get fund info
+		info = self.Funder.GetFundInfoFromDB(fund["fundNum"])
+		if info is not None:
+			for holds in info:
+				# TODO - Check for stock list difference
+				holding_list = holds["holdingItemsList"]
+				for hold in holding_list:
+					stock_db = {
+						"name": 	hold["aName"],
+						"ticker": 	hold["TICKER"],
+						"type": 	hold["fType"]
+					}
+					bond_db = {
+						"number": 	fund["fundNum"],
+						"ticker": 	hold["TICKER"],
+						"perc": 	hold["perc"],
+						"val": 		hold["valShk"],
+						"amount": 	hold["amount"]
+					}
 
-	def NodeSystemLoadedHandler(self):
-		self.Node.LogMSG("({classname})# Loading system ...".format(classname=self.ClassName),5)
-		# Get all funds from Funder
+					stock_id = 0
+					fund_id  = fund["fund_id"]
+					is_exist, item = self.SQL.IsStockExist(hold["TICKER"])
+					if is_exist is False:
+						self.Node.LogMSG("({classname})# Update local DB with holding ({0}) ".format(hold["TICKER"],classname=self.ClassName),5)
+						stock_id = self.SQL.InsertStock(stock_db)
+					else:
+						stock_id = item["id"]
+					
+					# Check if this constalation exist
+					if self.SQL.IsFundToStockExist(fund_id, stock_id) is False:
+						bond_db["fund_id"]  = fund_id
+						bond_db["stock_id"] = stock_id
+						self.Node.LogMSG("({classname})# Update local DB with bonding ({0}) {1} ({2} -> {3})".format(fund["fundNum"], hold["TICKER"],fund_id,stock_id,classname=self.ClassName),5)
+						self.SQL.InsertStockToFund(bond_db)
+	
+	def UpdateFundsInfo(self):
 		self.Node.LogMSG("({classname})# Request all funds from Funnder".format(classname=self.ClassName),5)
 		funds = self.Funder.GetFunderJsonDB()
 		if funds is not None:
-			for fund in funds[:10]:
+			for fund in funds[:]:
 				fund_db = {
 					"number": 		fund["fundNum"],
 					"name":			fund["fundName"],
@@ -145,37 +181,28 @@ class Context():
 					"mimic":		fund["mehaka"],
 					"json":			"" # json.dumps(fund,ensure_ascii=False)
 				}
-				valid, data = self.CheckValidity(fund_db)
-				if valid is True:
-					self.Node.LogMSG("({classname})# Update local DB with fund ({0}) info ".format(fund["fundNum"],classname=self.ClassName),5)
-					if self.SQL.IsFundInfoExist(fund["fundNum"]) is False:
-						self.SQL.InsertFundInfo(data)
-					else:
-						self.SQL.UpdateFundInfo(data)
-					
-					self.Node.LogMSG("({classname})# Request fund's holdings".format(classname=self.ClassName),5)
-					# Get fund info
-					info = self.Funder.GetFundInfoFromDB(fund["fundNum"])
-					if info is not None:
-						for holds in info:
-							holding_list = holds["holdingItemsList"]
-							for hold in holding_list:
-								stock_db = {
-									"name": 	hold["aName"],
-									"ticker": 	hold["TICKER"],
-									"type": 	hold["fType"]
-								}
-								bond_db = {
-									"number": 	fund["fundNum"],
-									"ticker": 	hold["TICKER"],
-									"perc": 	hold["perc"],
-									"val": 		hold["valShk"],
-									"amount": 	hold["amount"]
-								}
-								self.Node.LogMSG("({classname})# Update local DB with holding ({0}) ".format(hold["TICKER"],classname=self.ClassName),5)
-								if self.SQL.IsStockExist(hold["TICKER"]) is False:
-									self.SQL.InsertStock(stock_db)
-									self.SQL.InsertStockToFund(bond_db)
+				if fund is not None:
+					valid, data = self.CheckValidity(fund_db)
+					if valid is True:
+						is_exist, item = self.SQL.IsFundInfoExist(fund["fundNum"])
+						if is_exist is False:
+							self.Node.LogMSG("({classname})# Insert local DB with fund ({0}) info ".format(fund["fundNum"],classname=self.ClassName),5)
+							fund["fund_id"] = self.SQL.InsertFundInfo(data)
+							self.UpdateFundHoldings(fund)
+						else:
+							if fund["lastUpdate"] not in item["last_updated"]:
+								self.Node.LogMSG("({classname})# Update local DB with fund ({0}) info ".format(fund["fundNum"],classname=self.ClassName),5)
+								# TODO - Check for info changes
+								self.SQL.UpdateFundInfo(data)
+								fund["fund_id"] = item["id"]
+								self.UpdateFundHoldings(fund)
+							else:
+								pass
+
+	def NodeSystemLoadedHandler(self):
+		self.Node.LogMSG("({classname})# Loading system ...".format(classname=self.ClassName),5)
+		# Get all funds from Funder
+		self.UpdateFundsInfo()
 		self.Node.LogMSG("({classname})# Loading system ... Done.".format(classname=self.ClassName),5)
 	
 	def OnGetNodesListHandler(self, uuids):
