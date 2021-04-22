@@ -283,7 +283,7 @@ class StockMarket():
 		self.ThreadPoolLocker.acquire()
 		self.JoblessMinions += 1
 		self.ThreadPoolLocker.release()
-		Interval 	= 0.25
+		Interval 	= 0.5
 		Itterations = 0
 
 		algos = StockCalculation()

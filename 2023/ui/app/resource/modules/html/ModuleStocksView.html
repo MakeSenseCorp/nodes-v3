@@ -1,0 +1,46 @@
+<div class="row" id="id_m_funder_stocks_view_[ID]">
+    <div class="col-xl-12">
+        <div class="row">
+            <div class="col-xl-12">
+                <h5 class="mb-3">Search stock</h5>
+                <div class="mb-3">
+                    <div class="input-group">
+                        <input type="text" id="" class="form-control mr-sm-2" placeholder="Stock ticker">
+                        <button class="btn btn-outline-success my-2 my-sm-0" onclick="">Find</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <br>
+        <div class="row">
+            <div class="col-xl-4">
+                <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="id_m_funder_stocks_view_us_stocks_checkbox" onclick="window.StocksView.FilterOutput(this);">
+                    <label class="custom-control-label" for="id_m_funder_stocks_view_us_stocks_checkbox">US Stocks</label>
+                </div>
+            </div>
+            <div class="col-xl-4">
+                <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="id_m_funder_stocks_view_is_stocks_checkbox" onclick="window.StocksView.FilterOutput(this);">
+                    <label class="custom-control-label" for="id_m_funder_stocks_view_is_stocks_checkbox">IS Stocks</label>
+                </div>
+            </div>
+            <div class="col-xl-4">
+                <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="id_m_funder_stocks_view_government_stocks_checkbox" onclick="window.StocksView.FilterOutput(this);">
+                    <label class="custom-control-label" for="id_m_funder_stocks_view_government_stocks_checkbox">Government Stocks</label>
+                </div>
+            </div>
+        </div>
+        <br>
+        <div class="row">
+            <div class="col-xl-12">
+                <h5 class="mb-3">Stock list</h5>
+                <div class="mb-3">
+                    <div id="id_m_funder_stocks_view_rates_table"></div>
+                </div>
+            </div>
+        </div>
+        <br>
+    </div>
+</div>

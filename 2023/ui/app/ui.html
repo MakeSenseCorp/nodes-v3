@@ -66,12 +66,15 @@
 			<nav class="navbar navbar-expand-lg navbar-light bg-light">
 				<a class="navbar-brand" href="#">
 					<img id="navbar_icon" data-obj="mks" width="30" height="30" src="resource/img/main_icon.jpg" class="d-inline-block align-top" alt="" />
-					Stock Monitor
+					Funder Monitor
 				</a>
 				<div class="collapse navbar-collapse">
 					<ul class="navbar-nav">
 						<li class="nav-item">
 							<a class="nav-link active" id="id_m_main_funder_dashboard" href="#" onclick="ui.BindDashboardView();">Dashboard</a>
+						</li>
+						<li class="nav-item">
+							<a class="nav-link" id="id_m_main_funder_stocks" href="#" onclick="ui.BindStocksView();">Stocks</a>
 						</li>
 						<li class="nav-item">
 							<a class="nav-link" id="id_m_main_funder_statistics" href="#" onclick="ui.BindStatisticsView();">Statistics</a>
@@ -82,34 +85,7 @@
 					</ul>
 				</div>
 			</nav>
-			<div>
-				<hr>
-				<div class="row">
-					<div class="col-xl-12">
-						<div class="row">
-							<div class="col-xl-2 text-center">
-								<span style="cursor: pointer;">Nasdaq</span>
-							</div>
-							<div class="col-xl-2 text-center">
-								<span style="cursor: pointer;">S&P 500</span>
-							</div>
-							<div class="col-xl-2 text-center">
-								<span style="cursor: pointer;">Gold</span>
-							</div>
-							<div class="col-xl-2 text-center">
-								<span style="cursor: pointer;">Cruid Oil</span>
-							</div>
-							<div class="col-xl-2 text-center">
-								<span style="cursor: pointer;">CMC Crypto 200</span>
-							</div>
-							<div class="col-xl-2 text-center">
-								<span style="cursor: pointer;">USD/ILS</span>
-							</div>
-						</div>
-					</div>
-				</div>
-				<hr>
-			</div>
+			<br>
 			<div>
 				<br>
 				<div id="id_application_view_module"></div>
@@ -146,6 +122,10 @@
 			// User Code #1 - Start
 			require ModuleMainUI
 			require ModuleStatisticsView
+			require ModuleDashboardView
+			require ModuleSettingsView
+			require ModuleStocksView
+			require ModuleFundInfoView
 			// User Code #1 - End
 
 			$(document).ready(function() {
@@ -168,11 +148,24 @@
 
 			var UserNodeLoaded = function() {
 				// User Code #1 - Start
-				window.SettingsView = new ModuleStatisticsView();
+				window.StatisticsView = new ModuleStatisticsView();
+				window.StatisticsView.SetHostingID("id_application_view_module");
+				window.StatisticsView.SetObjectDOMName("window.StatisticsView");
+
+				window.DashboardView = new ModuleDashboardView();
+				window.DashboardView.SetHostingID("id_application_view_module");
+				window.DashboardView.SetObjectDOMName("window.DashboardView");
+
+				window.SettingsView = new ModuleSettingsView();
 				window.SettingsView.SetHostingID("id_application_view_module");
 				window.SettingsView.SetObjectDOMName("window.SettingsView");
 
+				window.StocksView = new ModuleStocksView();
+				window.StocksView.SetHostingID("id_application_view_module");
+				window.StocksView.SetObjectDOMName("window.StocksView");
+
 				ui = new NodeUI(node.API);
+				ui.BindDashboardView();
 				// User Code #1 - End
 			}
 

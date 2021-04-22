@@ -5,6 +5,8 @@ import time
 import base64
 import datetime
 from datetime import date
+import _thread
+import threading
 
 import math
 import sqlite3
@@ -12,9 +14,10 @@ import sqlite3
 class DB():
 	def __init__(self, path):
 		path = os.path.join("", path)
-		self.ClassName	= "DB"
-		self.DB 		= sqlite3.connect(path, check_same_thread=False)
-		self.CURS		= self.DB.cursor()
+		self.ClassName		= "DB"
+		self.DB 			= sqlite3.connect(path, check_same_thread=False)
+		self.CURS			= self.DB.cursor()
+		self.Locker		 	= threading.Lock()
 
 		self.BuildSchema()
 	
@@ -56,6 +59,9 @@ class DB():
 		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "fund_history_changes" (
 							"id"				INTEGER PRIMARY KEY AUTOINCREMENT,
 							"number" 			INTEGER,
+							"name" 				TEXT,
+							"date" 				TEXT,
+							"timestamp"			INTEGER,
 							"change"			TEXT
 						);''')
 
@@ -65,46 +71,122 @@ class DB():
 		pass
 
 	def CleanDB(self):
-		query = "DELETE FROM funds_info"
-		self.CURS.execute(query)
-		self.DB.commit()
+		self.Locker.acquire()
+		try:
+			query = "DELETE FROM funds_info"
+			self.CURS.execute(query)
+			self.DB.commit()
 
-		query = "DELETE FROM stocks"
-		self.CURS.execute(query)
-		self.DB.commit()
+			query = "DELETE FROM stocks"
+			self.CURS.execute(query)
+			self.DB.commit()
 
-		query = "DELETE FROM stock_to_fund"
-		self.CURS.execute(query)
-		self.DB.commit()
+			query = "DELETE FROM stock_to_fund"
+			self.CURS.execute(query)
+			self.DB.commit()
+		except:
+			pass
+		self.Locker.release()
 
 	def IsFundInfoExist(self, number):
-		query = "SELECT id,number,name,mngr,ivest_mngr,d_change,month_begin,y_change,year_begin,fee,fund_size,last_updated,mimic FROM funds_info WHERE number = {0}".format(number)
-		self.CURS.execute(query)
+		try:
+			info = self.SelectFundInfoByNumber(number)
+		except:
+			pass
 
-		rows = self.CURS.fetchall()
-		if len(rows) > 0:
-			return True, { 
-				"id": 			rows[0][0],
-				"number": 		rows[0][1],
-				"name": 		rows[0][2],
-				"mngr": 		rows[0][3],
-				"ivest_mngr": 	rows[0][4],
-				"d_change": 	rows[0][5],
-				"month_begin": 	rows[0][6],
-				"y_change": 	rows[0][7],
-				"year_begin": 	rows[0][8],
-				"fee": 			rows[0][9],
-				"fund_size": 	rows[0][10],
-				"last_updated": rows[0][11],
-				"mimic": 		rows[0][12]
-			}
+		if info is None:
+			return False, None
+		return True, info
+	
+	def SelectFundInfoByNumber(self, number):
+		self.Locker.acquire()
+		info = None
+		try:
+			query = "SELECT id,number,name,mngr,ivest_mngr,d_change,month_begin,y_change,year_begin,fee,fund_size,last_updated,mimic FROM funds_info WHERE number = {0}".format(number)
+			self.CURS.execute(query)
+
+			rows = self.CURS.fetchall()
+			if len(rows) > 0:
+				info = { 
+					"id": 			rows[0][0],
+					"number": 		rows[0][1],
+					"name": 		rows[0][2],
+					"mngr": 		rows[0][3],
+					"ivest_mngr": 	rows[0][4],
+					"d_change": 	rows[0][5],
+					"month_begin": 	rows[0][6],
+					"y_change": 	rows[0][7],
+					"year_begin": 	rows[0][8],
+					"fee": 			rows[0][9],
+					"fund_size": 	rows[0][10],
+					"last_updated": rows[0][11],
+					"mimic": 		rows[0][12]
+				}
+		except:
+			pass
+		self.Locker.release()
 		
-		return False, None
+		return info
+	
+	def SelectFundHoldingsByNumber(self, number):
+		self.Locker.acquire()
+		try:
+			query = '''
+					SELECT stock_to_fund.ticker, stock_to_fund.val, stock_to_fund.amount, stock_to_fund.perc FROM funds_info 
+					INNER JOIN stock_to_fund ON funds_info.id = stock_to_fund.fund_id
+					WHERE funds_info.number = {0}
+					'''.format(number)
+			self.CURS.execute(query)
+
+			holdings = []
+			rows = self.CURS.fetchall()
+			if len(rows) > 0:
+				for row in rows:
+					holdings.append({ 
+						"ticker":	row[0],
+						"val": 		row[1],
+						"amount":	row[2],
+						"perc":		row[3]
+					})
+		except:
+			pass
+		self.Locker.release()
+		
+		return holdings
 
 	def SelectFundsInfo(self):
-		pass
+		self.Locker.acquire()
+		try:
+			query = "SELECT id,number,name,mngr,ivest_mngr,d_change,month_begin,y_change,year_begin,fee,fund_size,last_updated,mimic FROM funds_info"
+			self.CURS.execute(query)
+
+			funds = []
+			rows = self.CURS.fetchall()
+			if len(rows) > 0:
+				for row in rows:
+					funds.append({ 
+						"id": 			row[0],
+						"number": 		row[1],
+						"name": 		row[2],
+						"mngr": 		row[3],
+						"ivest_mngr": 	row[4],
+						"d_change": 	row[5],
+						"month_begin": 	row[6],
+						"y_change": 	row[7],
+						"year_begin": 	row[8],
+						"fee": 			row[9],
+						"fund_size": 	row[10],
+						"last_updated": row[11],
+						"mimic": 		row[12]
+					})
+		except:
+			pass
+		self.Locker.release()
+		
+		return funds
 
 	def InsertFundInfo(self, fund):
+		self.Locker.acquire()
 		try:
 			query = '''
 				INSERT INTO funds_info (id,number,name,mngr,ivest_mngr,d_change,month_begin,y_change,year_begin,fee,fund_size,last_updated,mimic,json)
@@ -112,33 +194,67 @@ class DB():
 			'''.format(fund["number"],fund["name"],fund["mngr"],fund["ivest_mngr"],fund["d_change"],fund["month_begin"],fund["y_change"],fund["year_begin"],fund["fee"],fund["fund_size"],fund["last_updated"],fund["mimic"],fund["json"])
 			self.CURS.execute(query)
 			self.DB.commit()
+			self.Locker.release()
 			return self.CURS.lastrowid
 		except Exception as e:
 			print("ERROR {0}".format(e))
+		self.Locker.release()
 		return 0
 
-	def UpdateFundInfo(self, number):
-		pass
+	def UpdateFundInfo(self, info):
+		self.Locker.acquire()
+		try:
+			query = '''
+				UPDATE funds_info
+				SET name = '{0}',
+					mngr = '{1}',
+					ivest_mngr = '{2}',
+					d_change = {3},
+					month_begin = {4},
+					y_change = {5},
+					year_begin = {6},
+					fee = {7},
+					fund_size = {8},
+					last_updated = '{9}',
+					mimic = {10}
+				WHERE number = '{11}'
+			'''.format(info["name"],info["mngr"],info["ivest_mngr"],info["d_change"],info["month_begin"],info["y_change"],info["year_begin"],info["fee"],info["fund_size"],info["last_updated"],info["mimic"],info["number"])
+
+		
+			self.CURS.execute(query)
+			self.DB.commit()
+		except:
+			return -1
+		
+		self.Locker.release()
+		return self.CURS.lastrowid
 
 	def DeleteFundInfo(self, number):
 		pass
 	
 	def IsStockExist(self, ticker):
-		query = "SELECT id,ticker,name,type FROM stocks WHERE ticker = '{0}'".format(ticker)
-		self.CURS.execute(query)
+		self.Locker.acquire()
+		try:
+			query = "SELECT id,ticker,name,type FROM stocks WHERE ticker = '{0}'".format(ticker)
+			self.CURS.execute(query)
 
-		rows = self.CURS.fetchall()
-		if len(rows) > 0:
-			return True, { 
-				"id": 		rows[0][0],
-				"ticker": 	rows[0][1],
-				"name": 	rows[0][2],
-				"type": 	rows[0][3]
-			}
+			rows = self.CURS.fetchall()
+			self.Locker.release()
+			if len(rows) > 0:				
+				return True, { 
+					"id": 		rows[0][0],
+					"ticker": 	rows[0][1],
+					"name": 	rows[0][2],
+					"type": 	rows[0][3]
+				}
+		except:
+			pass
 		
+		self.Locker.release()
 		return False, None
 	
 	def InsertStock(self, stock):
+		self.Locker.acquire()
 		try:
 			query = '''
 				INSERT INTO stocks (id,ticker,name,type)
@@ -146,22 +262,31 @@ class DB():
 			'''.format(stock["ticker"],stock["name"],stock["type"])
 			self.CURS.execute(query)
 			self.DB.commit()
+			self.Locker.release()
 			return self.CURS.lastrowid
 		except Exception as e:
 			print("ERROR {0}".format(e))
+		
+		self.Locker.release()
 		return 0
 	
 	def IsFundToStockExist(self, fund_id, stock_id):
-		query = "SELECT * FROM stock_to_fund WHERE fund_id = {0} AND stock_id = {1}".format(fund_id, stock_id)
-		self.CURS.execute(query)
+		self.Locker.acquire()
+		try:
+			query = "SELECT * FROM stock_to_fund WHERE fund_id = {0} AND stock_id = {1}".format(fund_id, stock_id)
+			self.CURS.execute(query)
+			rows = self.CURS.fetchall()
+			self.Locker.release()
+			if len(rows) > 0:
+				return True
+		except:
+			pass
 
-		rows = self.CURS.fetchall()
-		if len(rows) > 0:
-			return True
-		
+		self.Locker.release()
 		return False
 	
 	def InsertStockToFund(self, bond):
+		self.Locker.acquire()
 		try:
 			query = '''
 				INSERT INTO stock_to_fund (fund_id,stock_id,number,ticker,val,amount,perc)
@@ -169,7 +294,92 @@ class DB():
 			'''.format(bond["fund_id"],bond["stock_id"],bond["number"],bond["ticker"],bond["val"],bond["amount"],bond["perc"])
 			self.CURS.execute(query)
 			self.DB.commit()
+			self.Locker.release()
 			return self.CURS.lastrowid
 		except Exception as e:
 			print("ERROR {0}".format(e))
+
+		self.Locker.release()
 		return 0
+	
+	def InsertFundHistoryChange(self, item):
+		self.Locker.acquire()
+		try:
+			query = '''
+				INSERT INTO fund_history_changes (id,number,name,date,timestamp,change)
+				VALUES (NULL, {0},'{1}','{2}',{3},'{4}')
+			'''.format(item["number"],item["name"],"",time.time(),item["msg"])
+			self.CURS.execute(query)
+			self.DB.commit()
+			self.Locker.release()
+			return self.CURS.lastrowid
+		except Exception as e:
+			print("ERROR [InsertFundHistoryChange] {0}".format(e))
+		
+		self.Locker.release()
+		return 0
+
+	def SelectStocksRate(self):
+		self.Locker.acquire()
+		try:
+			query = '''
+				SELECT stocks.name, stocks.ticker, stocks.type, count(stocks.ticker) as funds_count FROM stocks
+				LEFT JOIN stock_to_fund ON stocks.id = stock_to_fund.stock_id
+				GROUP BY stocks.ticker
+				ORDER BY funds_count DESC
+			'''
+			self.CURS.execute(query)
+
+			funds = []
+			rows = self.CURS.fetchall()
+			if len(rows) > 0:
+				for row in rows:
+					funds.append({ 
+						"name": 		row[0],
+						"ticker": 		row[1],
+						"type": 		row[2],
+						"funds_count": 	row[3],
+					})
+		except:
+			pass
+		self.Locker.release()
+		
+		return funds
+'''
+SELECT * FROM (
+SELECT stocks.name, stocks.ticker, stocks.type, count(stocks.ticker) as funds_count FROM stocks
+LEFT JOIN stock_to_fund ON stocks.id = stock_to_fund.stock_id
+GROUP BY stocks.ticker
+ORDER BY funds_count DESC)
+WHERE ticker == "DIS"
+
+1 - MENAYOT
+3 - יהש
+5
+6
+7
+9
+10 - AGAH
+11
+12 - MIMSHALTI
+13 - MAKAM
+14
+15
+17
+18
+19 - TREASURY
+22 - AGAH
+33 - MADADIM
+34
+35
+36 - CURRENCY
+(*) 43 - TRUST
+44 - ETFS
+45
+50 - HTF
+51 - SAL
+100 - (?)
+102 - NAAM
+(*) 1001 - STOCKS
+
+'''

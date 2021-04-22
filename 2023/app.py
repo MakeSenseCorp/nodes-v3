@@ -34,6 +34,9 @@ class Context():
 		self.Node.ApplicationRequestHandlers	= {
 			'get_sensor_info':					self.GetSensorInfoHandler,
 			'confuguration': 					self.ConfigurationHandler,
+			'get_all_funds': 					self.GetAllFundsHandler,
+			'get_fund_info': 					self.GetFundInfoHandler,
+			'get_stocks_rate':					self.GetStocksRateHandler,
 			'undefined':						self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -46,10 +49,39 @@ class Context():
 		# Application variables
 		self.UploadLocker 				= threading.Lock()
 		self.LocalStoragePath 			= "import"
+		self.DBUpdateStatus 			= {
+			"status": "IDLE",
+			"update_perc": 0,
+			"working": False
+		}
 	
 	def UndefindHandler(self, sock, packet):
 		print ("UndefindHandler")
 	
+	def GetStocksRateHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetStocksRateHandler] {0}".format(payload,classname=self.ClassName),5)
+
+		return {
+			"ratings": self.SQL.SelectStocksRate()
+		}
+
+	def GetFundInfoHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetFundInfoHandler] {0}".format(payload,classname=self.ClassName),5)
+
+		number = payload["number"]
+		return {
+			"holdings": self.SQL.SelectFundHoldingsByNumber(number)
+		}
+
+	def GetAllFundsHandler(self, sock, packet):
+		self.Node.LogMSG("({classname})# [GetAllFundsHandler]".format(classname=self.ClassName),5)
+
+		return {
+			"funds": self.SQL.SelectFundsInfo()
+		}
+
 	def ConfigurationHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [ConfigurationHandler] {0}".format(payload,classname=self.ClassName),5)
@@ -57,13 +89,25 @@ class Context():
 
 		if "clean" in operation:
 			self.SQL.CleanDB()
-		elif "update" in operation:
-			pass
+		elif "update_start" in operation:
+			self.UpdateFundsInfo()
+			return {
+				"status": True
+			}
+		elif "update_stop" in operation:
+			self.DBUpdateStatus["working"] = False
+			return {
+				"status": True
+			}
+		elif "status" in operation:
+			return {
+				"update_status": self.DBUpdateStatus
+			}
 		else:
 			pass
 		
 		return {
-
+			"error": "none"
 		}
 	
 	def GetSensorInfoHandler(self, sock, packet):
@@ -94,6 +138,40 @@ class Context():
 	def OnGetNodeInfoHandler(self, info):
 		self.Node.LogMSG("({classname})# [OnGetNodeInfoHandler] [{0}, {1}, {2}]".format(info["uuid"],info["name"],info["type"],classname=self.ClassName),5)
 
+	def CheckForFundInfoChange(self, left, right):
+		msg = ""
+		if left["number"] != right["number"]:
+			return False
+		if left["name"] != right["name"]:
+			msg += "Name {0} -> {1}\n".format(left["name"],right["name"])
+		if left["mngr"] != right["mngr"]:
+			msg += "Manager {0} -> {1}\n".format(left["mngr"],right["mngr"])
+		if left["ivest_mngr"] != right["ivest_mngr"]:
+			msg += "Investing Manager {0} -> {1}\n".format(left["ivest_mngr"],ivest_mngr["name"])
+		if left["d_change"] != right["d_change"]:
+			msg += "Day Change {0} -> {1}\n".format(left["d_change"],right["d_change"])
+		if left["month_begin"] != right["month_begin"]:
+			msg += "Monthly Change {0} -> {1}\n".format(left["month_begin"],right["month_begin"])
+		if left["y_change"] != right["y_change"]:
+			msg += "Year Change {0} -> {1}\n".format(left["y_change"],right["y_change"])
+		if left["year_begin"] != right["year_begin"]:
+			msg += "Yearly Change {0} -> {1}\n".format(left["year_begin"],right["year_begin"])
+		if left["fee"] != right["fee"]:
+			msg += "Fee {0} -> {1}\n".format(left["fee"],right["fee"])
+		if left["fund_size"] != right["fund_size"]:
+			msg += "Fund Size {0} -> {1}\n".format(left["fund_size"],right["fund_size"])
+		if left["last_updated"] != right["last_updated"]:
+			msg += "Last Update {0} -> {1}\n".format(left["last_updated"],right["last_updated"])
+		if left["mimic"] != right["mimic"]:
+			msg += "Mimic Fund {0} -> {1}\n".format(left["mimic"],right["mimic"])
+	
+		self.SQL.InsertFundHistoryChange({
+						"number": right["number"],
+						"name": right["name"],
+						"msg": msg
+					})
+		return True
+
 	def CheckValidity(self, fund):
 		if fund["number"] is None:
 			return False, None
@@ -123,51 +201,112 @@ class Context():
 		
 		return True, fund
 	
+	def FindDifference(self, old, new):
+		new_items 		= []
+		deleted_items 	= []
+		for item in old:
+			if item not in new:
+				deleted_items.append(item)
+		for item in new:
+			if item not in old:
+				new_items.append(item)
+		
+		return new_items, deleted_items
+	
+	def GenerateTickerListFromFunder(self, info):
+		tickers = []
+		for holds in info:
+			holding_list = holds["holdingItemsList"]
+			for hold in holding_list:
+				if hold["TICKER"] != "":
+					tickers.append(hold["TICKER"])
+		return tickers
+	
+	def GenerateTickerListFromDB(self, number):
+		tickers = []
+		stocks = self.SQL.SelectFundHoldingsByNumber(number)
+		for stock in stocks:
+			if stock["ticker"] != "":
+				tickers.append(stock["ticker"])
+		return tickers
+
 	def UpdateFundHoldings(self, fund):
 		self.Node.LogMSG("({classname})# Request fund's holdings".format(classname=self.ClassName),5)
 		# Get fund info
 		info = self.Funder.GetFundInfoFromDB(fund["fundNum"])
 		if info is not None:
+			# TODO - Check for stock list difference
+			new_ticker_list = self.GenerateTickerListFromFunder(info)
+			old_ticker_list = self.GenerateTickerListFromDB(fund["fundNum"])
+			new, deleted = self.FindDifference(old_ticker_list, new_ticker_list)
+
+			if len(new) > 0:
+				for item in new:
+					self.SQL.InsertFundHistoryChange({
+						"number": fund["fundNum"],
+						"name": fund["fundName"],
+						"msg": "New stock ({0}) was added to {1} {2}".format(item,fund["fundNum"],fund["fundName"])
+					})
+			
+			if len(deleted) > 0:
+				for item in deleted:
+					self.SQL.InsertFundHistoryChange({
+						"number": fund["fundNum"],
+						"name": fund["fundName"],
+						"msg": "Stock ({0}) was deleted from {1} ({2})".format(item,fund["fundNum"],fund["fundName"])
+					})
+					# Delete from stock_to_fund
+
 			for holds in info:
-				# TODO - Check for stock list difference
 				holding_list = holds["holdingItemsList"]
 				for hold in holding_list:
-					stock_db = {
-						"name": 	hold["aName"],
-						"ticker": 	hold["TICKER"],
-						"type": 	hold["fType"]
-					}
-					bond_db = {
-						"number": 	fund["fundNum"],
-						"ticker": 	hold["TICKER"],
-						"perc": 	hold["perc"],
-						"val": 		hold["valShk"],
-						"amount": 	hold["amount"]
-					}
+					if hold["TICKER"] != "":
+						stock_db = {
+							"name": 	hold["aName"],
+							"ticker": 	hold["TICKER"],
+							"type": 	hold["fType"]
+						}
+						bond_db = {
+							"number": 	fund["fundNum"],
+							"ticker": 	hold["TICKER"],
+							"perc": 	hold["perc"],
+							"val": 		hold["valShk"],
+							"amount": 	hold["amount"]
+						}
 
-					stock_id = 0
-					fund_id  = fund["fund_id"]
-					is_exist, item = self.SQL.IsStockExist(hold["TICKER"])
-					if is_exist is False:
-						self.Node.LogMSG("({classname})# Update local DB with holding ({0}) ".format(hold["TICKER"],classname=self.ClassName),5)
-						stock_id = self.SQL.InsertStock(stock_db)
-					else:
-						stock_id = item["id"]
-					
-					# Check if this constalation exist
-					if self.SQL.IsFundToStockExist(fund_id, stock_id) is False:
-						bond_db["fund_id"]  = fund_id
-						bond_db["stock_id"] = stock_id
-						self.Node.LogMSG("({classname})# Update local DB with bonding ({0}) {1} ({2} -> {3})".format(fund["fundNum"], hold["TICKER"],fund_id,stock_id,classname=self.ClassName),5)
-						self.SQL.InsertStockToFund(bond_db)
-	
-	def UpdateFundsInfo(self):
+						stock_id = 0
+						fund_id  = fund["fund_id"]
+						is_exist, item = self.SQL.IsStockExist(hold["TICKER"])
+						if is_exist is False:
+							self.Node.LogMSG("({classname})# Update local DB with holding ({0}) ".format(hold["TICKER"],classname=self.ClassName),5)
+							stock_id = self.SQL.InsertStock(stock_db)
+						else:
+							stock_id = item["id"]
+						
+						# Check if this constalation exist
+						if self.SQL.IsFundToStockExist(fund_id, stock_id) is False:
+							bond_db["fund_id"]  = fund_id
+							bond_db["stock_id"] = stock_id
+							self.Node.LogMSG("({classname})# Update local DB with bonding ({0}) {1} ({2} -> {3})".format(fund["fundNum"], hold["TICKER"],fund_id,stock_id,classname=self.ClassName),5)
+							self.SQL.InsertStockToFund(bond_db)
+						else:
+							pass
+
+	def DBUpdateWorker(self):
 		self.Node.LogMSG("({classname})# Request all funds from Funnder".format(classname=self.ClassName),5)
 		funds = self.Funder.GetFunderJsonDB()
 		if funds is not None:
-			for fund in funds[:]:
+			funds_count = len(funds)
+			for idx, fund in enumerate(funds[:]):
+				# Exit on request
+				if self.DBUpdateStatus["working"] is False:
+					break
+				# 5108428 - ERROR (GetFundInfoFromDB): Fund id 5108428 ('str' object has no attribute 'decode')
+				self.DBUpdateStatus["status"] = "UPDATE"
+				self.DBUpdateStatus["update_perc"] = (float(idx) / float(funds_count)) * 100.0
+				number = fund["fundNum"]
 				fund_db = {
-					"number": 		fund["fundNum"],
+					"number": 		number,
 					"name":			fund["fundName"],
 					"mngr":			fund["fundMng"],
 					"ivest_mngr":	fund["invstMng"],
@@ -184,25 +323,33 @@ class Context():
 				if fund is not None:
 					valid, data = self.CheckValidity(fund_db)
 					if valid is True:
-						is_exist, item = self.SQL.IsFundInfoExist(fund["fundNum"])
+						is_exist, item = self.SQL.IsFundInfoExist(number)
 						if is_exist is False:
-							self.Node.LogMSG("({classname})# Insert local DB with fund ({0}) info ".format(fund["fundNum"],classname=self.ClassName),5)
+							self.Node.LogMSG("({classname})# Insert local DB with fund ({0}) info ".format(number,classname=self.ClassName),5)
 							fund["fund_id"] = self.SQL.InsertFundInfo(data)
 							self.UpdateFundHoldings(fund)
 						else:
 							if fund["lastUpdate"] not in item["last_updated"]:
-								self.Node.LogMSG("({classname})# Update local DB with fund ({0}) info ".format(fund["fundNum"],classname=self.ClassName),5)
+								self.Node.LogMSG("({classname})# Update local DB with fund ({0}) info ".format(number,classname=self.ClassName),5)
 								# TODO - Check for info changes
+								info = self.SQL.SelectFundInfoByNumber(number)
+								# self.CheckForFundInfoChange(info, fund_db)
 								self.SQL.UpdateFundInfo(data)
 								fund["fund_id"] = item["id"]
 								self.UpdateFundHoldings(fund)
 							else:
 								pass
+		self.DBUpdateStatus["working"] 		= False
+		self.DBUpdateStatus["status"] 		= "IDLE"
+		self.DBUpdateStatus["update_perc"] 	= 0
+	
+	def UpdateFundsInfo(self):
+		self.DBUpdateStatus["working"] = True
+		_thread.start_new_thread(self.DBUpdateWorker, ())
 
 	def NodeSystemLoadedHandler(self):
 		self.Node.LogMSG("({classname})# Loading system ...".format(classname=self.ClassName),5)
 		# Get all funds from Funder
-		self.UpdateFundsInfo()
 		self.Node.LogMSG("({classname})# Loading system ... Done.".format(classname=self.ClassName),5)
 	
 	def OnGetNodesListHandler(self, uuids):

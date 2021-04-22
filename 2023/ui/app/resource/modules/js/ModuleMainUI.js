@@ -13,6 +13,7 @@ NodeUI.prototype.CleanActiveNavigation = function() {
 
 NodeUI.prototype.BindDashboardView = function() {
     window.DashboardView.Build(null, function(module) {
+        module.GetAllFunds();
     });
     this.CleanActiveNavigation();
     document.getElementById("id_m_main_funder_dashboard").classList.add("active");
@@ -30,4 +31,12 @@ NodeUI.prototype.BindSettingsView = function() {
     });
     this.CleanActiveNavigation();
     document.getElementById("id_m_main_funder_settings").classList.add("active");
+}
+
+NodeUI.prototype.BindStocksView = function() {
+    window.StocksView.Build(null, function(module) {
+        module.GetStocksRate();
+    });
+    this.CleanActiveNavigation();
+    document.getElementById("id_m_main_funder_stocks").classList.add("active");
 }

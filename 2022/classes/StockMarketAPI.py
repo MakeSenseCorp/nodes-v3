@@ -25,6 +25,7 @@ class API():
 		'''
 			Open,High,Low,Close,Volume,Dividends,Stock Splits
 		'''
+		price = 0.0
 		error = False
 		for retry in range(3):
 			try:
