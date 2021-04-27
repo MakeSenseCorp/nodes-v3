@@ -283,8 +283,9 @@ class StockMarket():
 		self.ThreadPoolLocker.acquire()
 		self.JoblessMinions += 1
 		self.ThreadPoolLocker.release()
-		Interval 	= 0.5
-		Itterations = 0
+		Interval 			= 0.5
+		Itterations 		= 0
+		ItterationFactor 	= 4
 
 		algos = StockCalculation()
 		algos.StockSimplePredictionChangeCallback = self.StockSimplePredictionChangeCallback
@@ -308,15 +309,16 @@ class StockMarket():
 						stock["price"] = None
 					else:
 						# Get 1 day history
-						error, stock["1D"] = atock_api.Get1D(ticker)
-						if error is True:
-							stock["1D"] = None
-						else:
-							algos.CalculateBasicPrediction(stock, "1D")
-							stock_prices = self.GetPriceListFromStockPeriod(stock["1D"], "close")
-							stock["statistics"]["basic"][0] = algos.GetBasicStatistics(stock_prices)
+						if Itterations % (ItterationFactor * 1) == 0 or stock["5D"] is None:
+							error, stock["1D"] = atock_api.Get1D(ticker)
+							if error is True:
+								stock["1D"] = None
+							else:
+								algos.CalculateBasicPrediction(stock, "1D")
+								stock_prices = self.GetPriceListFromStockPeriod(stock["1D"], "close")
+								stock["statistics"]["basic"][0] = algos.GetBasicStatistics(stock_prices)
 						# Get 5 days history
-						if Itterations % 2 == 0 or stock["5D"] is None:
+						if Itterations % (ItterationFactor * 2) == 0 or stock["5D"] is None:
 							error, stock["5D"] = atock_api.Get5D(ticker)
 							if error is True:
 								stock["5D"] = None
@@ -325,7 +327,7 @@ class StockMarket():
 								stock_prices = self.GetPriceListFromStockPeriod(stock["5D"], "close")
 								stock["statistics"]["basic"][1] = algos.GetBasicStatistics(stock_prices)
 						# Get 1 month history
-						if Itterations % 4 == 0 or stock["1MO"] is None:
+						if Itterations % (ItterationFactor * 4) == 0 or stock["1MO"] is None:
 							error, stock["1MO"] = atock_api.Get1MO(ticker)
 							if error is True:
 								stock["1MO"] = None
@@ -334,7 +336,7 @@ class StockMarket():
 								stock_prices = self.GetPriceListFromStockPeriod(stock["1MO"], "close")
 								stock["statistics"]["basic"][2] = algos.GetBasicStatistics(stock_prices)
 						# Get 3 months history
-						if Itterations % 8 == 0 or stock["3MO"] is None:
+						if Itterations % (ItterationFactor * 16) == 0 or stock["3MO"] is None:
 							error, stock["3MO"] = atock_api.Get3MO(ticker)
 							if error is True:
 								stock["3MO"] = None
@@ -343,7 +345,7 @@ class StockMarket():
 								stock_prices = self.GetPriceListFromStockPeriod(stock["3MO"], "close")
 								stock["statistics"]["basic"][3] = algos.GetBasicStatistics(stock_prices)
 						# Get 6 months history
-						if Itterations % 16 == 0 or stock["6MO"] is None:
+						if Itterations % (ItterationFactor * 32) == 0 or stock["6MO"] is None:
 							error, stock["6MO"] = atock_api.Get6MO(ticker)
 							if error is True:
 								stock["6MO"] = None
@@ -352,7 +354,7 @@ class StockMarket():
 								stock_prices = self.GetPriceListFromStockPeriod(stock["6MO"], "close")
 								stock["statistics"]["basic"][4] = algos.GetBasicStatistics(stock_prices)
 						# Get 1 year history
-						if Itterations % 32 == 0 or stock["1Y"] is None:
+						if Itterations % (ItterationFactor * 64) == 0 or stock["1Y"] is None:
 							error, stock["1Y"] = atock_api.Get1Y(ticker)
 							if error is True:
 								stock["1Y"] = None

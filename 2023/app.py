@@ -37,6 +37,10 @@ class Context():
 			'get_all_funds': 					self.GetAllFundsHandler,
 			'get_fund_info': 					self.GetFundInfoHandler,
 			'get_stocks_rate':					self.GetStocksRateHandler,
+			'get_portfolios':					self.GetPortfoliosHandler,
+			'create_new_portfolio':				self.CreateNewPortfolioHandler,
+			'delete_portfolio':					self.DeletePortfolioHandler,
+			'get_stock_investment':				self.GetStockInvestmentHandler,
 			'undefined':						self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -58,6 +62,52 @@ class Context():
 	def UndefindHandler(self, sock, packet):
 		print ("UndefindHandler")
 	
+	def GetStockInvestmentHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetStockInvestmentHandler]".format(classname=self.ClassName),5)
+
+		funds_number_list = payload["funds"]
+		str_numbers = ",".join([str(num) for num in funds_number_list])
+
+		all_stocks = self.SQL.HowManyStocksFundHas(str_numbers)
+		us_stocks = self.SQL.GetStocksInvestement(str_numbers, 1001)
+		is_stocks = self.SQL.GetStocksInvestement(str_numbers, 1)
+		government_stocks = all_stocks - (us_stocks + is_stocks)
+
+		data = {
+			"us": us_stocks,
+			"is": is_stocks,
+			"government": government_stocks,
+			"all": all_stocks
+		}
+		self.Node.LogMSG("({classname})# [GetStockInvestmentHandler] {0}".format(data, classname=self.ClassName),5)
+
+		return data
+
+	def GetPortfoliosHandler(self, sock, packet):
+		self.Node.LogMSG("({classname})# [GetPortfoliosHandler]".format(classname=self.ClassName),5)
+		
+		return {
+			"portfolios": self.SQL.GetPortfolios()
+		}
+	
+	def CreateNewPortfolioHandler(self, sock, packet):
+		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [CreateNewPortfolioHandler]".format(classname=self.ClassName),5)
+		res = self.SQL.InsertPortfolio(payload["name"])
+
+		return {
+			"id": res
+		}
+	
+	def DeletePortfolioHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [DeletePortfolioHandler] {0}".format(payload,classname=self.ClassName),5)
+		self.SQL.DeletePortfolio(payload["id"])
+		return {
+			"portfolios": self.SQL.GetPortfolios()
+		}
+
 	def GetStocksRateHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [GetStocksRateHandler] {0}".format(payload,classname=self.ClassName),5)
@@ -236,7 +286,7 @@ class Context():
 		info = self.Funder.GetFundInfoFromDB(fund["fundNum"])
 		if info is not None:
 			# TODO - Check for stock list difference
-			new_ticker_list = self.GenerateTickerListFromFunder(info)
+			new_ticker_list = self.GenerateTickerListFromFunder(info["holdings"])
 			old_ticker_list = self.GenerateTickerListFromDB(fund["fundNum"])
 			new, deleted = self.FindDifference(old_ticker_list, new_ticker_list)
 
@@ -257,7 +307,7 @@ class Context():
 					})
 					# Delete from stock_to_fund
 
-			for holds in info:
+			for holds in info["holdings"]:
 				holding_list = holds["holdingItemsList"]
 				for hold in holding_list:
 					if hold["TICKER"] != "":
@@ -298,47 +348,51 @@ class Context():
 		if funds is not None:
 			funds_count = len(funds)
 			for idx, fund in enumerate(funds[:]):
-				# Exit on request
-				if self.DBUpdateStatus["working"] is False:
-					break
-				# 5108428 - ERROR (GetFundInfoFromDB): Fund id 5108428 ('str' object has no attribute 'decode')
-				self.DBUpdateStatus["status"] = "UPDATE"
-				self.DBUpdateStatus["update_perc"] = (float(idx) / float(funds_count)) * 100.0
-				number = fund["fundNum"]
-				fund_db = {
-					"number": 		number,
-					"name":			fund["fundName"],
-					"mngr":			fund["fundMng"],
-					"ivest_mngr":	fund["invstMng"],
-					"d_change":		fund["1day"],
-					"month_begin":	fund["monthBegin"],
-					"y_change":		fund["1year"],
-					"year_begin":	fund["yearBegin"],
-					"fee":			fund["nihol"],
-					"fund_size":	fund["rSize"],
-					"last_updated":	fund["lastUpdate"],
-					"mimic":		fund["mehaka"],
-					"json":			"" # json.dumps(fund,ensure_ascii=False)
-				}
-				if fund is not None:
-					valid, data = self.CheckValidity(fund_db)
-					if valid is True:
-						is_exist, item = self.SQL.IsFundInfoExist(number)
-						if is_exist is False:
-							self.Node.LogMSG("({classname})# Insert local DB with fund ({0}) info ".format(number,classname=self.ClassName),5)
-							fund["fund_id"] = self.SQL.InsertFundInfo(data)
-							self.UpdateFundHoldings(fund)
-						else:
-							if fund["lastUpdate"] not in item["last_updated"]:
-								self.Node.LogMSG("({classname})# Update local DB with fund ({0}) info ".format(number,classname=self.ClassName),5)
-								# TODO - Check for info changes
-								info = self.SQL.SelectFundInfoByNumber(number)
-								# self.CheckForFundInfoChange(info, fund_db)
-								self.SQL.UpdateFundInfo(data)
-								fund["fund_id"] = item["id"]
+				try:
+					# Exit on request
+					if self.DBUpdateStatus["working"] is False:
+						break
+					# 5108428 - ERROR (GetFundInfoFromDB): Fund id 5108428 ('str' object has no attribute 'decode')
+					self.DBUpdateStatus["status"] = "UPDATE"
+					self.DBUpdateStatus["update_perc"] = (float(idx) / float(funds_count)) * 100.0
+					number = fund["fundNum"]
+					fund_db = {
+						"number": 		number,
+						"name":			fund["fundName"],
+						"mngr":			fund["fundMng"],
+						"ivest_mngr":	fund["invstMng"],
+						"d_change":		fund["1day"],
+						"month_begin":	fund["monthBegin"],
+						"y_change":		fund["1year"],
+						"year_begin":	fund["yearBegin"],
+						"fee":			fund["nihol"],
+						"fund_size":	fund["rSize"],
+						"last_updated":	fund["lastUpdate"],
+						"mimic":		fund["mehaka"],
+						"json":			"" # json.dumps(fund,ensure_ascii=False)
+					}
+					if fund is not None:
+						valid, data = self.CheckValidity(fund_db)
+						if valid is True:
+							is_exist, item = self.SQL.IsFundInfoExist(number)
+							if is_exist is False:
+								self.Node.LogMSG("({classname})# Insert local DB with fund ({0}) info ".format(number,classname=self.ClassName),5)
+								fund["fund_id"] = self.SQL.InsertFundInfo(data)
 								self.UpdateFundHoldings(fund)
 							else:
-								pass
+								if fund["lastUpdate"] not in item["last_updated"]:
+									self.Node.LogMSG("({classname})# Update local DB with fund ({0}) info ".format(number,classname=self.ClassName),5)
+									# TODO - Check for info changes
+									info = self.SQL.SelectFundInfoByNumber(number)
+									# self.CheckForFundInfoChange(info, fund_db)
+									self.SQL.UpdateFundInfo(data)
+									fund["fund_id"] = item["id"]
+									self.UpdateFundHoldings(fund)
+								else:
+									pass
+				except Exception as e:
+					print("ERROR (DBUpdateWorker): Fund id {0} ({1})".format(number,e))
+		
 		self.DBUpdateStatus["working"] 		= False
 		self.DBUpdateStatus["status"] 		= "IDLE"
 		self.DBUpdateStatus["update_perc"] 	= 0

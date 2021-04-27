@@ -61,10 +61,16 @@ ModuleStocksView.prototype.Show = function() {
     this.ComponentObject.classList.remove("d-none")
 }
 
+ModuleStocksView.prototype.TableUIChangeEvent = function() {
+    feather.replace();
+}
+
 ModuleStocksView.prototype.FilterOutput = function(obj) {
     this.Filter[obj.id] = obj.checked;
-    console.log(this.Stocks);
     var table = new MksBasicTable();
+    table.EnableListing();
+    table.SetListingWindowSize(10);
+    table.RegisterUIChangeEvent(this.TableUIChangeEvent);
     table.SetSchema(["", "", "", "", ""]);
     var data = [];
     for (key in this.Stocks) {
@@ -114,9 +120,11 @@ ModuleStocksView.prototype.GetStocksRate = function() {
     node.API.SendCustomCommand(NodeUUID, "get_stocks_rate", {
     }, function(res) {
         var payload = res.data.payload;
-        console.log(payload);
 
         var table = new MksBasicTable();
+        table.EnableListing();
+        table.SetListingWindowSize(10);
+        table.RegisterUIChangeEvent(self.TableUIChangeEvent);
         table.SetSchema(["", "", "", "", ""]);
         var data = [];
         for (key in payload.ratings) {

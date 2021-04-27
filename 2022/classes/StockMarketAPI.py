@@ -120,7 +120,7 @@ class API():
 		return False, hist
 
 	def Get1D(self, ticker):
-		return self.GetStockHistory(ticker, "1d", "5m")
+		return self.GetStockHistory(ticker, "1d", "1m")
 
 	def Get5D(self, ticker):
 		return self.GetStockHistory(ticker, "5d", "5m")

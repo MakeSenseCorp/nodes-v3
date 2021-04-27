@@ -30,42 +30,68 @@ class Funder():
 		return data
 
 	def GetFunderJsonDB(self):
-		try:
-			data = None
-			html = self.GetRequest("https://www.funder.co.il/fundList.aspx", 0).decode()
-			rows = html.split("\n")
-			# Itterate HTML rows
-			for row in rows:
-				# Look for "fundlistData"
-				if "fundlistData =" in row:
-					# Find start of JSON format from string
-					index = row.index('=')
-					json_str = row[index+1:-2]
-					if json_str is not None:
-						# Load JSON
-						data = json.loads(json_str)["x"]
-					return data
-		except Exception as e:
-			pass
-		return None
-	
-	def GetFundInfoFromDB(self, fund_id):
-		try:
-			info = None
-			data = self.GetRequest("https://www.funder.co.il/fund/{0}".format(fund_id), 1)
-			if data is not None:
-				html = data.decode()
+		retry = 0
+		while retry < 3:
+			try:
+				data = None
+				html = self.GetRequest("https://www.funder.co.il/fundList.aspx", 0).decode()
 				rows = html.split("\n")
 				# Itterate HTML rows
 				for row in rows:
-					# Look for "fundHoldingItemsData"
-					if "fundHoldingItemsData =" in row:
+					# Look for "fundlistData"
+					if "fundlistData =" in row:
 						# Find start of JSON format from string
 						index = row.index('=')
 						json_str = row[index+1:-2]
 						if json_str is not None:
-							info = json.loads(json_str)
-						return info
-		except Exception as e:
-			print("ERROR (GetFundInfoFromDB): Fund id {0} ({1})".format(fund_id,e))
+							# Load JSON
+							data = json.loads(json_str)["x"]
+						return data
+				break
+			except Exception as e:
+				retry += 1
 		return None
+	
+	def GetFundInfoFromDB(self, fund_id):
+		info = None
+		retry = 0
+		while retry < 3:
+			try:
+				data = self.GetRequest("https://www.funder.co.il/fund/{0}".format(fund_id), 1)
+				if data is not None:
+					info = {
+						"holdings": None,
+						"graph": None,
+						"info": None
+					}
+					html = data.decode()
+					rows = html.split("\n")
+					# Itterate HTML rows
+					for row in rows:
+						# Look for "fundHoldingItemsData"
+						if "fundHoldingItemsData =" in row:
+							# Find start of JSON format from string
+							index = row.index('=')
+							json_str = row[index+1:-2]
+							if json_str is not None:
+								info["holdings"] = json.loads(json_str)
+						elif "fundGraphData =" in row:
+							# Find start of JSON format from string
+							index = row.index('=')
+							json_str = row[index+1:-2]
+							if json_str is not None:
+								info["graph"] = json.loads(json_str)
+						elif "fundData =" in row:
+							# Find start of JSON format from string
+							index = row.index('=')
+							json_str = row[index+1:-2]
+							if json_str is not None:
+								info["info"] = json.loads(json_str)
+						else:
+							pass
+					break
+			except Exception as e:
+				print("ERROR (GetFundInfoFromDB): Fund id {0} ({1})".format(fund_id,e))
+				retry += 1
+				info = None
+		return info

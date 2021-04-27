@@ -9,6 +9,8 @@ NodeUI.prototype.CleanActiveNavigation = function() {
     document.getElementById("id_m_main_funder_dashboard").classList.remove("active");
     document.getElementById("id_m_main_funder_statistics").classList.remove("active");
     document.getElementById("id_m_main_funder_settings").classList.remove("active");
+    document.getElementById("id_m_main_funder_stocks").classList.remove("active");
+    document.getElementById("id_m_main_funder_portfolios").classList.remove("active");
 }
 
 NodeUI.prototype.BindDashboardView = function() {
@@ -39,4 +41,12 @@ NodeUI.prototype.BindStocksView = function() {
     });
     this.CleanActiveNavigation();
     document.getElementById("id_m_main_funder_stocks").classList.add("active");
+}
+
+NodeUI.prototype.BindPortfoliosView = function() {
+    window.PortfoliosView.Build(null, function(module) {
+        module.UpdatePortfolioList();
+    });
+    this.CleanActiveNavigation();
+    document.getElementById("id_m_main_funder_portfolios").classList.add("active");
 }

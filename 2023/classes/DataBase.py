@@ -65,6 +65,16 @@ class DB():
 							"change"			TEXT
 						);''')
 
+		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "portfolios" (
+							"id"	INTEGER PRIMARY KEY AUTOINCREMENT,
+							"name"	TEXT
+						);''')
+		
+		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "fund_to_portfolio" (
+							"fund_id"		INTEGER NOT NULL,
+							"portfolio_id"	INTEGER NOT NULL
+						);''')
+		
 		self.Init()
 
 	def Init(self):
@@ -345,6 +355,167 @@ class DB():
 		self.Locker.release()
 		
 		return funds
+	
+	def GetPortfolios(self):
+		self.Locker.acquire()
+		try:
+			query = "SELECT * FROM portfolios"
+			self.CURS.execute(query)
+			
+			portfolios = []
+			rows = self.CURS.fetchall()
+			if len(rows) > 0:
+				for row in rows:
+					portfolios.append({
+						"id": row[0],
+						"name": row[1]
+					})
+		except Exception as e:
+			print("ERROR [GetPortfolios] {0}".format(e))
+		
+		self.Locker.release()
+		return portfolios
+	
+	def PortfolioExist(self, portfolio_name):
+		self.Locker.acquire()
+		try:
+			query = "SELECT * FROM portfolios WHERE name = '{0}'".format(portfolio_name)
+			self.CURS.execute(query)
+			
+			rows = self.CURS.fetchall()
+			self.Locker.release()
+			if len(rows) > 0:
+				return True
+		except Exception as e:
+			print("ERROR [PortfolioExist] {0}".format(e))
+		
+		self.Locker.release()
+		return False
+	
+	def InsertPortfolio(self, portfolio_name):
+		self.Locker.acquire()
+		try:
+			query = '''
+				INSERT INTO portfolios VALUES (NULL,'{0}')
+			'''.format(portfolio_name)
+			self.CURS.execute(query)
+			self.DB.commit()
+		except Exception as e:
+			print("ERROR [InsertPortfolio] {0}".format(e))
+		
+		self.Locker.release()	
+		return self.CURS.lastrowid
+	
+	def InsertFundPortfolio(self, data):
+		self.Locker.acquire()
+		try:
+			query = '''
+				INSERT INTO fund_to_portfolio (fund_id,portfolio_id)
+				VALUES ('{0}',{1})
+			'''.format(data["fund_id"],data["portfolio_id"])
+
+			self.CURS.execute(query)
+			self.DB.commit()
+		except Exception as e:
+			print("ERROR [InsertFundPortfolio] {0}".format(e))
+		
+		self.Locker.release()	
+		return self.CURS.lastrowid
+	
+	def DeleteFundPortfolio(self, data):
+		self.Locker.acquire()
+		try:
+			query = '''
+				DELETE FROM fund_to_portfolio
+				WHERE fund_id = '{0}' AND portfolio_id = {1}
+			'''.format(data["fund_id"],data["id"])
+
+			self.CURS.execute(query)
+			self.DB.commit()
+		except Exception as e:
+			print("ERROR [DeleteFundPortfolio] {0}".format(e))
+		
+		self.Locker.release()	
+	
+	def DeletePortfolio(self, id):
+		self.Locker.acquire()
+		try:
+			self.CURS.execute('''
+				DELETE FROM fund_to_portfolio
+				WHERE portfolio_id = {0}
+			'''.format(id))
+			self.DB.commit()
+
+			self.CURS.execute('''
+				DELETE FROM portfolios
+				WHERE id = {0}
+			'''.format(id))
+			self.DB.commit()
+		except Exception as e:
+			print("ERROR [DeletePortfolio] {0}".format(e))
+		
+		self.Locker.release()	
+	
+	def HowManyStocksWeHave(self):
+		self.Locker.acquire()
+		try:
+			query = "SELECT COUNT(*) FROM stocks"
+			self.CURS.execute(query)
+			
+			rows = self.CURS.fetchall()
+			self.Locker.release()
+			if len(rows) > 0:
+				return rows[0][0]
+		except Exception as e:
+			print("ERROR [PortfolioExist] {0}".format(e))
+		
+		self.Locker.release()
+		return 0
+	
+	def HowManyStocksFundHas(self, numbers):
+		self.Locker.acquire()
+		try:
+			query = '''
+				SELECT COUNT(*) FROM (
+				SELECT stocks.ticker, stocks.name, stocks.type, count(stocks.ticker) as rate FROM stocks
+				LEFT JOIN stock_to_fund ON stocks.id = stock_to_fund.stock_id
+				WHERE stock_to_fund.number IN ({0})
+				GROUP BY stocks.ticker )
+			'''.format(numbers)
+			self.CURS.execute(query)
+			
+			rows = self.CURS.fetchall()
+			self.Locker.release()
+			if len(rows) > 0:
+				return rows[0][0]
+		except Exception as e:
+			print("ERROR [PortfolioExist] {0}".format(e))
+		
+		self.Locker.release()
+		return 0
+
+	def GetStocksInvestement(self, numbers, stock_type):
+		self.Locker.acquire()
+		try:
+			query = '''
+				SELECT COUNT(*) FROM (
+				SELECT stocks.ticker, stocks.name, stocks.type, count(stocks.ticker) as rate FROM stocks
+				LEFT JOIN stock_to_fund ON stocks.id = stock_to_fund.stock_id
+				WHERE stocks.type = {1} AND stock_to_fund.number IN ({0})
+				GROUP BY stocks.ticker )
+			'''.format(numbers, stock_type)
+			self.CURS.execute(query)
+			
+			rows = self.CURS.fetchall()
+			self.Locker.release()
+			if len(rows) > 0:
+				return rows[0][0]
+		except Exception as e:
+			print("ERROR [PortfolioExist] {0}".format(e))
+		
+		self.Locker.release()
+		return 0
+
 '''
 SELECT * FROM (
 SELECT stocks.name, stocks.ticker, stocks.type, count(stocks.ticker) as funds_count FROM stocks
