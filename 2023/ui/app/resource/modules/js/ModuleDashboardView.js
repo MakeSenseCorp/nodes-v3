@@ -128,10 +128,9 @@ ModuleDashboardView.prototype.GetAllFunds = function() {
         mngrs = self.GetFunsManagersList(payload.funds);
         var objDropMngrs = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_mngrs");
         for (key in mngrs) {
-            obj = document.createElement("option");
-            obj.innerHTML = mngrs[key];
-            obj.onclick = self.FundManagerSelectionChange.bind(self);
-            objDropMngrs.appendChild(obj);
+            var obj = document.createElement("option");
+            obj.text = mngrs[key];
+            objDropMngrs.add(obj);
         }
     });
 }
