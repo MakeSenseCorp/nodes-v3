@@ -69,16 +69,18 @@ class Context():
 		funds_number_list = payload["funds"]
 		str_numbers = ",".join([str(num) for num in funds_number_list])
 
-		all_stocks = self.SQL.HowManyStocksFundHas(str_numbers)
+		all_stocks = self.SQL.HowManyStocksWeHave()
+		fund_stocks = self.SQL.HowManyStocksFundHas(str_numbers)
 		us_stocks = self.SQL.GetStocksInvestement(str_numbers, 1001)
 		is_stocks = self.SQL.GetStocksInvestement(str_numbers, 1)
-		government_stocks = all_stocks - (us_stocks + is_stocks)
+		government_stocks = fund_stocks - (us_stocks + is_stocks)
 
 		data = {
 			"us": us_stocks,
 			"is": is_stocks,
 			"government": government_stocks,
-			"all": all_stocks
+			"all": all_stocks,
+			"fund_stocks": fund_stocks
 		}
 		self.Node.LogMSG("({classname})# [GetStockInvestmentHandler] {0}".format(data, classname=self.ClassName),5)
 
@@ -290,20 +292,21 @@ class Context():
 			old_ticker_list = self.GenerateTickerListFromDB(fund["fundNum"])
 			new, deleted = self.FindDifference(old_ticker_list, new_ticker_list)
 
+			fund_name = fund["fundName"].strip()
 			if len(new) > 0:
 				for item in new:
 					self.SQL.InsertFundHistoryChange({
 						"number": fund["fundNum"],
-						"name": fund["fundName"],
-						"msg": "New stock ({0}) was added to {1} {2}".format(item,fund["fundNum"],fund["fundName"])
+						"name": fund_name,
+						"msg": "New stock ({0}) was added to {1} {2}".format(item,fund["fundNum"],fund_name)
 					})
 			
 			if len(deleted) > 0:
 				for item in deleted:
 					self.SQL.InsertFundHistoryChange({
 						"number": fund["fundNum"],
-						"name": fund["fundName"],
-						"msg": "Stock ({0}) was deleted from {1} ({2})".format(item,fund["fundNum"],fund["fundName"])
+						"name": fund_name,
+						"msg": "Stock ({0}) was deleted from {1} ({2})".format(item,fund["fundNum"],fund_name)
 					})
 					# Delete from stock_to_fund
 
@@ -312,13 +315,13 @@ class Context():
 				for hold in holding_list:
 					if hold["TICKER"] != "":
 						stock_db = {
-							"name": 	hold["aName"],
-							"ticker": 	hold["TICKER"],
+							"name": 	hold["aName"].strip(),
+							"ticker": 	hold["TICKER"].strip(),
 							"type": 	hold["fType"]
 						}
 						bond_db = {
 							"number": 	fund["fundNum"],
-							"ticker": 	hold["TICKER"],
+							"ticker": 	hold["TICKER"].strip(),
 							"perc": 	hold["perc"],
 							"val": 		hold["valShk"],
 							"amount": 	hold["amount"]
@@ -358,16 +361,16 @@ class Context():
 					number = fund["fundNum"]
 					fund_db = {
 						"number": 		number,
-						"name":			fund["fundName"],
-						"mngr":			fund["fundMng"],
-						"ivest_mngr":	fund["invstMng"],
+						"name":			fund["fundName"].strip(),
+						"mngr":			fund["fundMng"].strip(),
+						"ivest_mngr":	fund["invstMng"].strip(),
 						"d_change":		fund["1day"],
 						"month_begin":	fund["monthBegin"],
 						"y_change":		fund["1year"],
 						"year_begin":	fund["yearBegin"],
 						"fee":			fund["nihol"],
 						"fund_size":	fund["rSize"],
-						"last_updated":	fund["lastUpdate"],
+						"last_updated":	fund["lastUpdate"].strip(),
 						"mimic":		fund["mehaka"],
 						"json":			"" # json.dumps(fund,ensure_ascii=False)
 					}

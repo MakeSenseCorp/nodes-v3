@@ -229,9 +229,13 @@ ModuleDashboardView.prototype.GetStockInvestment = function(funds) {
     }, function(res) {
         var payload = res.data.payload;
 
-        document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_stocks").innerHTML = ((payload.us / payload.all) * 100).toFixed(2) + "%";
-        document.getElementById("id_m_funder_dashboard_view_funds_table_filter_is_stocks").innerHTML = ((payload.is / payload.all) * 100).toFixed(2) + "%";
-        document.getElementById("id_m_funder_dashboard_view_funds_table_filter_government_stocks").innerHTML = ((payload.government / payload.all) * 100).toFixed(2) + "%";
+        document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_stocks").innerHTML = ((payload.us / payload.fund_stocks) * 100).toFixed(2) + "%";
+        document.getElementById("id_m_funder_dashboard_view_funds_table_filter_is_stocks").innerHTML = ((payload.is / payload.fund_stocks) * 100).toFixed(2) + "%";
+        document.getElementById("id_m_funder_dashboard_view_funds_table_filter_government_stocks").innerHTML = ((payload.government / payload.fund_stocks) * 100).toFixed(2) + "%";
+
+        document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_stocks_all").innerHTML = ((payload.us / payload.all) * 100).toFixed(2) + "%";
+        document.getElementById("id_m_funder_dashboard_view_funds_table_filter_is_stocks_all").innerHTML = ((payload.is / payload.all) * 100).toFixed(2) + "%";
+        document.getElementById("id_m_funder_dashboard_view_funds_table_filter_government_stocks_all").innerHTML = ((payload.government / payload.all) * 100).toFixed(2) + "%";
     });
 }
 
