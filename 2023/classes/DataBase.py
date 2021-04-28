@@ -134,8 +134,8 @@ class DB():
 				}
 		except:
 			pass
+
 		self.Locker.release()
-		
 		return info
 	
 	def SelectFundHoldingsByNumber(self, number):
@@ -234,6 +234,7 @@ class DB():
 			self.CURS.execute(query)
 			self.DB.commit()
 		except:
+			self.Locker.release()
 			return -1
 		
 		self.Locker.release()
@@ -258,9 +259,8 @@ class DB():
 					"type": 	rows[0][3]
 				}
 		except:
-			pass
+			self.Locker.release()
 		
-		self.Locker.release()
 		return False, None
 	
 	def InsertStock(self, stock):
@@ -276,8 +276,8 @@ class DB():
 			return self.CURS.lastrowid
 		except Exception as e:
 			print("ERROR {0}".format(e))
+			self.Locker.release()
 		
-		self.Locker.release()
 		return 0
 	
 	def IsFundToStockExist(self, fund_id, stock_id):
@@ -290,9 +290,8 @@ class DB():
 			if len(rows) > 0:
 				return True
 		except:
-			pass
+			self.Locker.release()
 
-		self.Locker.release()
 		return False
 	
 	def InsertStockToFund(self, bond):
@@ -308,8 +307,8 @@ class DB():
 			return self.CURS.lastrowid
 		except Exception as e:
 			print("ERROR {0}".format(e))
-
-		self.Locker.release()
+			self.Locker.release()
+		
 		return 0
 	
 	def InsertFundHistoryChange(self, item):
@@ -388,8 +387,8 @@ class DB():
 				return True
 		except Exception as e:
 			print("ERROR [PortfolioExist] {0}".format(e))
+			self.Locker.release()
 		
-		self.Locker.release()
 		return False
 	
 	def InsertPortfolio(self, portfolio_name):
@@ -490,8 +489,8 @@ class DB():
 				return rows[0][0]
 		except Exception as e:
 			print("ERROR [PortfolioExist] {0}".format(e))
+			self.Locker.release()
 		
-		self.Locker.release()
 		return 0
 
 	def GetStocksInvestement(self, numbers, stock_type):
@@ -512,8 +511,8 @@ class DB():
 				return rows[0][0]
 		except Exception as e:
 			print("ERROR [PortfolioExist] {0}".format(e))
+			self.Locker.release()
 		
-		self.Locker.release()
 		return 0
 
 '''

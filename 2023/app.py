@@ -199,7 +199,7 @@ class Context():
 		if left["mngr"] != right["mngr"]:
 			msg += "Manager {0} -> {1}\n".format(left["mngr"],right["mngr"])
 		if left["ivest_mngr"] != right["ivest_mngr"]:
-			msg += "Investing Manager {0} -> {1}\n".format(left["ivest_mngr"],ivest_mngr["name"])
+			msg += "Investing Manager {0} -> {1}\n".format(left["ivest_mngr"],right["ivest_mngr"])
 		if left["d_change"] != right["d_change"]:
 			msg += "Day Change {0} -> {1}\n".format(left["d_change"],right["d_change"])
 		if left["month_begin"] != right["month_begin"]:
