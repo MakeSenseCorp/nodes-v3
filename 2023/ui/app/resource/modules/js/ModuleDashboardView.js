@@ -64,66 +64,18 @@ ModuleDashboardView.prototype.GetAllFunds = function() {
     node.API.SendCustomCommand(NodeUUID, "get_all_funds", {
     }, function(res) {
         var payload = res.data.payload;
-
-        var table = new MksBasicTable();
-        table.EnableListing();
-        table.SetListingWindowSize(15);
-        table.RegisterUIChangeEvent(self.TableUIChangeEvent);
-        table.SetSchema(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
-        var data = [];
+        var funds = [];
         var funds_number_list = []
+
         for (key in payload.funds) {
             fund = payload.funds[key];           
-            var row = [];
-            row.push(`<h6 class="my-0"><a style="color:blue; cursor:pointer" onclick="window.DashboardView.OpenFundInfoModal(`+fund.number+`)">`+fund.number+`</a></h6>`);
-            row.push(`<span>`+fund.name+`</span>`);
-            row.push(`<span>`+fund.mngr+`</span>`);
-            row.push(`<span>`+fund.ivest_mngr+`</span>`);
-            if (fund.d_change < 0) {
-                color = "red";
-            } else {
-                color = "green";
-            }
-            row.push(`<span style="color:`+color+`">`+fund.d_change+`</span>`);
-            row.push(`<span>`+fund.month_begin+`</span>`);
-            if (fund.y_change < 0) {
-                color = "red";
-            } else {
-                color = "green";
-            }
-            row.push(`<span style="color:`+color+`">`+fund.y_change+`</span>`);
-            row.push(`<span>`+fund.year_begin+`</span>`);
-            if (fund.fee > 0.8) {
-                color = "red";
-            } else {
-                color = "green";
-            }
-            row.push(`<span style="color:`+color+`">`+fund.fee+`</span>`);
-            row.push(`<span>`+fund.fund_size+`</span>`);
-            row.push(`<span>`+fund.last_updated+`</span>`);
-            row.push(`<span>`+fund.mimic+`</span>`);
-            row.push(`
-                <div class="d-flex flex-row-reverse">
-                    <div class="dropdown">
-                        <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="id_m_stock_append_stock_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            <span data-feather="menu"></span>
-                        </button>
-                        <div class="dropdown-menu text-center" aria-labelledby="id_m_stock_append_stock_dropdown">
-                            <span class="dropdown-item" style="color: BLUE; cursor:pointer; font-size: 12px;" onclick="">Settings</span>
-                        </div>
-                    </div>
-                </div>
-            `);
-            data.push(row);
+            funds.push(fund);
             funds_number_list.push(fund.number);
         }
-        table.ShowRowNumber(false);
-        table.ShowHeader(false);
-        table.SetData(data);
-        table.Build(document.getElementById("id_m_funder_dashboard_view_funds_table"));
-        feather.replace();
+        self.UpdateFundsTable(funds);
+        self.GetStockDistribution(funds_number_list);
         self.Funds = Array.from(payload.funds);
-        self.GetStockInvestment(funds_number_list);
+        
         // Update managers list
         mngrs = self.GetFunsManagersList(payload.funds);
         var objDropMngrs = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_mngrs");
@@ -140,16 +92,74 @@ ModuleDashboardView.prototype.FundManagerSelectionChange = function() {
     this.SelectedManagerFund = objDropMngrs.value;
 }
 
-ModuleDashboardView.prototype.Filter = function() {
-    var objFee = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_fee");
+ModuleDashboardView.prototype.UpdateFundsTable = function(funds_list) {
     var data  = [];
     var table = new MksBasicTable();
+
     table.EnableListing();
     table.SetListingWindowSize(15);
     table.RegisterUIChangeEvent(this.TableUIChangeEvent);
     table.SetSchema(["", "", "", "", "", "", "", "", "", "", "", "", ""]);
 
+    for (key in funds_list) {
+        var fund = funds_list[key];
+        var row = [];
+        var color = "black";
+
+        row.push(`<h6 class="my-0"><a style="color:blue; cursor:pointer" onclick="window.DashboardView.OpenFundInfoModal(`+fund.number+`)">`+fund.number+`</a></h6>`);
+        row.push(`<span>`+fund.name+`</span>`);
+        row.push(`<span>`+fund.mngr+`</span>`);
+        row.push(`<span>`+fund.ivest_mngr+`</span>`);
+        if (fund.d_change < 0) {
+            color = "red";
+        } else {
+            color = "green";
+        }
+        row.push(`<span style="color:`+color+`">`+fund.d_change+`</span>`);
+        row.push(`<span>`+fund.month_begin+`</span>`);
+        if (fund.y_change < 0) {
+            color = "red";
+        } else {
+            color = "green";
+        }
+        row.push(`<span style="color:`+color+`">`+fund.y_change+`</span>`);
+        row.push(`<span>`+fund.year_begin+`</span>`);
+        if (fund.fee > 0.8) {
+            color = "red";
+        } else {
+            color = "green";
+        }
+        row.push(`<span style="color:`+color+`">`+fund.fee+`</span>`);
+        row.push(`<span>`+fund.fund_size+`</span>`);
+        row.push(`<span>`+fund.last_updated+`</span>`);
+        row.push(`<span>`+fund.mimic+`</span>`);
+        row.push(`
+            <div class="d-flex flex-row-reverse">
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="id_m_stock_append_stock_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <span data-feather="menu"></span>
+                    </button>
+                    <div class="dropdown-menu text-center" aria-labelledby="id_m_stock_append_stock_dropdown">
+                        <span class="dropdown-item" style="color: BLUE; cursor:pointer; font-size: 12px;" onclick="">Settings</span>
+                    </div>
+                </div>
+            </div>
+        `);
+        data.push(row);
+    }
+
+    table.ShowRowNumber(false);
+    table.ShowHeader(false);
+    table.SetData(data);
+    table.Build(document.getElementById("id_m_funder_dashboard_view_funds_table"));
+    feather.replace();
+}
+
+ModuleDashboardView.prototype.Filter = function() {
+    var self = this;
+    var objFee = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_fee");
     var funds_number_list = []
+    var funds = [];
     for (key in this.Funds) {
         var fund = this.Funds[key];
         var isAppend    = false;
@@ -169,61 +179,54 @@ ModuleDashboardView.prototype.Filter = function() {
         }
 
         if (isAppend == true) {
-            var row = [];
-            var color = "black";
-            row.push(`<h6 class="my-0"><a style="color:blue; cursor:pointer" onclick="window.DashboardView.OpenFundInfoModal(`+fund.number+`)">`+fund.number+`</a></h6>`);
-            row.push(`<span>`+fund.name+`</span>`);
-            row.push(`<span>`+fund.mngr+`</span>`);
-            row.push(`<span>`+fund.ivest_mngr+`</span>`);
-            if (fund.d_change < 0) {
-                color = "red";
-            } else {
-                color = "green";
-            }
-            row.push(`<span style="color:`+color+`">`+fund.d_change+`</span>`);
-            row.push(`<span>`+fund.month_begin+`</span>`);
-            if (fund.y_change < 0) {
-                color = "red";
-            } else {
-                color = "green";
-            }
-            row.push(`<span style="color:`+color+`">`+fund.y_change+`</span>`);
-            row.push(`<span>`+fund.year_begin+`</span>`);
-            if (fund.fee > 0.8) {
-                color = "red";
-            } else {
-                color = "green";
-            }
-            row.push(`<span style="color:`+color+`">`+fund.fee+`</span>`);
-            row.push(`<span>`+fund.fund_size+`</span>`);
-            row.push(`<span>`+fund.last_updated+`</span>`);
-            row.push(`<span>`+fund.mimic+`</span>`);
-            row.push(`
-                <div class="d-flex flex-row-reverse">
-                    <div class="dropdown">
-                        <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="id_m_stock_append_stock_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            <span data-feather="menu"></span>
-                        </button>
-                        <div class="dropdown-menu text-center" aria-labelledby="id_m_stock_append_stock_dropdown">
-                            <span class="dropdown-item" style="color: BLUE; cursor:pointer; font-size: 12px;" onclick="">Settings</span>
-                        </div>
-                    </div>
-                </div>
-            `);
-            data.push(row);
             funds_number_list.push(fund.number);
+            funds.push(fund);
         }
     }
-    table.ShowRowNumber(false);
-    table.ShowHeader(false);
-    table.SetData(data);
-    table.Build(document.getElementById("id_m_funder_dashboard_view_funds_table"));
-    feather.replace();
-    this.GetStockInvestment(funds_number_list);
+
+    var objUsCheckbox    = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_stock_perc_check");
+    var objIsCheckbox    = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_is_stock_perc_check");
+    var objOtherCheckbox = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_other_stock_perc_check");
+    
+    if (objUsCheckbox.checked == true || objIsCheckbox.checked == true || objUsCheckbox.checked == true) {
+        node.API.SendCustomCommand(NodeUUID, "get_stock_investment", {
+            "funds": funds_number_list
+        }, function(res) {
+            var payload = res.data.payload;
+            var investment = payload.investment;
+            var funds_number_list = [];
+            var new_funds = [];
+
+            var us_perc = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_stock_perc").value;
+            console.log("get_stock_investment", payload.investment.length, us_perc);
+
+            for (key in funds) {
+                var fund = funds[key];
+                for (idx in investment) {
+                    var invest = investment[idx];
+                    if (invest.number == fund.number) {
+                        if (((invest.us_holdings / invest.holdings_count) * 100) > parseInt(us_perc)) {
+                            funds_number_list.push(fund.number);
+                            new_funds.push(fund);
+                            // Save index
+                        }
+                        break;
+                    }
+                    // Delete this item from investment
+                }
+            }
+
+            self.UpdateFundsTable(new_funds);
+            self.GetStockDistribution(funds_number_list);
+        });
+    } else {
+        this.UpdateFundsTable(funds);
+        this.GetStockDistribution(funds_number_list);
+    }
 }
 
-ModuleDashboardView.prototype.GetStockInvestment = function(funds) {
-    node.API.SendCustomCommand(NodeUUID, "get_stock_investment", {
+ModuleDashboardView.prototype.GetStockDistribution = function(funds) {
+    node.API.SendCustomCommand(NodeUUID, "get_stock_distribution", {
         "funds": funds
     }, function(res) {
         var payload = res.data.payload;

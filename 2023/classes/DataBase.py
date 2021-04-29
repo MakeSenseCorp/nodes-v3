@@ -493,7 +493,7 @@ class DB():
 		
 		return 0
 
-	def GetStocksInvestement(self, numbers, stock_type):
+	def GetStocksDistribution(self, numbers, stock_type):
 		self.Locker.acquire()
 		try:
 			query = '''
@@ -514,6 +514,67 @@ class DB():
 			self.Locker.release()
 		
 		return 0
+	
+	def GetStocksInvestement(self, numbers):
+		data = []
+		self.Locker.acquire()
+		try:
+			query = '''
+				SELECT
+					funds_info.number,
+					COUNT(stocks.id) AS holdings_count,
+					count(case when stocks.type = 1 then 1 end) type_1,
+					count(case when stocks.type = 3 then 1 end) type_3,
+					count(case when stocks.type = 5 then 1 end) type_5,
+					count(case when stocks.type = 6 then 1 end) type_6,
+					count(case when stocks.type = 7 then 1 end) type_7,
+					count(case when stocks.type = 9 then 1 end) type_9,
+					count(case when stocks.type = 10 then 1 end) type_10,
+					count(case when stocks.type = 11 then 1 end) type_11,
+					count(case when stocks.type = 12 then 1 end) type_12,
+					count(case when stocks.type = 13 then 1 end) type_13,
+					count(case when stocks.type = 14 then 1 end) type_14,
+					count(case when stocks.type = 15 then 1 end) type_15,
+					count(case when stocks.type = 17 then 1 end) type_17,
+					count(case when stocks.type = 18 then 1 end) type_18,
+					count(case when stocks.type = 19 then 1 end) type_19,
+					count(case when stocks.type = 22 then 1 end) type_22,
+					count(case when stocks.type = 33 then 1 end) type_33,
+					count(case when stocks.type = 34 then 1 end) type_34,
+					count(case when stocks.type = 35 then 1 end) type_35,
+					count(case when stocks.type = 36 then 1 end) type_36,
+					count(case when stocks.type = 43 then 1 end) type_43,
+					count(case when stocks.type = 44 then 1 end) type_44,
+					count(case when stocks.type = 45 then 1 end) type_45,
+					count(case when stocks.type = 50 then 1 end) type_50,
+					count(case when stocks.type = 51 then 1 end) type_51,
+					count(case when stocks.type = 100 then 1 end) type_100,
+					count(case when stocks.type = 102 then 1 end) type_102,
+					count(case when stocks.type = 1001 then 1 end) type_1001
+				FROM funds_info
+				LEFT JOIN stock_to_fund ON funds_info.id = stock_to_fund.fund_id
+				LEFT JOIN stocks ON stock_to_fund.stock_id = stocks.id
+				WHERE funds_info.number IN ({0})
+				GROUP BY funds_info.number
+			'''.format(numbers)
+			self.CURS.execute(query)
+			
+			rows = self.CURS.fetchall()
+			self.Locker.release()
+			if len(rows) > 0:
+				for row in rows:
+					data.append({
+						"number": row[0],
+						"holdings_count": row[1],
+						"is_holdings": row[2],
+						"us_holdings": row[29],
+						"other_holdings": row[1] - (row[2] + row[29])
+					})
+		except Exception as e:
+			print("ERROR [PortfolioExist] {0}".format(e))
+			self.Locker.release()
+		
+		return data
 
 '''
 SELECT * FROM (

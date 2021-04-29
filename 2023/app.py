@@ -40,6 +40,7 @@ class Context():
 			'get_portfolios':					self.GetPortfoliosHandler,
 			'create_new_portfolio':				self.CreateNewPortfolioHandler,
 			'delete_portfolio':					self.DeletePortfolioHandler,
+			'get_stock_distribution':			self.GetStockDistributionHandler,
 			'get_stock_investment':				self.GetStockInvestmentHandler,
 			'undefined':						self.UndefindHandler
 		}
@@ -68,12 +69,25 @@ class Context():
 
 		funds_number_list = payload["funds"]
 		str_numbers = ",".join([str(num) for num in funds_number_list])
+		investment = self.SQL.GetStocksInvestement(str_numbers)
+
+		return {
+			"investment": investment
+		}
+	
+	def GetStockDistributionHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetStockDistributionHandler]".format(classname=self.ClassName),5)
+
+		funds_number_list = payload["funds"]
+		str_numbers = ",".join([str(num) for num in funds_number_list])
 
 		all_stocks = self.SQL.HowManyStocksWeHave()
 		fund_stocks = self.SQL.HowManyStocksFundHas(str_numbers)
-		us_stocks = self.SQL.GetStocksInvestement(str_numbers, 1001)
-		is_stocks = self.SQL.GetStocksInvestement(str_numbers, 1)
+		us_stocks = self.SQL.GetStocksDistribution(str_numbers, 1001)
+		is_stocks = self.SQL.GetStocksDistribution(str_numbers, 1)
 		government_stocks = fund_stocks - (us_stocks + is_stocks)
+		investment = self.SQL.GetStocksInvestement(str_numbers)
 
 		data = {
 			"us": us_stocks,
@@ -82,7 +96,7 @@ class Context():
 			"all": all_stocks,
 			"fund_stocks": fund_stocks
 		}
-		self.Node.LogMSG("({classname})# [GetStockInvestmentHandler] {0}".format(data, classname=self.ClassName),5)
+		self.Node.LogMSG("({classname})# [GetStockDistributionHandler] {0}".format(data, classname=self.ClassName),5)
 
 		return data
 
