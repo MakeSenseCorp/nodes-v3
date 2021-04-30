@@ -466,6 +466,8 @@ class StockMarket():
 									pass
 							else:
 								self.LogMSG("({classname})# [Exception] MASTER Stock {0} is null".format(ticker,classname=self.ClassName), 5)
+							# Rest little bit (we are not realtime stock monitor)
+							time.sleep(0.5)
 						if self.FirstStockUpdateRun is False:
 							self.WaitForMinionsToFinish()
 							if self.FirstRunDoneCallback is not None:
