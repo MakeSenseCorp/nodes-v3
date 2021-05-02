@@ -79,7 +79,6 @@ class Context():
 		self.UploadLocker 				= threading.Lock()
 		self.LocalStoragePath 			= "import"
 
-		self.Timer.AddTimeItem(10, self.PrintConnections)
 		self.MarketRemote.FullLoopPerformedCallback 				= self.FullLoopPerformedEvent
 		# self.MarketRemote.StockChangeCallback 					= self.StockChangeEvent
 		self.MarketRemote.FirstRunDoneCallback						= self.FirstRunDoneEvent
@@ -91,6 +90,8 @@ class Context():
 
 		self.Nasdaq.BindHandler()
 		self.Market.BindHandler()
+
+		self.Timer.AddTimeItem(10, self.PrintConnections) # In scope of main Node thread
 	
 	def ThresholdEvent(self, ticker, price, threshold):
 		self.Node.LogMSG("({classname})# [StockSimplePredictionChangeEvent]".format(classname=self.ClassName),5)

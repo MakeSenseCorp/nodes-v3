@@ -157,16 +157,20 @@ ModuleDashboardView.prototype.UpdateFundsTable = function(funds_list) {
 
 ModuleDashboardView.prototype.Filter = function() {
     var self = this;
-    var objFee = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_fee");
     var funds_number_list = []
     var funds = [];
+
+    var objFeeLow = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_fee_low");
+    var objFeeHigh = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_fee_high");
+
     for (key in this.Funds) {
         var fund = this.Funds[key];
         var isAppend    = false;
         var filterFee   = false;
         var filterMngr  = false;
 
-        if ((objFee.value !== "" && fund.fee <= parseFloat(objFee.value)) || objFee.value == "") {
+        if (((objFeeLow.value !== "" && fund.fee >= parseFloat(objFeeLow.value)) || objFeeLow.value == "") && 
+            ((objFeeHigh.value !== "" && fund.fee <= parseFloat(objFeeHigh.value)) || objFeeHigh.value == "")) {
             filterFee = true;
         }
 
@@ -188,36 +192,80 @@ ModuleDashboardView.prototype.Filter = function() {
     var objIsCheckbox    = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_is_stock_perc_check");
     var objOtherCheckbox = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_other_stock_perc_check");
     
-    if (objUsCheckbox.checked == true || objIsCheckbox.checked == true || objUsCheckbox.checked == true) {
+    if (objUsCheckbox.checked == true || objIsCheckbox.checked == true || objOtherCheckbox.checked == true) {
         node.API.SendCustomCommand(NodeUUID, "get_stock_investment", {
             "funds": funds_number_list
         }, function(res) {
             var payload = res.data.payload;
             var investment = payload.investment;
-            var funds_number_list = [];
+            var new_funds_number_list = [];
             var new_funds = [];
 
             var us_perc = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_stock_perc").value;
-            console.log("get_stock_investment", payload.investment.length, us_perc);
+            var is_perc = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_is_stock_perc").value;
+            var other_perc = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_other_stock_perc").value;
 
             for (key in funds) {
                 var fund = funds[key];
                 for (idx in investment) {
                     var invest = investment[idx];
                     if (invest.number == fund.number) {
-                        if (((invest.us_holdings / invest.holdings_count) * 100) > parseInt(us_perc)) {
-                            funds_number_list.push(fund.number);
+                        var us_filter = false;
+                        var is_filter = false;
+                        var other_filter = false;
+
+                        // Check US holdings
+                        if (objUsCheckbox.checked && (us_perc !== undefined && us_perc !== null && us_perc != "")) {
+                            if (((invest.us_holdings / invest.holdings_count) * 100) > parseInt(us_perc)) {
+                                new_funds_number_list.push(fund.number);
+                                us_filter = true;
+                            }
+                        } else {
+                            us_filter = true;
+                        }
+                        // Check IS holdings
+                        if (objIsCheckbox.checked && (us_perc !== undefined && us_perc !== null && us_perc != "")) {
+                            if (((invest.is_holdings / invest.holdings_count) * 100) > parseInt(is_perc)) {
+                                new_funds_number_list.push(fund.number);
+                                is_filter = true;
+                            }
+                        } else {
+                            is_filter = true;
+                        }
+                        // Check Other holdings
+                        if (objOtherCheckbox.checked && (us_perc !== undefined && us_perc !== null && us_perc != "")) {
+                            if (((invest.other_holdings / invest.holdings_count) * 100) > parseInt(other_perc)) {
+                                new_funds_number_list.push(fund.number);
+                                other_filter = true;
+                            }
+                        } else {
+                            other_filter = true;
+                        }
+
+                        if (us_filter & is_filter & other_filter) {
                             new_funds.push(fund);
                             // Save index
                         }
+
                         break;
                     }
                     // Delete this item from investment
                 }
             }
 
-            self.UpdateFundsTable(new_funds);
-            self.GetStockDistribution(funds_number_list);
+            if (new_funds.length > 0) {
+                self.UpdateFundsTable(new_funds);
+            } else {
+                self.UpdateFundsTable(funds);
+            }
+
+            if (new_funds_number_list.length > 0) {
+                self.GetStockDistribution(new_funds_number_list);
+            } else {
+                self.GetStockDistribution(funds_number_list);
+            }
+            
+            
         });
     } else {
         this.UpdateFundsTable(funds);
@@ -234,10 +282,17 @@ ModuleDashboardView.prototype.GetStockDistribution = function(funds) {
         document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_stocks").innerHTML = ((payload.us / payload.fund_stocks) * 100).toFixed(2) + "%";
         document.getElementById("id_m_funder_dashboard_view_funds_table_filter_is_stocks").innerHTML = ((payload.is / payload.fund_stocks) * 100).toFixed(2) + "%";
         document.getElementById("id_m_funder_dashboard_view_funds_table_filter_government_stocks").innerHTML = ((payload.government / payload.fund_stocks) * 100).toFixed(2) + "%";
+        document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_stocks_ratio").innerHTML = ((payload.us / 3323) * 100).toFixed(2) + "%";
+        
 
+        //document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_stocks_all").innerHTML = ((payload.us / payload.all) * 100).toFixed(2) + "%";
+        
+        document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_stocks_all").style.width = ((payload.us / payload.all) * 100).toFixed(2) + "%";
         document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_stocks_all").innerHTML = ((payload.us / payload.all) * 100).toFixed(2) + "%";
+
         document.getElementById("id_m_funder_dashboard_view_funds_table_filter_is_stocks_all").innerHTML = ((payload.is / payload.all) * 100).toFixed(2) + "%";
         document.getElementById("id_m_funder_dashboard_view_funds_table_filter_government_stocks_all").innerHTML = ((payload.government / payload.all) * 100).toFixed(2) + "%";
+        document.getElementById("id_m_funder_dashboard_view_funds_table_filter_is_stocks_ratio").innerHTML = ((payload.is / 769) * 100).toFixed(2) + "%";
     });
 }
 

@@ -59,6 +59,8 @@ class Context():
 			"update_perc": 0,
 			"working": False
 		}
+
+		self.Timer.AddTimeItem(10, self.PrintConnections) # In scope of main Node thread
 	
 	def UndefindHandler(self, sock, packet):
 		print ("UndefindHandler")
@@ -87,7 +89,6 @@ class Context():
 		us_stocks = self.SQL.GetStocksDistribution(str_numbers, 1001)
 		is_stocks = self.SQL.GetStocksDistribution(str_numbers, 1)
 		government_stocks = fund_stocks - (us_stocks + is_stocks)
-		investment = self.SQL.GetStocksInvestement(str_numbers)
 
 		data = {
 			"us": us_stocks,
