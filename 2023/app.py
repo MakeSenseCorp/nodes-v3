@@ -305,6 +305,8 @@ class Context():
 			# TODO - Check for stock list difference
 			new_ticker_list = self.GenerateTickerListFromFunder(info["holdings"])
 			old_ticker_list = self.GenerateTickerListFromDB(fund["fundNum"])
+			if len(new_ticker_list) != len(old_ticker_list):
+				self.Node.LogMSG("({classname})# [UpdateFundHoldings] Holdimgs list CHANGED ({0} -> {1})".format(len(old_ticker_list),len(new_ticker_list),classname=self.ClassName),5)
 			new, deleted = self.FindDifference(old_ticker_list, new_ticker_list)
 
 			fund_name = fund["fundName"].strip()
