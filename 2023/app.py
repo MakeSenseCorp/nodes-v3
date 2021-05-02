@@ -60,7 +60,7 @@ class Context():
 			"working": False
 		}
 
-		self.Timer.AddTimeItem(10, self.PrintConnections) # In scope of main Node thread
+		#self.Timer.AddTimeItem(10, self.PrintConnections) # In scope of main Node thread
 	
 	def UndefindHandler(self, sock, packet):
 		print ("UndefindHandler")
