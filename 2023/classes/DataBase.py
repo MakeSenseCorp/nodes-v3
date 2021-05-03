@@ -5,6 +5,7 @@ import time
 import base64
 import datetime
 from datetime import date
+from datetime import datetime
 import _thread
 import threading
 
@@ -258,7 +259,8 @@ class DB():
 					"name": 	rows[0][2],
 					"type": 	rows[0][3]
 				}
-		except:
+		except Exception as e:
+			print("ERROR [IsStockExist] {0}".format(e))
 			self.Locker.release()
 		
 		return False, None
@@ -275,7 +277,7 @@ class DB():
 			self.Locker.release()
 			return self.CURS.lastrowid
 		except Exception as e:
-			print("ERROR {0}".format(e))
+			print("ERROR [InsertStock] {0}".format(e))
 			self.Locker.release()
 		
 		return 0
@@ -289,7 +291,8 @@ class DB():
 			self.Locker.release()
 			if len(rows) > 0:
 				return True
-		except:
+		except Exception as e:
+			print("ERROR [IsFundToStockExist] {0}".format(e))
 			self.Locker.release()
 
 		return False
@@ -306,7 +309,7 @@ class DB():
 			self.Locker.release()
 			return self.CURS.lastrowid
 		except Exception as e:
-			print("ERROR {0}".format(e))
+			print("ERROR [InsertStockToFund] {0}".format(e))
 			self.Locker.release()
 		
 		return 0
@@ -314,16 +317,19 @@ class DB():
 	def InsertFundHistoryChange(self, item):
 		self.Locker.acquire()
 		try:
+			now = datetime.now()
+			date_str = now.strftime("%m-%d-%Y 00:00:00")
+
 			query = '''
 				INSERT INTO fund_history_changes (id,number,name,date,timestamp,change)
 				VALUES (NULL, {0},'{1}','{2}',{3},'{4}')
-			'''.format(item["number"],item["name"],"",time.time(),item["msg"])
+			'''.format(item["number"],item["name"],date_str,time.time(),item["msg"])
 			self.CURS.execute(query)
 			self.DB.commit()
 			self.Locker.release()
 			return self.CURS.lastrowid
 		except Exception as e:
-			print("ERROR [InsertFundHistoryChange] {0}".format(e))
+			print("ERROR [InsertFundHistoryChange] {0}\n{1}".format(e,query))
 		
 		self.Locker.release()
 		return 0

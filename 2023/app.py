@@ -268,15 +268,18 @@ class Context():
 		
 		return True, fund
 	
-	def FindDifference(self, old, new):
+	def FindDifference(self, old_h, new_h):
 		new_items 		= []
 		deleted_items 	= []
-		for item in old:
-			if item not in new:
+		for item in old_h:
+			if item not in new_h:
 				deleted_items.append(item)
-		for item in new:
-			if item not in old:
+		for item in new_h:
+			if item not in old_h:
 				new_items.append(item)
+		
+		if len(new_h) != len(old_h):
+			self.Node.LogMSG("({classname})# [FindDifference] {0} {1}\n{2}\n{3}".format(len(new_items), len(deleted_items), old_h, new_h, classname=self.ClassName),5)
 		
 		return new_items, deleted_items
 	
@@ -299,27 +302,34 @@ class Context():
 
 	def UpdateFundHoldings(self, fund):
 		self.Node.LogMSG("({classname})# Request fund's holdings".format(classname=self.ClassName),5)
+
+		if fund["fundName"] is None:
+			return 
+		
+		fund_name = fund["fundName"].strip()
+		fund_name = fund_name.replace("'","")
+
 		# Get fund info
 		info = self.Funder.GetFundInfoFromDB(fund["fundNum"])
 		if info is not None:
 			# TODO - Check for stock list difference
 			new_ticker_list = self.GenerateTickerListFromFunder(info["holdings"])
 			old_ticker_list = self.GenerateTickerListFromDB(fund["fundNum"])
-			if len(new_ticker_list) != len(old_ticker_list):
-				self.Node.LogMSG("({classname})# [UpdateFundHoldings] Holdimgs list CHANGED ({0} -> {1})".format(len(old_ticker_list),len(new_ticker_list),classname=self.ClassName),5)
-			new, deleted = self.FindDifference(old_ticker_list, new_ticker_list)
+			new_holds, deleted_holds = self.FindDifference(old_ticker_list, new_ticker_list)
 
-			fund_name = fund["fundName"].strip()
-			if len(new) > 0:
-				for item in new:
+			if len(new_ticker_list) != len(old_ticker_list):
+				self.Node.LogMSG("({classname})# [UpdateFundHoldings] Holdimgs list CHANGED #{0} ({1} -> {2}) NEW({3}) DELETED({4})".format(fund["fundNum"],len(old_ticker_list),len(new_ticker_list),len(new_holds),len(deleted_holds),classname=self.ClassName),5)
+
+			if len(new_holds) > 0:
+				for item in new_holds:
 					self.SQL.InsertFundHistoryChange({
 						"number": fund["fundNum"],
 						"name": fund_name,
 						"msg": "New stock ({0}) was added to {1} {2}".format(item,fund["fundNum"],fund_name)
 					})
 			
-			if len(deleted) > 0:
-				for item in deleted:
+			if len(deleted_holds) > 0:
+				for item in deleted_holds:
 					self.SQL.InsertFundHistoryChange({
 						"number": fund["fundNum"],
 						"name": fund_name,
