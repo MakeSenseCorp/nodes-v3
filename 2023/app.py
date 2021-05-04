@@ -84,17 +84,23 @@ class Context():
 		funds_number_list = payload["funds"]
 		str_numbers = ",".join([str(num) for num in funds_number_list])
 
-		all_stocks = self.SQL.HowManyStocksWeHave()
+		data_stocks_count = self.SQL.HowManyStocksWeHave()
 		fund_stocks = self.SQL.HowManyStocksFundHas(str_numbers)
 		us_stocks = self.SQL.GetStocksDistribution(str_numbers, 1001)
 		is_stocks = self.SQL.GetStocksDistribution(str_numbers, 1)
 		government_stocks = fund_stocks - (us_stocks + is_stocks)
 
 		data = {
+			"all": {
+				"us": data_stocks_count["us_stocks"],
+				"is": data_stocks_count["is_stocks"],
+				"other": data_stocks_count["other_stocks"],
+				"all": data_stocks_count["all_stocks"],
+			},
 			"us": us_stocks,
 			"is": is_stocks,
 			"government": government_stocks,
-			"all": all_stocks,
+			
 			"fund_stocks": fund_stocks
 		}
 		self.Node.LogMSG("({classname})# [GetStockDistributionHandler] {0}".format(data, classname=self.ClassName),5)

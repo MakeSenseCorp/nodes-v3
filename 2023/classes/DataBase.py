@@ -464,18 +464,30 @@ class DB():
 	def HowManyStocksWeHave(self):
 		self.Locker.acquire()
 		try:
-			query = "SELECT COUNT(*) FROM stocks"
+			query = '''
+				SELECT SUM(us_stocks) us_stocks, SUM(is_stocks) is_stocks, SUM(all_stocks) all_stocks
+				FROM (
+					SELECT count(case when stocks.type = 1001 then 1 end) us_stocks, count(case when stocks.type = 1 then 1 end) is_stocks, count(case when stocks.type != 0 then 1 end) all_stocks 
+					FROM stocks
+					GROUP BY type
+				)
+			'''
 			self.CURS.execute(query)
 			
 			rows = self.CURS.fetchall()
 			self.Locker.release()
 			if len(rows) > 0:
-				return rows[0][0]
+				return { 
+					"us_stocks": rows[0][0],
+					"is_stocks": rows[0][1],
+					"all_stocks": rows[0][2],
+					"other_stocks": rows[0][2] - (rows[0][0] + rows[0][1])
+				}
 		except Exception as e:
 			print("ERROR [PortfolioExist] {0}".format(e))
 		
 		self.Locker.release()
-		return 0
+		return None
 	
 	def HowManyStocksFundHas(self, numbers):
 		self.Locker.acquire()
