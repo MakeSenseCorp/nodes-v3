@@ -436,6 +436,17 @@ class StockDB():
 		self.DB.commit()
 		return self.CURS.lastrowid
 	
+	# Dubble implementation
+	def InsertStockPortfolio(self, data):
+		query = '''
+			INSERT INTO stock_to_portfolio (ticker,portfolio_id)
+			VALUES ('{0}',{1})
+		'''.format(data["ticker"],data["id"])
+
+		self.CURS.execute(query)
+		self.DB.commit()
+		return self.CURS.lastrowid
+	
 	def InsertStockHistory(self, transaction):
 		leftovers = 0
 		if transaction["action"] == -1:
@@ -468,16 +479,6 @@ class StockDB():
 		query = '''
 			INSERT INTO portfolios VALUES (NULL,'{0}')
 		'''.format(portfolio_name)
-		self.CURS.execute(query)
-		self.DB.commit()
-		return self.CURS.lastrowid
-	
-	def InsertStockPortfolio(self, data):
-		query = '''
-			INSERT INTO stock_to_portfolio (ticker,portfolio_id)
-			VALUES ('{0}',{1})
-		'''.format(data["ticker"],data["id"])
-
 		self.CURS.execute(query)
 		self.DB.commit()
 		return self.CURS.lastrowid

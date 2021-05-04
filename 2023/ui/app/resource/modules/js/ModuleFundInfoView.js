@@ -41,7 +41,12 @@ ModuleFundInfoView.prototype.Build = function(data, callback) {
     });
 }
 
+ModuleFundInfoView.prototype.TableUIChangeEvent = function() {
+    feather.replace();
+}
+
 ModuleFundInfoView.prototype.GetAllFundInfo = function() {
+    var self = this;
     node.API.SendCustomCommand(NodeUUID, "get_fund_info", {
         "number": this.Number
     }, function(res) {
@@ -50,6 +55,9 @@ ModuleFundInfoView.prototype.GetAllFundInfo = function() {
 
         var table = new MksBasicTable();
         table.SetSchema(["", "", "", "", ""]);
+        table.EnableListing();
+        table.SetListingWindowSize(10);
+        table.RegisterUIChangeEvent(self.TableUIChangeEvent);
         var data = [];
         for (key in payload.holdings) {
             holding = payload.holdings[key];           

@@ -166,12 +166,47 @@ class DB():
 		return holdings
 
 	def SelectFundsInfo(self):
+		funds = []
 		self.Locker.acquire()
 		try:
 			query = "SELECT id,number,name,mngr,ivest_mngr,d_change,month_begin,y_change,year_begin,fee,fund_size,last_updated,mimic FROM funds_info"
 			self.CURS.execute(query)
 
-			funds = []
+			rows = self.CURS.fetchall()
+			if len(rows) > 0:
+				for row in rows:
+					funds.append({ 
+						"id": 			row[0],
+						"number": 		row[1],
+						"name": 		row[2],
+						"mngr": 		row[3],
+						"ivest_mngr": 	row[4],
+						"d_change": 	row[5],
+						"month_begin": 	row[6],
+						"y_change": 	row[7],
+						"year_begin": 	row[8],
+						"fee": 			row[9],
+						"fund_size": 	row[10],
+						"last_updated": row[11],
+						"mimic": 		row[12]
+					})
+		except:
+			pass
+		self.Locker.release()
+		
+		return funds
+
+	def SelectFundsInfoByPortfolioId(self, portfolio_id):
+		funds = []
+		self.Locker.acquire()
+		try:
+			query = '''
+				SELECT id, number, name, mngr, ivest_mngr, d_change, month_begin, y_change, year_begin, fee, fund_size, last_updated, mimic, fund_to_portfolio.portfolio_id FROM funds_info
+				LEFT JOIN fund_to_portfolio ON funds_info.id = fund_to_portfolio.portfolio_id
+				WHERE fund_to_portfolio.portfolio_id = {0}
+			'''.format(portfolio_id)
+			self.CURS.execute(query)
+
 			rows = self.CURS.fetchall()
 			if len(rows) > 0:
 				for row in rows:
@@ -361,6 +396,27 @@ class DB():
 		
 		return funds
 	
+	def GetPortfolioFunds(self, fund_id):
+		self.Locker.acquire()
+		try:
+			query = '''
+				SELECT * FROM portfolios
+				LEFT JOIN fund_to_portfolio ON portfolios.id = fund_to_portfolio.portfolio_id
+				WHERE fund_to_portfolio.fund_id = {0}
+			'''.format(fund_id)
+			self.CURS.execute(query)
+			
+			portfolios = []
+			rows = self.CURS.fetchall()
+			if len(rows) > 0:
+				for row in rows:
+					portfolios.append(row[0])
+		except Exception as e:
+			print("ERROR [GetPortfolios] {0}".format(e))
+		
+		self.Locker.release()
+		return portfolios
+	
 	def GetPortfolios(self):
 		self.Locker.acquire()
 		try:
@@ -433,7 +489,7 @@ class DB():
 			query = '''
 				DELETE FROM fund_to_portfolio
 				WHERE fund_id = '{0}' AND portfolio_id = {1}
-			'''.format(data["fund_id"],data["id"])
+			'''.format(data["fund_id"],data["portfolio_id"])
 
 			self.CURS.execute(query)
 			self.DB.commit()

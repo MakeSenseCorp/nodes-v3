@@ -37,11 +37,14 @@ class Context():
 			'get_all_funds': 					self.GetAllFundsHandler,
 			'get_fund_info': 					self.GetFundInfoHandler,
 			'get_stocks_rate':					self.GetStocksRateHandler,
-			'get_portfolios':					self.GetPortfoliosHandler,
 			'create_new_portfolio':				self.CreateNewPortfolioHandler,
 			'delete_portfolio':					self.DeletePortfolioHandler,
 			'get_stock_distribution':			self.GetStockDistributionHandler,
 			'get_stock_investment':				self.GetStockInvestmentHandler,
+			'get_portfolios':					self.GetPortfoliosHandler,
+			'set_fund_portfolios':				self.SetFundPortfoliosHandler,
+			'get_fund_portfolios':				self.GetFundPortfoliosHandler,
+			'get_porfolio_funds': 				self.GetPortfolioFundsHandler,
 			'undefined':						self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -64,6 +67,34 @@ class Context():
 	
 	def UndefindHandler(self, sock, packet):
 		print ("UndefindHandler")
+	
+	def GetPortfolioFundsHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetPortfolioFundsHandler]".format(classname=self.ClassName),5)
+
+		return {
+			"funds": self.SQL.SelectFundsInfoByPortfolioId(payload["portfolio_id"])
+		}
+	
+	def SetFundPortfoliosHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [SetFundPortfoliosHandler]".format(classname=self.ClassName),5)
+
+		if payload["status"] is True:
+			self.SQL.InsertFundPortfolio(payload)
+		else:
+			self.SQL.DeleteFundPortfolio(payload)
+		return {
+			"error": "none"
+		}
+	
+	def GetFundPortfoliosHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [GetFundPortfoliosHandler]".format(classname=self.ClassName),5)
+
+		return {
+			"portfolios": self.SQL.GetPortfolioFunds(payload["fund_id"])
+		}
 	
 	def GetStockInvestmentHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)

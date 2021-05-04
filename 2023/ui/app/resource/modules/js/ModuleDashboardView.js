@@ -87,6 +87,38 @@ ModuleDashboardView.prototype.GetAllFunds = function() {
     });
 }
 
+ModuleDashboardView.prototype.GetPortfolioFunds = function(id, name) {
+    // GetFundsByPortfolio
+    // UpdateFundsTable
+    var self = this;
+
+    if (id != 0) {
+        node.API.SendCustomCommand(NodeUUID, "get_porfolio_funds", {
+            "portfolio_id": id
+        }, function(res) {
+            var payload = res.data.payload;
+            self.UpdateFundsTable(payload.funds);
+        });
+    } else {
+        this.GetAllFunds();
+    }
+}
+
+ModuleDashboardView.prototype.GetPortfolioList = function() {
+    var self = this;
+    node.API.SendCustomCommand(NodeUUID, "get_portfolios", {}, function(res) {
+        var payload = res.data.payload;
+        var obj = document.getElementById("id_m_funder_dashboard_view_funds_table_portfolio_dropdown_items");
+
+        self.PortfolioList = payload.portfolios;
+        obj.innerHTML = `<span class="dropdown-item" style="cursor:pointer" onclick="window.DashboardView.GetPortfolioFunds(0,'All');">All</span>`;
+        for (key in payload.portfolios) {
+            item = payload.portfolios[key];
+            obj.innerHTML += `<span class="dropdown-item" style="cursor:pointer" onclick="window.DashboardView.GetPortfolioFunds(`+item.id+`,'`+item.name+`');">`+item.name+`</span>`;
+        }
+    });
+}
+
 ModuleDashboardView.prototype.FundManagerSelectionChange = function() {
     var objDropMngrs = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_mngrs");
     this.SelectedManagerFund = objDropMngrs.value;
@@ -140,6 +172,7 @@ ModuleDashboardView.prototype.UpdateFundsTable = function(funds_list) {
                         <span data-feather="menu"></span>
                     </button>
                     <div class="dropdown-menu text-center" aria-labelledby="id_m_stock_append_stock_dropdown">
+                        <span class="dropdown-item" style="color: BLUE; cursor:pointer; font-size: 12px;" onclick="`+this.DOMName+`.OpenPortfolioSelectorModal(`+fund.id+`);">Portfolios</span>
                         <span class="dropdown-item" style="color: BLUE; cursor:pointer; font-size: 12px;" onclick="">Settings</span>
                     </div>
                 </div>
@@ -152,6 +185,7 @@ ModuleDashboardView.prototype.UpdateFundsTable = function(funds_list) {
     table.ShowHeader(false);
     table.SetData(data);
     table.Build(document.getElementById("id_m_funder_dashboard_view_funds_table"));
+    this.GetPortfolioList();
     feather.replace();
 }
 
@@ -330,6 +364,19 @@ ModuleDashboardView.prototype.GetFunsManagersList = function(funds) {
     }
 
     return mngrs;
+}
+
+ModuleDashboardView.prototype.OpenPortfolioSelectorModal = function(fund_id) {
+    this.Selector = new ModulePortfolioSelectorView(fund_id);
+    this.Selector.SetObjectDOMName(this.DOMName+".Selector");
+    this.Selector.Build(null, function(module) {
+        window.Modal.Remove();
+        window.Modal.SetTitle("Portfolios");
+        window.Modal.SetContent(module.HTML);
+        window.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+        window.Modal.Build("sm");
+        window.Modal.Show();
+    });
 }
 
 ModuleDashboardView.prototype.Clean = function() {
