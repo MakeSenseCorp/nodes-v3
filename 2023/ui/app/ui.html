@@ -80,9 +80,6 @@
 							<a class="nav-link" id="id_m_main_funder_portfolios" href="#" onclick="ui.BindPortfoliosView();">Portfolios</a>
 						</li>
 						<li class="nav-item">
-							<a class="nav-link" id="id_m_main_funder_statistics" href="#" onclick="ui.BindStatisticsView();">Statistics</a>
-						</li>
-						<li class="nav-item">
 							<a class="nav-link" id="id_m_main_funder_settings" href="#" onclick="ui.BindSettingsView();">Settings</a>
 						</li>
 					</ul>
@@ -123,7 +120,6 @@
 
 			// User Code #1 - Start
 			require ModuleMainUI
-			require ModuleStatisticsView
 			require ModuleDashboardView
 			require ModuleSettingsView
 			require ModuleStocksView
@@ -152,9 +148,11 @@
 
 			var UserNodeLoaded = function() {
 				// User Code #1 - Start
+				/*
 				window.StatisticsView = new ModuleStatisticsView();
 				window.StatisticsView.SetHostingID("id_application_view_module");
 				window.StatisticsView.SetObjectDOMName("window.StatisticsView");
+				*/
 
 				window.DashboardView = new ModuleDashboardView();
 				window.DashboardView.SetHostingID("id_application_view_module");
