@@ -91,7 +91,7 @@ class Context():
 		self.Nasdaq.BindHandler()
 		self.Market.BindHandler()
 
-		self.Timer.AddTimeItem(10, self.PrintConnections) # In scope of main Node thread
+		# self.Timer.AddTimeItem(10, self.PrintConnections) # In scope of main Node thread
 	
 	def ThresholdEvent(self, ticker, price, threshold):
 		self.Node.LogMSG("({classname})# [StockSimplePredictionChangeEvent]".format(classname=self.ClassName),5)
