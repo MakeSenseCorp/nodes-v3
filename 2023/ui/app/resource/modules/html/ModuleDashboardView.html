@@ -91,9 +91,13 @@
                         <input type="text" class="form-control form-control-sm" id="id_m_funder_dashboard_view_funds_table_filter_name" placeholder="Name">
                     </div>
                     <div class="col-md-3">
-                        <select id="id_m_funder_dashboard_view_funds_table_filter_mngrs" class="form-control form-control-sm" onclick="window.DashboardView.FundManagerSelectionChange();">
-                            <option selected>All</option>
-                        </select>
+                        <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="id_m_funder_dashboard_view_funds_table_filter_mngrs_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <span data-feather="calendar"></span>
+                            <span id="id_m_funder_dashboard_view_funds_table_filter_mngrs_dropdown_selected_item">Fund Manager</span>
+                        </button>
+                        <div class="dropdown-menu text-center" aria-labelledby="id_m_funder_dashboard_view_funds_table_filter_mngrs_dropdown" id="id_m_funder_dashboard_view_funds_table_filter_mngrs_dropdown_items">
+                            <span class="dropdown-item" style="cursor:pointer">All</span>
+                        </div>
                     </div>
                     <div class="col-md-2">
                         <button  class="btn btn-outline-success btn-sm my-2 my-sm-0" onclick="window.DashboardView.Filter();">Filter</button>

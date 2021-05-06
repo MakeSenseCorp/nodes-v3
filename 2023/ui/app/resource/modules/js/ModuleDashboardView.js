@@ -116,13 +116,25 @@ ModuleDashboardView.prototype.GetAllFunds = function() {
         
         // Update managers list
         mngrs = self.GetFunsManagersList(payload.funds);
-        var objDropMngrs = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_mngrs");
+        var objDropMngrs = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_mngrs_dropdown_items");
+
+        objDropMngrs.innerHTML = `<span class="dropdown-item" style="cursor:pointer" onclick="window.DashboardView.SelectManager('All');">All</span>`;
         for (key in mngrs) {
-            var obj = document.createElement("option");
-            obj.text = mngrs[key];
-            objDropMngrs.add(obj);
+            objDropMngrs.innerHTML += `<span class="dropdown-item" style="cursor:pointer" onclick="window.DashboardView.SelectManager('`+mngrs[key]+`');">`+mngrs[key]+`</span>`;
         }
+        objDropMngrs.innerHTML += `<span class="dropdown-item" style="cursor:pointer" onclick="window.DashboardView.SelectManager('All');">All</span>`;
     });
+}
+
+ModuleDashboardView.prototype.SelectManager = function(name) {
+    var obj = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_mngrs_dropdown_selected_item");
+    this.SelectedManagerFund = name;
+
+    if (name == "All") {
+        obj.innerHTML = "Fund Manager";
+    } else {
+        obj.innerHTML = name;
+    }
 }
 
 ModuleDashboardView.prototype.GetPortfolioFunds = function(id, name) {
