@@ -169,7 +169,11 @@ class DB():
 		funds = []
 		self.Locker.acquire()
 		try:
-			query = "SELECT id,number,name,mngr,ivest_mngr,d_change,month_begin,y_change,year_begin,fee,fund_size,last_updated,mimic FROM funds_info"
+			query = '''
+				SELECT id,number,name,mngr,ivest_mngr,d_change,month_begin,y_change,year_begin,fee,fund_size,last_updated,mimic 
+				FROM funds_info 
+				ORDER BY y_change DESC
+			'''
 			self.CURS.execute(query)
 
 			rows = self.CURS.fetchall()
@@ -204,6 +208,7 @@ class DB():
 				SELECT id, number, name, mngr, ivest_mngr, d_change, month_begin, y_change, year_begin, fee, fund_size, last_updated, mimic, fund_to_portfolio.portfolio_id FROM funds_info
 				LEFT JOIN fund_to_portfolio ON funds_info.id = fund_to_portfolio.fund_id
 				WHERE fund_to_portfolio.portfolio_id = {0}
+				ORDER BY y_change DESC
 			'''.format(portfolio_id)
 			self.CURS.execute(query)
 

@@ -313,6 +313,7 @@ ModuleDashboardView.prototype.Filter = function() {
         var isAppend    = false;
         var filterFee   = false;
         var filterMngr  = false;
+        var filterName  = false;
 
         if (objUsCheckbox.checked) {
             if (((fund.fee >= parseFloat(objFeeLow)) || objFeeLow == "") && 
@@ -327,7 +328,16 @@ ModuleDashboardView.prototype.Filter = function() {
             filterMngr = true;
         }
 
-        if (filterFee & filterMngr) {
+        var name = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_name").value;
+        if (name == "") {
+            filterName = true;
+        } else {
+            if (fund.name.includes(name)) {
+                filterName = true;
+            }
+        }
+
+        if (filterFee & filterMngr & filterName) {
             isAppend = true;
         }
 
@@ -367,24 +377,30 @@ ModuleDashboardView.prototype.Filter = function() {
 
                         // Check US holdings
                         if (objUsCheckbox.checked) {
-                            if (((invest.us_holdings / invest.holdings_count) * 100) >= parseInt(us_perc[0]) && ((invest.us_holdings / invest.holdings_count) * 100) <= parseInt(us_perc[1])) {
-                                us_filter = true;
+                            if (parseInt(invest.holdings_count) > 0) {
+                                if (((invest.us_holdings / invest.holdings_count) * 100) >= parseInt(us_perc[0]) && ((invest.us_holdings / invest.holdings_count) * 100) <= parseInt(us_perc[1])) {
+                                    us_filter = true;
+                                }
                             }
                         } else {
                             us_filter = true;
                         }
                         // Check IS holdings
                         if (objIsCheckbox.checked) {
-                            if (((invest.is_holdings / invest.holdings_count) * 100) >= parseInt(is_perc[0]) && ((invest.is_holdings / invest.holdings_count) * 100) <= parseInt(is_perc[1])) {
-                                is_filter = true;
+                            if (parseInt(invest.holdings_count) > 0) {
+                                if (((invest.is_holdings / invest.holdings_count) * 100) >= parseInt(is_perc[0]) && ((invest.is_holdings / invest.holdings_count) * 100) <= parseInt(is_perc[1])) {
+                                    is_filter = true;
+                                }
                             }
                         } else {
                             is_filter = true;
                         }
                         // Check Other holdings
                         if (objOtherCheckbox.checked) {
-                            if (((invest.other_holdings / invest.holdings_count) * 100) >= parseInt(other_perc[0]) && ((invest.other_holdings / invest.holdings_count) * 100) <= parseInt(other_perc[1])) {
-                                other_filter = true;
+                            if (parseInt(invest.holdings_count) > 0) {
+                                if (((invest.other_holdings / invest.holdings_count) * 100) >= parseInt(other_perc[0]) && ((invest.other_holdings / invest.holdings_count) * 100) <= parseInt(other_perc[1])) {
+                                    other_filter = true;
+                                }
                             }
                         } else {
                             other_filter = true;
