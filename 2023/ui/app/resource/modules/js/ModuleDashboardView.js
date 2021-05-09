@@ -10,6 +10,7 @@ function ModuleDashboardView() {
     this.ComponentObject            = null;
     this.FundInfoModule             = null;
     this.Funds                      = null;
+    this.FilteredFunds              = null;
     this.SelectedManagerFund        = "All";
 
     this.FeeSlider                  = null;
@@ -123,6 +124,7 @@ ModuleDashboardView.prototype.GetAllFunds = function() {
             objDropMngrs.innerHTML += `<span class="dropdown-item" style="cursor:pointer" onclick="window.DashboardView.SelectManager('`+mngrs[key]+`');">`+mngrs[key]+`</span>`;
         }
         objDropMngrs.innerHTML += `<span class="dropdown-item" style="cursor:pointer" onclick="window.DashboardView.SelectManager('All');">All</span>`;
+        self.FilteredFunds = [];
     });
 }
 
@@ -137,9 +139,55 @@ ModuleDashboardView.prototype.SelectManager = function(name) {
     }
 }
 
+ModuleDashboardView.prototype.OpenCreatePortfolioModal = function() {
+    window.Modal.Remove();
+    window.Modal.SetTitle("Create Portfolio");
+    window.Modal.SetContent(`
+        <div class="row">
+            <div class="col-md-12">
+                <input type="text" class="form-control form-control-sm" id="id_m_funder_dashboard_view_funds_create_portfolio_name" placeholder="Name">
+            </div>
+        </div>
+    `);
+    window.Modal.SetFooter(`<button type="button" class="btn btn-success" onclick="window.DashboardView.CreatePortfolio();">Create</button><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+    window.Modal.Build("sm");
+    window.Modal.Show();
+}
+
+ModuleDashboardView.prototype.CreatePortfolio = function() {
+    var self = this;
+    var funds_list = null;
+    var portfolio_name = "";
+    var objName = document.getElementById("id_m_funder_dashboard_view_funds_create_portfolio_name");
+
+    if (objName === undefined || objName === null) {
+        return;
+    }
+
+    if (objName.value == "") {
+        return;
+    }
+
+    if (this.FilteredFunds.length != 0) {
+        funds_list = this.FilteredFunds;
+    } else {
+        funds_list = this.Funds;
+    }
+
+    if (funds_list.length == 0) {
+        return;
+    }
+
+    node.API.SendCustomCommand(NodeUUID, "create_portfolio_from_list", {
+        "name": objName.value,
+        "funds": funds_list
+    }, function(res) {
+        var payload = res.data.payload;
+        window.Modal.Hide();
+    });
+}
+
 ModuleDashboardView.prototype.GetPortfolioFunds = function(id, name) {
-    // GetFundsByPortfolio
-    // UpdateFundsTable
     var self = this;
 
     if (id != 0) {
@@ -147,7 +195,15 @@ ModuleDashboardView.prototype.GetPortfolioFunds = function(id, name) {
             "portfolio_id": id
         }, function(res) {
             var payload = res.data.payload;
+            var funds_number_list = [];
+            self.FilteredFunds = [];
             self.UpdateFundsTable(payload.funds);
+
+            for (key in payload.funds) {
+                var fund = payload.funds[key];
+                funds_number_list.push(fund.number);
+            }
+            self.GetStockDistribution(funds_number_list);
             self.Funds = Array.from(payload.funds);
         });
     } else {
@@ -250,6 +306,8 @@ ModuleDashboardView.prototype.Filter = function() {
 
     var objUsCheckbox    = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_fund_fee_check");
 
+    this.FilteredFunds = [];
+
     for (key in this.Funds) {
         var fund = this.Funds[key];
         var isAppend    = false;
@@ -276,6 +334,7 @@ ModuleDashboardView.prototype.Filter = function() {
         if (isAppend == true) {
             funds_number_list.push(fund.number);
             funds.push(fund);
+            this.FilteredFunds.push(fund);
         }
     }
 
@@ -291,6 +350,7 @@ ModuleDashboardView.prototype.Filter = function() {
             var investment = payload.investment;
             var new_funds_number_list = [];
             var new_funds = [];
+            self.FilteredFunds = [];
 
             var us_perc = self.USPercentSlider.GetValue();
             var is_perc = self.ISPercentSlider.GetValue();
@@ -333,6 +393,7 @@ ModuleDashboardView.prototype.Filter = function() {
                         if (us_filter & is_filter & other_filter) {
                             new_funds.push(fund);
                             new_funds_number_list.push(fund.number);
+                            self.FilteredFunds.push(fund);
                             // Save index
                         } else {
                         }

@@ -202,7 +202,7 @@ class DB():
 		try:
 			query = '''
 				SELECT id, number, name, mngr, ivest_mngr, d_change, month_begin, y_change, year_begin, fee, fund_size, last_updated, mimic, fund_to_portfolio.portfolio_id FROM funds_info
-				LEFT JOIN fund_to_portfolio ON funds_info.id = fund_to_portfolio.portfolio_id
+				LEFT JOIN fund_to_portfolio ON funds_info.id = fund_to_portfolio.fund_id
 				WHERE fund_to_portfolio.portfolio_id = {0}
 			'''.format(portfolio_id)
 			self.CURS.execute(query)
@@ -399,6 +399,11 @@ class DB():
 	def GetPortfolioFunds(self, fund_id):
 		self.Locker.acquire()
 		try:
+			'''
+			SELECT * FROM funds_info
+			LEFT JOIN fund_to_portfolio ON fund_to_portfolio.fund_id = funds_info.id
+			WHERE portfolio_id = 5
+			'''
 			query = '''
 				SELECT * FROM portfolios
 				LEFT JOIN fund_to_portfolio ON portfolios.id = fund_to_portfolio.portfolio_id

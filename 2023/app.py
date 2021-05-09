@@ -45,6 +45,7 @@ class Context():
 			'set_fund_portfolios':				self.SetFundPortfoliosHandler,
 			'get_fund_portfolios':				self.GetFundPortfoliosHandler,
 			'get_porfolio_funds': 				self.GetPortfolioFundsHandler,
+			'create_portfolio_from_list': 		self.CreatePortfolioFromListHandler,
 			'undefined':						self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -67,6 +68,23 @@ class Context():
 	
 	def UndefindHandler(self, sock, packet):
 		print ("UndefindHandler")
+	
+	def CreatePortfolioFromListHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [CreatePortfolioFromListHandler] {0} {1}".format(payload["name"], len(payload["funds"]),classname=self.ClassName),5)
+		# Create portfolio
+		res = self.SQL.InsertPortfolio(payload["name"])
+		# Create potfolio to funds bonding
+		for fund in payload["funds"]:
+			self.SQL.InsertFundPortfolio({
+				"portfolio_id": res,
+				"fund_id": fund["id"]
+			})
+		
+		return {
+			"error": "none"
+		}
+
 	
 	def GetPortfolioFundsHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
