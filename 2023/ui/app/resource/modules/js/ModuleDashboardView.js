@@ -83,6 +83,60 @@ ModuleDashboardView.prototype.Build = function(data, callback) {
     });
 }
 
+ModuleDashboardView.prototype.OptimizeCallback = function(payload) {
+    var numbers = payload.funds;
+    var funds_list = null;
+    var funds = [];
+
+    this.GetStockDistribution(numbers);
+
+    if (this.FilteredFunds.length != 0) {
+        funds_list = this.FilteredFunds;
+    } else {
+        funds_list = this.Funds;
+    }
+
+    for (key in funds_list) {
+        var fund = funds_list[key];
+        if (numbers.indexOf(fund.number) > 0) {
+            funds.push(fund);
+        }
+    }
+
+    this.UpdateFundsTable(funds);
+    this.FilteredFunds = Array.from(funds);
+}
+
+ModuleDashboardView.prototype.Optimize = function() {
+    var funds_list = null;
+    var funds_number_list = [];
+
+    if (this.FilteredFunds.length != 0) {
+        funds_list = this.FilteredFunds;
+    } else {
+        funds_list = this.Funds;
+    }
+
+    if (funds_list.length == 0) {
+        return;
+    }
+
+    for (key in funds_list) {
+        var fund = funds_list[key];
+        funds_number_list.push(fund.number);
+    }
+
+    if (funds_list.length > 0) {
+        node.API.SendCustomCommand(NodeUUID, "optimize", {
+            "fund_number_list": funds_number_list,
+            "perc": 40,
+            "perc2": 80
+        }, function(res) {
+            var payload = res.data.payload;
+        });
+    }
+}
+
 ModuleDashboardView.prototype.OpenFundInfoModal = function(number) {
     this.FundInfoModule = new ModuleFundInfoView(number);
     this.FundInfoModule.SetObjectDOMName(this.DOMName+".FundInfoModule");
@@ -300,16 +354,22 @@ ModuleDashboardView.prototype.Filter = function() {
     var self = this;
     var funds_number_list = []
     var funds = [];
+    var funds_list = null;
 
     var objFeeLow  = this.FeeSlider.GetValue()[0];
     var objFeeHigh = this.FeeSlider.GetValue()[1];
 
     var objUsCheckbox    = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_fund_fee_check");
 
-    this.FilteredFunds = [];
+    if (this.FilteredFunds.length != 0) {
+        funds_list = this.FilteredFunds;
+    } else {
+        funds_list = this.Funds;
+    }
 
-    for (key in this.Funds) {
-        var fund = this.Funds[key];
+    this.FilteredFunds = [];
+    for (key in funds_list) {
+        var fund = funds_list[key];
         var isAppend    = false;
         var filterFee   = false;
         var filterMngr  = false;

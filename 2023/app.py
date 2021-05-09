@@ -46,6 +46,7 @@ class Context():
 			'get_fund_portfolios':				self.GetFundPortfoliosHandler,
 			'get_porfolio_funds': 				self.GetPortfolioFundsHandler,
 			'create_portfolio_from_list': 		self.CreatePortfolioFromListHandler,
+			'optimize': 						self.OptimizetHandler,
 			'undefined':						self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -69,6 +70,58 @@ class Context():
 	def UndefindHandler(self, sock, packet):
 		print ("UndefindHandler")
 	
+	def IsArrayInArray(self, nested, data, perc):
+		not_in_counter = 0
+		nested_length = float(len(nested))
+		for item in nested:
+			if item["ticker"] not in data:
+				not_in_counter += 1
+				if (float(not_in_counter) / nested_length) * 100.0 > perc:
+					return False
+		return True
+	
+	def OptimezeWorker(self, payload):
+		self.Node.LogMSG("({classname})# [OptimezeWorker]".format(classname=self.ClassName),5)
+
+		str_numbers = ",".join([str(num) for num in payload["fund_number_list"]])
+		fund_stocks = float(self.SQL.HowManyStocksFundHas(str_numbers))
+
+		funds = []
+		stock_dict = {}
+		for number in payload["fund_number_list"]:
+			holdings = self.SQL.SelectFundHoldingsByNumber(number)
+			if self.IsArrayInArray(holdings, stock_dict, payload["perc"]) is False:
+				funds.append(number)
+				for stock in holdings:
+					stock_dict[stock["ticker"]] = 1
+			perc = (float(len(stock_dict)) / fund_stocks) * 100.0
+			if (perc > payload["perc2"]):
+				break
+		
+		perc = (float(len(stock_dict)) / fund_stocks) * 100.0
+		self.Node.LogMSG("({classname})# [OptimezeWorker] Percentage: {0}, Funds: {1}, Stocks: {2}".format(perc, len(funds), len(stock_dict), classname=self.ClassName),5)
+
+		THIS.Node.EmitOnNodeChange({
+			'event': "optimize",
+			'data': {
+				"funds": funds,
+				"perc": perc,
+				"optiized_counter": len(funds),
+				"prev_counter": len(payload["fund_number_list"])
+			}
+		})
+
+	def OptimizetHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [OptimizetHandler]".format(classname=self.ClassName),5)
+
+		self.DBUpdateStatus["working"] = True
+		_thread.start_new_thread(self.OptimezeWorker, (payload,))
+		
+		return {
+			"status": "started"
+		}
+	
 	def CreatePortfolioFromListHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [CreatePortfolioFromListHandler] {0} {1}".format(payload["name"], len(payload["funds"]),classname=self.ClassName),5)
@@ -85,7 +138,6 @@ class Context():
 			"error": "none"
 		}
 
-	
 	def GetPortfolioFundsHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [GetPortfolioFundsHandler]".format(classname=self.ClassName),5)
