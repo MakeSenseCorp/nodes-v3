@@ -107,89 +107,8 @@
         </div>
         <hr>
         <br>
-        <div class="row justify-content-xl-center">
-            <div class="col-xl-2"></div>
-            <div class="col-xl-3 text-center">
-                <strong><span>US Stocks (%)</span></strong>
-            </div>
-            <div class="col-xl-3 text-center">
-                <strong><span>IS Stocks (%)</span></strong>
-            </div>
-            <div class="col-xl-3 text-center">
-                <strong><span>Other Holdings (%)</span></strong>
-            </div>
-            <div class="col-xl-1"></div>
-        </div>
+        <div id="id_m_funder_dashboard_view_funds_table_filter"></div>
         <br>
-        <div class="row justify-content-xl-center">
-            <div class="col-xl-2"><strong><span>Portfolio</span></strong></div>
-            <div class="col-xl-3">
-                <div class="progress">
-                    <div class="progress-bar bg-success" id="id_m_funder_dashboard_view_funds_table_filter_us_stocks" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-                <span id="id_m_funder_dashboard_view_funds_table_filter_us_stocks_info"></span>
-            </div>
-            <div class="col-xl-3">
-                <div class="progress">
-                    <div class="progress-bar bg-success" id="id_m_funder_dashboard_view_funds_table_filter_is_stocks" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-                <span id="id_m_funder_dashboard_view_funds_table_filter_is_stocks_info"></span>
-            </div>
-            <div class="col-xl-3">
-                <div class="progress">
-                    <div class="progress-bar bg-success" id="id_m_funder_dashboard_view_funds_table_filter_government_stocks" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-                <span id="id_m_funder_dashboard_view_funds_table_filter_government_stocks_info"></span>
-            </div>
-            <div class="col-xl-1"></div>
-        </div>
-        <br>
-        <div class="row justify-content-xl-center">
-            <div class="col-xl-2"><strong><span>Total</span></strong></div>
-            <div class="col-xl-3">
-                <div class="progress">
-                    <div class="progress-bar bg-success" id="id_m_funder_dashboard_view_funds_table_filter_us_stocks_all" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-                <span id="id_m_funder_dashboard_view_funds_table_filter_us_stocks_all_info"></span>
-            </div>
-            <div class="col-xl-3">
-                <div class="progress">
-                    <div class="progress-bar bg-success" id="id_m_funder_dashboard_view_funds_table_filter_is_stocks_all" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-                <span id="id_m_funder_dashboard_view_funds_table_filter_is_stocks_all_info"></span>
-            </div>
-            <div class="col-xl-3">
-                <div class="progress">
-                    <div class="progress-bar bg-success" id="id_m_funder_dashboard_view_funds_table_filter_government_stocks_all" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-                <span id="id_m_funder_dashboard_view_funds_table_filter_government_stocks_all_info"></span>
-            </div>
-            <div class="col-xl-1"></div>
-        </div>
-        <br>
-        <div class="row justify-content-xl-center">
-            <div class="col-xl-2"><strong><span>Holdings Ratio</span></strong></div>
-            <div class="col-xl-3">
-                <div class="progress">
-                    <div class="progress-bar bg-success" id="id_m_funder_dashboard_view_funds_table_filter_us_stocks_ratio" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-                <span id="id_m_funder_dashboard_view_funds_table_filter_us_stocks_ratio_info"></span>
-            </div>
-            <div class="col-xl-3">
-                <div class="progress">
-                    <div class="progress-bar bg-success" id="id_m_funder_dashboard_view_funds_table_filter_is_stocks_ratio" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-                <span id="id_m_funder_dashboard_view_funds_table_filter_is_stocks_ratio_info"></span>
-            </div>
-            <div class="col-xl-3">
-                <div class="progress">
-                    <div class="progress-bar bg-success" id="id_m_funder_dashboard_view_funds_table_filter_other_stocks_ratio" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
-                <span id="id_m_funder_dashboard_view_funds_table_filter_other_stocks_ratio_info"></span>
-            </div>
-            <div class="col-xl-1"></div>
-        </div>
-        <br><br>
         <div class="row">
             <div class="col-xl-12">
                 <h5 class="mb-3">Funds list</h5>
@@ -201,13 +120,7 @@
                         <button class="btn btn-sm btn-outline-secondary" onclick="window.DashboardView.Optimize();">Optimize</button>
                         <button class="btn btn-sm btn-outline-secondary" onclick="window.DashboardView.OpenCreatePortfolioModal();">Create Portfolio</button>
                     </div>
-                    <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="id_m_funder_dashboard_view_funds_table_portfolio_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        <span data-feather="calendar"></span>
-                        <span>Portfolio</span>
-                    </button>
-                    <div class="dropdown-menu text-center" aria-labelledby="id_m_funder_dashboard_view_funds_table_portfolio_dropdown" id="id_m_funder_dashboard_view_funds_table_portfolio_dropdown_items">
-                        <span class="dropdown-item" style="cursor:pointer">All</span>
-                    </div>
+                    <div id="id_m_funder_dashboard_view_funds_table_portfolio_dropdown"></div>
                 </div>
                 <hr>
                 <div class="mb-3">

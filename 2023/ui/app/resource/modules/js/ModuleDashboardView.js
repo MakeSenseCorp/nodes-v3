@@ -17,6 +17,8 @@ function ModuleDashboardView() {
     this.USPercentSlider            = null;
     this.ISPercentSlider            = null;
     this.OtherPercentSlider         = null;
+    this.DistributionView           = null;
+    this.PortfolioDropDown          = null;
 
     return this;
 }
@@ -77,6 +79,21 @@ ModuleDashboardView.prototype.Build = function(data, callback) {
         });
         self.OtherPercentSlider.Build(document.getElementById("id_m_funder_dashboard_view_funds_slider_other_perc"));
 
+        self.DistributionView = new ModuleDistributionView({
+            portfolio: {
+                enabled: true
+            },
+            total: {
+                enabled: true
+            },
+            ratio: {
+                enabled: true
+            },
+        });
+        self.DistributionView.SetObjectDOMName("distribution");
+        self.DistributionView.SetHostingID("id_m_funder_dashboard_view_funds_table_filter");
+        self.DistributionView.Build(null, null);
+
         if (callback !== undefined && callback != null) {
             callback(self);
         }
@@ -88,7 +105,7 @@ ModuleDashboardView.prototype.OptimizeCallback = function(payload) {
     var funds_list = null;
     var funds = [];
 
-    this.GetStockDistribution(numbers);
+    this.DistributionView.GetStockDistribution(numbers);
 
     if (this.FilteredFunds.length != 0) {
         funds_list = this.FilteredFunds;
@@ -166,7 +183,7 @@ ModuleDashboardView.prototype.GetAllFunds = function() {
             funds_number_list.push(fund.number);
         }
         self.UpdateFundsTable(funds);
-        self.GetStockDistribution(funds_number_list);
+        self.DistributionView.GetStockDistribution(funds_number_list);
         self.Funds = Array.from(payload.funds);
         
         // Update managers list
@@ -179,6 +196,7 @@ ModuleDashboardView.prototype.GetAllFunds = function() {
         }
         objDropMngrs.innerHTML += `<span class="dropdown-item" style="cursor:pointer" onclick="window.DashboardView.SelectManager('All');">All</span>`;
         self.FilteredFunds = [];
+        self.GetPortfolioList();
     });
 }
 
@@ -257,8 +275,9 @@ ModuleDashboardView.prototype.GetPortfolioFunds = function(id, name) {
                 var fund = payload.funds[key];
                 funds_number_list.push(fund.number);
             }
-            self.GetStockDistribution(funds_number_list);
+            self.DistributionView.GetStockDistribution(funds_number_list);
             self.Funds = Array.from(payload.funds);
+            self.PortfolioDropDown.UpdateSelected(name);
         });
     } else {
         this.GetAllFunds();
@@ -269,13 +288,21 @@ ModuleDashboardView.prototype.GetPortfolioList = function() {
     var self = this;
     node.API.SendCustomCommand(NodeUUID, "get_portfolios", {}, function(res) {
         var payload = res.data.payload;
-        var obj = document.getElementById("id_m_funder_dashboard_view_funds_table_portfolio_dropdown_items");
+        self.PortfolioDropDown = new MksBasicDropDown();
+        self.PortfolioDropDown.Build(document.getElementById("id_m_funder_dashboard_view_funds_table_portfolio_dropdown"));
 
         self.PortfolioList = payload.portfolios;
-        obj.innerHTML = `<span class="dropdown-item" style="cursor:pointer" onclick="window.DashboardView.GetPortfolioFunds(0,'All');">All</span>`;
+        self.PortfolioDropDown.UpdateSelected("All");
+        self.PortfolioDropDown.AppendItem({
+            name: "All",
+            onclick: "window.DashboardView.GetPortfolioFunds(0,'All');"
+        });
         for (key in payload.portfolios) {
             item = payload.portfolios[key];
-            obj.innerHTML += `<span class="dropdown-item" style="cursor:pointer" onclick="window.DashboardView.GetPortfolioFunds(`+item.id+`,'`+item.name+`');">`+item.name+`</span>`;
+            self.PortfolioDropDown.AppendItem({
+                name: item.name,
+                onclick: `window.DashboardView.GetPortfolioFunds(`+item.id+`,'`+item.name+`');`
+            });
         }
     });
 }
@@ -346,7 +373,6 @@ ModuleDashboardView.prototype.UpdateFundsTable = function(funds_list) {
     table.ShowHeader(false);
     table.SetData(data);
     table.Build(document.getElementById("id_m_funder_dashboard_view_funds_table"));
-    this.GetPortfolioList();
     feather.replace();
 }
 
@@ -487,53 +513,15 @@ ModuleDashboardView.prototype.Filter = function() {
             }
 
             if (new_funds_number_list.length > 0) {
-                self.GetStockDistribution(new_funds_number_list);
+                self.DistributionView.GetStockDistribution(new_funds_number_list);
             } else {
-                self.GetStockDistribution([]);
+                self.DistributionView.GetStockDistribution([]);
             }
         });
     } else {
         this.UpdateFundsTable(funds);
-        this.GetStockDistribution(funds_number_list);
+        this.DistributionView.GetStockDistribution(funds_number_list);
     }
-}
-
-ModuleDashboardView.prototype.UpdateFilterDistributionUI = function(id, a, b) {
-    var perc = "0%";
-
-    if (b != 0) {
-        perc = ((a / b) * 100).toFixed(2) + "%";
-    }
-
-    document.getElementById(id).style.width = perc;
-    document.getElementById(id).innerHTML = perc;
-    document.getElementById(id+"_info").innerHTML = a + " / " + b;
-}
-
-ModuleDashboardView.prototype.GetStockDistribution = function(funds) {
-    var self = this;
-    node.API.SendCustomCommand(NodeUUID, "get_stock_distribution", {
-        "funds": funds
-    }, function(res) {
-        var payload = res.data.payload;
-
-        var portfolio_stocks_count = 0;
-        if (payload.fund_stocks != 0) {
-            portfolio_stocks_count = payload.fund_stocks;
-        }
-        
-        self.UpdateFilterDistributionUI("id_m_funder_dashboard_view_funds_table_filter_us_stocks", payload.us, payload.fund_stocks);
-        self.UpdateFilterDistributionUI("id_m_funder_dashboard_view_funds_table_filter_is_stocks", payload.is, payload.fund_stocks);
-        self.UpdateFilterDistributionUI("id_m_funder_dashboard_view_funds_table_filter_government_stocks", payload.government, payload.fund_stocks);
-        
-        self.UpdateFilterDistributionUI("id_m_funder_dashboard_view_funds_table_filter_us_stocks_all", payload.us, payload.all.all);
-        self.UpdateFilterDistributionUI("id_m_funder_dashboard_view_funds_table_filter_is_stocks_all", payload.is, payload.all.all);
-        self.UpdateFilterDistributionUI("id_m_funder_dashboard_view_funds_table_filter_government_stocks_all", payload.government, payload.all.all);
-
-        self.UpdateFilterDistributionUI("id_m_funder_dashboard_view_funds_table_filter_us_stocks_ratio", payload.us, payload.all.us);
-        self.UpdateFilterDistributionUI("id_m_funder_dashboard_view_funds_table_filter_is_stocks_ratio", payload.is, payload.all.is);
-        self.UpdateFilterDistributionUI("id_m_funder_dashboard_view_funds_table_filter_other_stocks_ratio", payload.government, payload.all.other);
-    });
 }
 
 ModuleDashboardView.prototype.GetFunsManagersList = function(funds) {
