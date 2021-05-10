@@ -19,6 +19,7 @@ function ModuleDashboardView() {
     this.OtherPercentSlider         = null;
     this.DistributionView           = null;
     this.PortfolioDropDown          = null;
+    this.FundMngrDropDown           = null;
 
     return this;
 }
@@ -188,27 +189,52 @@ ModuleDashboardView.prototype.GetAllFunds = function() {
         
         // Update managers list
         mngrs = self.GetFunsManagersList(payload.funds);
-        var objDropMngrs = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_mngrs_dropdown_items");
-
-        objDropMngrs.innerHTML = `<span class="dropdown-item" style="cursor:pointer" onclick="window.DashboardView.SelectManager('All');">All</span>`;
+        self.FundMngrDropDown = new MksBasicDropDown();
+        self.FundMngrDropDown.Build(document.getElementById("id_m_funder_dashboard_view_funds_table_filter_mngrs_dropdown"));
+        self.FundMngrDropDown.UpdateSelected("Fund Managers");
+        self.FundMngrDropDown.AppendItem({
+            name: "All",
+            onclick: "window.DashboardView.SelectManager('All');"
+        });
         for (key in mngrs) {
-            objDropMngrs.innerHTML += `<span class="dropdown-item" style="cursor:pointer" onclick="window.DashboardView.SelectManager('`+mngrs[key]+`');">`+mngrs[key]+`</span>`;
+            self.FundMngrDropDown.AppendItem({
+                name: mngrs[key],
+                onclick: `window.DashboardView.SelectManager('`+mngrs[key]+`');`
+            })
         }
-        objDropMngrs.innerHTML += `<span class="dropdown-item" style="cursor:pointer" onclick="window.DashboardView.SelectManager('All');">All</span>`;
         self.FilteredFunds = [];
         self.GetPortfolioList();
     });
 }
 
 ModuleDashboardView.prototype.SelectManager = function(name) {
-    var obj = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_mngrs_dropdown_selected_item");
+    var funds_list = null;
     this.SelectedManagerFund = name;
+    var funds_number_list = []
 
     if (name == "All") {
-        obj.innerHTML = "Fund Manager";
+        this.FundMngrDropDown.UpdateSelected("Fund Managers");
     } else {
-        obj.innerHTML = name;
+        this.FundMngrDropDown.UpdateSelected(name);
     }
+
+    if (this.FilteredFunds.length != 0) {
+        funds_list = this.FilteredFunds;
+    } else {
+        funds_list = this.Funds;
+    }
+
+    this.FilteredFunds = [];
+    for (key in funds_list) {
+        var fund = funds_list[key]
+        if (this.SelectedManagerFund == "All" || (this.SelectedManagerFund != "All" && fund.mngr == this.SelectedManagerFund)) {
+            funds_number_list.push(fund.number);
+            this.FilteredFunds.push(fund);
+        }
+    }
+
+    this.UpdateFundsTable(this.FilteredFunds);
+    this.DistributionView.GetStockDistribution(funds_number_list);
 }
 
 ModuleDashboardView.prototype.OpenCreatePortfolioModal = function() {
@@ -307,11 +333,6 @@ ModuleDashboardView.prototype.GetPortfolioList = function() {
     });
 }
 
-ModuleDashboardView.prototype.FundManagerSelectionChange = function() {
-    var objDropMngrs = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_mngrs");
-    this.SelectedManagerFund = objDropMngrs.value;
-}
-
 ModuleDashboardView.prototype.UpdateFundsTable = function(funds_list) {
     var data  = [];
     var table = new MksBasicTable();
@@ -398,7 +419,6 @@ ModuleDashboardView.prototype.Filter = function() {
         var fund = funds_list[key];
         var isAppend    = false;
         var filterFee   = false;
-        var filterMngr  = false;
         var filterName  = false;
 
         if (objUsCheckbox.checked) {
@@ -410,10 +430,6 @@ ModuleDashboardView.prototype.Filter = function() {
             filterFee = true;
         }
 
-        if (this.SelectedManagerFund == "All" || (this.SelectedManagerFund != "All" && fund.mngr == this.SelectedManagerFund)) {
-            filterMngr = true;
-        }
-
         var name = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_name").value;
         if (name == "") {
             filterName = true;
@@ -423,7 +439,7 @@ ModuleDashboardView.prototype.Filter = function() {
             }
         }
 
-        if (filterFee & filterMngr & filterName) {
+        if (filterFee & filterName) {
             isAppend = true;
         }
 
