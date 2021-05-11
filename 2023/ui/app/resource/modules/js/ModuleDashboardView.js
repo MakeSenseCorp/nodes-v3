@@ -123,11 +123,17 @@ ModuleDashboardView.prototype.OptimizeCallback = function(payload) {
 
     this.UpdateFundsTable(funds);
     this.FilteredFunds = Array.from(funds);
+    window.Modal.Hide();
 }
 
 ModuleDashboardView.prototype.Optimize = function() {
     var funds_list = null;
     var funds_number_list = [];
+
+    var perc1 = document.getElementById("id_m_funder_dashboard_view_funds_stock_threshold").value;
+    var perc2 = document.getElementById("id_m_funder_dashboard_view_funds_success_threshold").value;
+
+    console.log(perc1, perc2);
 
     if (this.FilteredFunds.length != 0) {
         funds_list = this.FilteredFunds;
@@ -147,12 +153,41 @@ ModuleDashboardView.prototype.Optimize = function() {
     if (funds_list.length > 0) {
         node.API.SendCustomCommand(NodeUUID, "optimize", {
             "fund_number_list": funds_number_list,
-            "perc": 40,
-            "perc2": 80
+            "perc": parseInt(perc1),
+            "perc2": parseInt(perc2)
         }, function(res) {
             var payload = res.data.payload;
+            document.getElementById("modal_optimize_run").classList.add("d-none");
         });
     }
+}
+
+ModuleDashboardView.prototype.OpenOptimizeModal = function() {
+    window.Modal.Remove();
+    window.Modal.SetTitle("Optimize");
+    window.Modal.SetContent(`
+        <form>
+            <div class="form-group row">
+                <div class="col-sm-8">
+                    <label for="id_m_funder_dashboard_view_funds_stock_threshold" class="col-sm-8 col-form-label">Stock (%)</label>
+                </div>
+                <div class="col-sm-4">
+                    <input type="text" class="form-control" id="id_m_funder_dashboard_view_funds_stock_threshold" value="40">
+                </div>
+            </div>
+            <div class="form-group row">
+                <div class="col-sm-8">
+                    <label for="id_m_funder_dashboard_view_funds_success_threshold" class="col-sm-8 col-form-label">Success (%)</label>
+                </div>
+                <div class="col-sm-4">
+                    <input type="text" class="form-control" id="id_m_funder_dashboard_view_funds_success_threshold" value="90">
+                </div>
+            </div>
+        </form>
+    `);
+    window.Modal.SetFooter(`<button type="button" id="modal_optimize_run" class="btn btn-success" onclick="window.DashboardView.Optimize();">Run</button><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+    window.Modal.Build("sm");
+    window.Modal.Show();
 }
 
 ModuleDashboardView.prototype.OpenFundInfoModal = function(number) {

@@ -86,12 +86,14 @@ class Context():
 		str_numbers = ",".join([str(num) for num in payload["fund_number_list"]])
 		fund_stocks = float(self.SQL.HowManyStocksFundHas(str_numbers))
 
+		sorted_funds = self.SQL.SortFundsSize(str_numbers, "DESC")
+
 		funds = []
 		stock_dict = {}
-		for number in payload["fund_number_list"]:
-			holdings = self.SQL.SelectFundHoldingsByNumber(number)
+		for item in sorted_funds:
+			holdings = self.SQL.SelectFundHoldingsByNumber(item["number"])
 			if self.IsArrayInArray(holdings, stock_dict, payload["perc"]) is False:
-				funds.append(number)
+				funds.append(item["number"])
 				for stock in holdings:
 					stock_dict[stock["ticker"]] = 1
 			perc = (float(len(stock_dict)) / fund_stocks) * 100.0

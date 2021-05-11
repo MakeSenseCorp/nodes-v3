@@ -374,6 +374,32 @@ class DB():
 		self.Locker.release()
 		return 0
 
+	def SortFundsSize(self, numbers, order_by):
+		self.Locker.acquire()
+		try:
+			query = '''
+				SELECT funds_info.number, COUNT(stock_to_fund.ticker) as stocks_count FROM funds_info
+				LEFT JOIN stock_to_fund ON funds_info.id = stock_to_fund.fund_id
+				WHERE funds_info.number IN ({0})
+				GROUP BY funds_info.number
+				ORDER BY stocks_count {1}
+			'''.format(numbers, order_by)
+			self.CURS.execute(query)
+
+			funds = []
+			rows = self.CURS.fetchall()
+			if len(rows) > 0:
+				for row in rows:
+					funds.append({ 
+						"number": 		row[0],
+						"stocks_count": row[1]
+					})
+		except:
+			pass
+		self.Locker.release()
+		
+		return funds
+
 	def SelectStocksRate(self):
 		self.Locker.acquire()
 		try:
