@@ -236,10 +236,13 @@ class Context():
 
 	def GetStocksRateHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
-		self.Node.LogMSG("({classname})# [GetStocksRateHandler] {0}".format(payload,classname=self.ClassName),5)
+		self.Node.LogMSG("({classname})# [GetStocksRateHandler]".format(classname=self.ClassName),5)
+
+		funds_number_list = payload["funds"]
+		str_numbers = ",".join([str(num) for num in funds_number_list])
 
 		return {
-			"ratings": self.SQL.SelectStocksRate()
+			"ratings": self.SQL.SelectStocksRate(str_numbers)
 		}
 
 	def GetFundInfoHandler(self, sock, packet):

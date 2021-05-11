@@ -375,6 +375,7 @@ class DB():
 		return 0
 
 	def SortFundsSize(self, numbers, order_by):
+		funds = []
 		self.Locker.acquire()
 		try:
 			query = '''
@@ -386,7 +387,6 @@ class DB():
 			'''.format(numbers, order_by)
 			self.CURS.execute(query)
 
-			funds = []
 			rows = self.CURS.fetchall()
 			if len(rows) > 0:
 				for row in rows:
@@ -400,18 +400,19 @@ class DB():
 		
 		return funds
 
-	def SelectStocksRate(self):
+	def SelectStocksRate(self, numbers):
+		funds = []
 		self.Locker.acquire()
 		try:
 			query = '''
 				SELECT stocks.name, stocks.ticker, stocks.type, count(stocks.ticker) as funds_count FROM stocks
 				LEFT JOIN stock_to_fund ON stocks.id = stock_to_fund.stock_id
+				WHERE stock_to_fund.number IN ({0})
 				GROUP BY stocks.ticker
 				ORDER BY funds_count DESC
-			'''
+			'''.format(numbers)
 			self.CURS.execute(query)
 
-			funds = []
 			rows = self.CURS.fetchall()
 			if len(rows) > 0:
 				for row in rows:

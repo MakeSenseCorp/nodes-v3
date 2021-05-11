@@ -75,12 +75,6 @@
 							<a class="nav-link active" id="id_m_main_funder_dashboard" href="#" onclick="ui.BindDashboardView();">Dashboard</a>
 						</li>
 						<li class="nav-item">
-							<a class="nav-link" id="id_m_main_funder_stocks" href="#" onclick="ui.BindStocksView();">Stocks</a>
-						</li>
-						<li class="nav-item">
-							<a class="nav-link" id="id_m_main_funder_portfolios" href="#" onclick="ui.BindPortfoliosView();">Portfolios</a>
-						</li>
-						<li class="nav-item">
 							<a class="nav-link" id="id_m_main_funder_settings" href="#" onclick="ui.BindSettingsView();">Settings</a>
 						</li>
 					</ul>
@@ -166,13 +160,17 @@
 				window.SettingsView.SetHostingID("id_application_view_module");
 				window.SettingsView.SetObjectDOMName("window.SettingsView");
 
+				/*
 				window.StocksView = new ModuleStocksView();
 				window.StocksView.SetHostingID("id_application_view_module");
 				window.StocksView.SetObjectDOMName("window.StocksView");
+				*/
 
+				/*
 				window.PortfoliosView = new ModulePortfolioView();
 				window.PortfoliosView.SetHostingID("id_application_view_module");
 				window.PortfoliosView.SetObjectDOMName("window.PortfoliosView");
+				*/
 
 				ui = new NodeUI(node.API);
 				ui.BindDashboardView();

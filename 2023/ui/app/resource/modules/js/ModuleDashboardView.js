@@ -190,6 +190,55 @@ ModuleDashboardView.prototype.OpenOptimizeModal = function() {
     window.Modal.Show();
 }
 
+ModuleDashboardView.prototype.OpenPortfoliosModal = function() {
+    var self = this;
+
+    window.PortfoliosView = new ModulePortfolioView();
+    window.PortfoliosView.SetObjectDOMName("window.PortfoliosView");
+
+    window.PortfoliosView.Build(null, function(module) {
+        window.Modal.Remove();
+        window.Modal.SetTitle("Stocks");
+        window.Modal.SetContent(module.HTML);
+        window.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+        window.Modal.Build("lg");
+        window.Modal.Show();
+
+        module.UpdatePortfolioList();
+    });
+}
+
+ModuleDashboardView.prototype.OpenStocksModal = function() {
+    var self = this;
+
+    window.StocksView = new ModuleStocksView();
+    window.StocksView.SetObjectDOMName("window.StocksView")
+
+    window.StocksView.Build(null, function(module) {
+        window.Modal.Remove();
+        window.Modal.SetTitle("Stocks");
+        window.Modal.SetContent(module.HTML);
+        window.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+        window.Modal.Build("lg");
+        window.Modal.Show();
+
+        var funds_number_list = [];
+        if (self.FilteredFunds.length != 0) {
+            funds_list = self.FilteredFunds;
+        } else {
+            funds_list = self.Funds;
+        }
+
+        for (key in funds_list) {
+            var fund = funds_list[key]
+            funds_number_list.push(fund.number);
+        }
+
+        module.Initiate();
+        module.GetStocksRate(funds_number_list);
+    });
+}
+
 ModuleDashboardView.prototype.OpenFundInfoModal = function(number) {
     this.FundInfoModule = new ModuleFundInfoView(number);
     this.FundInfoModule.SetObjectDOMName(this.DOMName+".FundInfoModule");

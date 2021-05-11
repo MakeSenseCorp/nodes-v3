@@ -26,6 +26,12 @@ ModuleStocksView.prototype.SetHostingID = function(id) {
     this.HostingID = id;
 }
 
+ModuleStocksView.prototype.Initiate = function() {
+    document.getElementById("id_m_funder_stocks_view_us_stocks_checkbox").checked = true;
+    document.getElementById("id_m_funder_stocks_view_is_stocks_checkbox").checked = true;
+    document.getElementById("id_m_funder_stocks_view_government_stocks_checkbox").checked = true;
+}
+
 ModuleStocksView.prototype.Build = function(data, callback) {
     var self = this;
 
@@ -33,13 +39,13 @@ ModuleStocksView.prototype.Build = function(data, callback) {
         "file_path": "modules/html/ModuleStocksView.html"
     }, function(res) {
         var payload = res.data.payload;
-        self.HTML = MkSGlobal.ConvertHEXtoString(payload.content).replace("[ID]", self.HostingID);
-        self.ComponentObject = document.getElementById("id_m_funder_stocks_view_"+this.HostingID);
-        document.getElementById(self.HostingID).innerHTML = self.HTML;
 
-        document.getElementById("id_m_funder_stocks_view_us_stocks_checkbox").checked = true;
-        document.getElementById("id_m_funder_stocks_view_is_stocks_checkbox").checked = true;
-        document.getElementById("id_m_funder_stocks_view_government_stocks_checkbox").checked = true;
+        self.HTML = MkSGlobal.ConvertHEXtoString(payload.content);
+        self.ComponentObject = document.getElementById("id_m_funder_stocks_view");
+
+        if (self.HostingID != "") {
+            document.getElementById(self.HostingID).innerHTML = self.HTML;
+        }
 
         if (callback !== undefined && callback != null) {
             callback(self);
@@ -115,9 +121,10 @@ ModuleStocksView.prototype.FilterOutput = function(obj) {
     feather.replace();
 }
 
-ModuleStocksView.prototype.GetStocksRate = function() {
+ModuleStocksView.prototype.GetStocksRate = function(numbers) {
     var self = this;
     node.API.SendCustomCommand(NodeUUID, "get_stocks_rate", {
+        "funds": numbers
     }, function(res) {
         var payload = res.data.payload;
 
@@ -128,7 +135,7 @@ ModuleStocksView.prototype.GetStocksRate = function() {
         table.SetSchema(["", "", "", "", ""]);
         var data = [];
         for (key in payload.ratings) {
-            rate = payload.ratings[key];           
+            rate = payload.ratings[key];
             row = [];
             row.push(`<h6 class="my-0"><a style="color:blue; cursor:pointer">`+rate.ticker+`</a></h6>`);
             row.push(`<span>`+rate.name+`</span>`);
