@@ -147,12 +147,6 @@
 
 			var UserNodeLoaded = function() {
 				// User Code #1 - Start
-				/*
-				window.StatisticsView = new ModuleStatisticsView();
-				window.StatisticsView.SetHostingID("id_application_view_module");
-				window.StatisticsView.SetObjectDOMName("window.StatisticsView");
-				*/
-
 				window.DashboardView = new ModuleDashboardView();
 				window.DashboardView.SetHostingID("id_application_view_module");
 				window.DashboardView.SetObjectDOMName("window.DashboardView");
@@ -160,18 +154,6 @@
 				window.SettingsView = new ModuleSettingsView();
 				window.SettingsView.SetHostingID("id_application_view_module");
 				window.SettingsView.SetObjectDOMName("window.SettingsView");
-
-				/*
-				window.StocksView = new ModuleStocksView();
-				window.StocksView.SetHostingID("id_application_view_module");
-				window.StocksView.SetObjectDOMName("window.StocksView");
-				*/
-
-				/*
-				window.PortfoliosView = new ModulePortfolioView();
-				window.PortfoliosView.SetHostingID("id_application_view_module");
-				window.PortfoliosView.SetObjectDOMName("window.PortfoliosView");
-				*/
 
 				ui = new NodeUI(node.API);
 				ui.BindDashboardView();

@@ -279,6 +279,7 @@ class Context():
 				"status": True
 			}
 		elif "status" in operation:
+			self.Node.LogMSG("({classname})# [ConfigurationHandler] {0}".format(self.DBUpdateStatus,classname=self.ClassName),5)
 			return {
 				"update_status": self.DBUpdateStatus
 			}
