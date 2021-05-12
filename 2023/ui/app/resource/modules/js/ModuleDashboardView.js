@@ -13,13 +13,33 @@ function ModuleDashboardView() {
     this.FilteredFunds              = null;
     this.SelectedManagerFund        = "All";
 
-    this.FeeSlider                  = null;
-    this.USPercentSlider            = null;
-    this.ISPercentSlider            = null;
-    this.OtherPercentSlider         = null;
     this.DistributionView           = null;
     this.PortfolioDropDown          = null;
     this.FundMngrDropDown           = null;
+
+    this.Ratio                      = new ModuleRatioView();
+    this.SlidersValue               = {
+        fee: {
+            left: 0,
+            right: 5,
+            enabled: false
+        },
+        us: {
+            left: 0,
+            right: 100,
+            enabled: false
+        },
+        is: {
+            left: 0,
+            right: 100,
+            enabled: false
+        },
+        other: {
+            left: 0,
+            right: 100,
+            enabled: false
+        }
+    }
 
     return this;
 }
@@ -46,39 +66,6 @@ ModuleDashboardView.prototype.Build = function(data, callback) {
         self.HTML = MkSGlobal.ConvertHEXtoString(payload.content).replace("[ID]", self.HostingID);
         self.ComponentObject = document.getElementById("id_m_funder_dashboard_view_"+this.HostingID);
         document.getElementById(self.HostingID).innerHTML = self.HTML;
-
-        self.FeeSlider = new MksMultiRangeSlider({
-            min: 0,
-            max: 5,
-            step: 0.1,
-            left: 0,
-            right: 5
-        });
-        self.FeeSlider.Build(document.getElementById("id_m_funder_dashboard_view_funds_slider_fee"));
-        self.USPercentSlider = new MksMultiRangeSlider({
-            min: 0,
-            max: 100,
-            step: 1,
-            left: 0,
-            right: 100
-        });
-        self.USPercentSlider.Build(document.getElementById("id_m_funder_dashboard_view_funds_slider_us_perc"));
-        self.ISPercentSlider = new MksMultiRangeSlider({
-            min: 0,
-            max: 100,
-            step: 1,
-            left: 0,
-            right: 100
-        });
-        self.ISPercentSlider.Build(document.getElementById("id_m_funder_dashboard_view_funds_slider_is_perc"));
-        self.OtherPercentSlider = new MksMultiRangeSlider({
-            min: 0,
-            max: 100,
-            step: 1,
-            left: 0,
-            right: 100
-        });
-        self.OtherPercentSlider.Build(document.getElementById("id_m_funder_dashboard_view_funds_slider_other_perc"));
 
         self.DistributionView = new ModuleDistributionView({
             portfolio: {
@@ -205,6 +192,21 @@ ModuleDashboardView.prototype.OpenPortfoliosModal = function() {
         window.Modal.Show();
 
         module.UpdatePortfolioList();
+    });
+}
+
+ModuleDashboardView.prototype.OpenFilterModal = function() {
+    var self = this;
+
+    this.Ratio = new ModuleRatioView();
+    this.Ratio.Build(null, function(module) {
+        window.Modal.Remove();
+        window.Modal.SetTitle("Stocks");
+        window.Modal.SetContent(module.HTML);
+        window.Modal.SetFooter(`<button type="button" class="btn btn-success" onclick="window.DashboardView.FilterAppend();">Append</button><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+        window.Modal.Build("lg");
+        window.Modal.Show();
+        module.GenrateComponents(self.SlidersValue);
     });
 }
 
@@ -481,16 +483,29 @@ ModuleDashboardView.prototype.UpdateFundsTable = function(funds_list) {
     feather.replace();
 }
 
+ModuleDashboardView.prototype.FilterAppend = function() {
+    this.Ratio.CheckBoxUpdate();
+    window.Modal.Hide();
+
+    this.SlidersValue.fee.left  = parseFloat(this.Ratio.FeeSlider.GetValue()[0]);
+    this.SlidersValue.fee.right = parseFloat(this.Ratio.FeeSlider.GetValue()[1]);
+    this.SlidersValue.fee.enabled = this.Ratio.FeeEnabled;
+    this.SlidersValue.us.left  = parseFloat(this.Ratio.USPercentSlider.GetValue()[0]);
+    this.SlidersValue.us.right = parseFloat(this.Ratio.USPercentSlider.GetValue()[1]);
+    this.SlidersValue.us.enabled = this.Ratio.UsEnabled;
+    this.SlidersValue.is.left  = parseFloat(this.Ratio.ISPercentSlider.GetValue()[0]);
+    this.SlidersValue.is.right = parseFloat(this.Ratio.ISPercentSlider.GetValue()[1]);
+    this.SlidersValue.is.enabled = this.Ratio.IsEnabled;
+    this.SlidersValue.other.left  = parseFloat(this.Ratio.OtherPercentSlider.GetValue()[0]);
+    this.SlidersValue.other.right = parseFloat(this.Ratio.OtherPercentSlider.GetValue()[1]);
+    this.SlidersValue.other.enabled = this.Ratio.OtherEnabled;
+}
+
 ModuleDashboardView.prototype.Filter = function() {
     var self = this;
     var funds_number_list = []
     var funds = [];
     var funds_list = null;
-
-    var objFeeLow  = this.FeeSlider.GetValue()[0];
-    var objFeeHigh = this.FeeSlider.GetValue()[1];
-
-    var objUsCheckbox    = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_fund_fee_check");
 
     if (this.FilteredFunds.length != 0) {
         funds_list = this.FilteredFunds;
@@ -505,9 +520,8 @@ ModuleDashboardView.prototype.Filter = function() {
         var filterFee   = false;
         var filterName  = false;
 
-        if (objUsCheckbox.checked) {
-            if (((fund.fee >= parseFloat(objFeeLow)) || objFeeLow == "") && 
-                ((fund.fee <= parseFloat(objFeeHigh)) || objFeeHigh == "")) {
+        if (this.SlidersValue.fee.enabled) {
+            if (fund.fee >= this.SlidersValue.fee.left && fund.fee <= this.SlidersValue.fee.right) {
                 filterFee = true;
             }
         } else {
@@ -533,24 +547,16 @@ ModuleDashboardView.prototype.Filter = function() {
             this.FilteredFunds.push(fund);
         }
     }
-
-    var objUsCheckbox    = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_us_stock_perc_check");
-    var objIsCheckbox    = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_is_stock_perc_check");
-    var objOtherCheckbox = document.getElementById("id_m_funder_dashboard_view_funds_table_filter_other_stock_perc_check");
     
-    if (objUsCheckbox.checked == true || objIsCheckbox.checked == true || objOtherCheckbox.checked == true) {
+    if (this.Ratio.UsEnabled == true || this.Ratio.IsEnabled == true || this.Ratio.OtherEnabled == true) {
         node.API.SendCustomCommand(NodeUUID, "get_stock_investment", {
             "funds": funds_number_list
         }, function(res) {
-            var payload = res.data.payload;
-            var investment = payload.investment;
-            var new_funds_number_list = [];
-            var new_funds = [];
-            self.FilteredFunds = [];
-
-            var us_perc = self.USPercentSlider.GetValue();
-            var is_perc = self.ISPercentSlider.GetValue();
-            var other_perc = self.OtherPercentSlider.GetValue();
+            var payload     = res.data.payload;
+            var investment  = payload.investment;
+            var new_funds_number_list   = [];
+            var new_funds               = [];
+            self.FilteredFunds          = [];
 
             for (key in funds) {
                 var fund = funds[key];
@@ -562,9 +568,9 @@ ModuleDashboardView.prototype.Filter = function() {
                         var other_filter = false;
 
                         // Check US holdings
-                        if (objUsCheckbox.checked) {
+                        if (self.SlidersValue.us.enabled) {
                             if (parseInt(invest.holdings_count) > 0) {
-                                if (((invest.us_holdings / invest.holdings_count) * 100) >= parseInt(us_perc[0]) && ((invest.us_holdings / invest.holdings_count) * 100) <= parseInt(us_perc[1])) {
+                                if (((invest.us_holdings / invest.holdings_count) * 100) >= self.SlidersValue.us.left && ((invest.us_holdings / invest.holdings_count) * 100) <= self.SlidersValue.us.right) {
                                     us_filter = true;
                                 }
                             }
@@ -572,9 +578,9 @@ ModuleDashboardView.prototype.Filter = function() {
                             us_filter = true;
                         }
                         // Check IS holdings
-                        if (objIsCheckbox.checked) {
+                        if (self.SlidersValue.is.enabled) {
                             if (parseInt(invest.holdings_count) > 0) {
-                                if (((invest.is_holdings / invest.holdings_count) * 100) >= parseInt(is_perc[0]) && ((invest.is_holdings / invest.holdings_count) * 100) <= parseInt(is_perc[1])) {
+                                if (((invest.is_holdings / invest.holdings_count) * 100) >= self.SlidersValue.is.left && ((invest.is_holdings / invest.holdings_count) * 100) <= self.SlidersValue.is.right) {
                                     is_filter = true;
                                 }
                             }
@@ -582,9 +588,9 @@ ModuleDashboardView.prototype.Filter = function() {
                             is_filter = true;
                         }
                         // Check Other holdings
-                        if (objOtherCheckbox.checked) {
+                        if (self.SlidersValue.other.enabled) {
                             if (parseInt(invest.holdings_count) > 0) {
-                                if (((invest.other_holdings / invest.holdings_count) * 100) >= parseInt(other_perc[0]) && ((invest.other_holdings / invest.holdings_count) * 100) <= parseInt(other_perc[1])) {
+                                if (((invest.other_holdings / invest.holdings_count) * 100) >= self.SlidersValue.other.left && ((invest.other_holdings / invest.holdings_count) * 100) <= self.SlidersValue.other.right) {
                                     other_filter = true;
                                 }
                             }
