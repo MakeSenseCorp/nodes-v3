@@ -61,6 +61,8 @@ class DB():
 							"id"				INTEGER PRIMARY KEY AUTOINCREMENT,
 							"number" 			INTEGER,
 							"name" 				TEXT,
+							"ticker" 			TEXT,
+							"action" 			TEXT,
 							"date" 				TEXT,
 							"timestamp"			INTEGER,
 							"change"			TEXT
@@ -361,9 +363,9 @@ class DB():
 			date_str = now.strftime("%m-%d-%Y 00:00:00")
 
 			query = '''
-				INSERT INTO fund_history_changes (id,number,name,date,timestamp,change)
-				VALUES (NULL, {0},'{1}','{2}',{3},'{4}')
-			'''.format(item["number"],item["name"],date_str,time.time(),item["msg"])
+				INSERT INTO fund_history_changes (id,number,name,ticker,action,date,timestamp,change)
+				VALUES (NULL, {0},'{1}','{2}','{3}','{4}',{5},'{6}')
+			'''.format(item["number"],item["name"],item["ticker"],item["action"],date_str,time.time(),item["msg"])
 			self.CURS.execute(query)
 			self.DB.commit()
 			self.Locker.release()

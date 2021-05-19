@@ -8,6 +8,7 @@ function NodeUI(api) {
 NodeUI.prototype.CleanActiveNavigation = function() {
     document.getElementById("id_m_main_funder_dashboard").classList.remove("active");
     document.getElementById("id_m_main_funder_settings").classList.remove("active");
+    document.getElementById("id_m_main_funder_statistics").classList.remove("active");
 }
 
 NodeUI.prototype.BindDashboardView = function() {
@@ -23,4 +24,11 @@ NodeUI.prototype.BindSettingsView = function() {
     });
     this.CleanActiveNavigation();
     document.getElementById("id_m_main_funder_settings").classList.add("active");
+}
+
+NodeUI.prototype.BindStatisticsView = function() {
+    window.StatisticsView.Build(null, function(module) {
+    });
+    this.CleanActiveNavigation();
+    document.getElementById("id_m_main_funder_statistics").classList.add("active");
 }

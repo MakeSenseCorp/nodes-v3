@@ -95,3 +95,9 @@ class Funder():
 				retry += 1
 				info = None
 		return info
+
+'''
+5130315
+https://www.funder.co.il/wsfund.asmx/GetFundTickerm?callback=jQuery111306779790886268987_1621159388408&id=5130315&startDate=2018-05-16&endDate=2021-05-17&_=1621159388411
+https://www.funder.co.il/wsfund.asmx/GetFundTickerm?callback=jQuery&id=[FUND_NUMBER]&startDate=2018-05-16&endDate=2021-05-17&_=[SIMPLE_NUMBER]
+'''

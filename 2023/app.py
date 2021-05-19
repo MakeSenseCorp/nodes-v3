@@ -348,6 +348,8 @@ class Context():
 		self.SQL.InsertFundHistoryChange({
 						"number": right["number"],
 						"name": right["name"],
+						"ticker": "",
+						"action": "FUND_INFO_CHANGE",
 						"msg": msg
 					})
 		return True
@@ -391,8 +393,8 @@ class Context():
 			if item not in old_h:
 				new_items.append(item)
 		
-		if len(new_h) != len(old_h):
-			self.Node.LogMSG("({classname})# [FindDifference] {0} {1}\n{2}\n{3}".format(len(new_items), len(deleted_items), old_h, new_h, classname=self.ClassName),5)
+		#if len(new_h) != len(old_h):
+		#	self.Node.LogMSG("({classname})# [FindDifference] {0} {1}\n{2}\n{3}".format(len(new_items), len(deleted_items), old_h, new_h, classname=self.ClassName),5)
 		
 		return new_items, deleted_items
 	
@@ -414,7 +416,7 @@ class Context():
 		return tickers
 
 	def UpdateFundHoldings(self, fund):
-		self.Node.LogMSG("({classname})# Request fund's holdings".format(classname=self.ClassName),5)
+		# self.Node.LogMSG("({classname})# Request fund's holdings".format(classname=self.ClassName),5)
 
 		if fund["fundName"] is None:
 			return 
@@ -430,15 +432,17 @@ class Context():
 			old_ticker_list = self.GenerateTickerListFromDB(fund["fundNum"])
 			new_holds, deleted_holds = self.FindDifference(old_ticker_list, new_ticker_list)
 
-			if len(new_ticker_list) != len(old_ticker_list):
-				self.Node.LogMSG("({classname})# [UpdateFundHoldings] Holdimgs list CHANGED #{0} ({1} -> {2}) NEW({3}) DELETED({4})".format(fund["fundNum"],len(old_ticker_list),len(new_ticker_list),len(new_holds),len(deleted_holds),classname=self.ClassName),5)
+			#if len(new_ticker_list) != len(old_ticker_list):
+			#	self.Node.LogMSG("({classname})# [UpdateFundHoldings] Holdimgs list CHANGED #{0} ({1} -> {2}) NEW({3}) DELETED({4})".format(fund["fundNum"],len(old_ticker_list),len(new_ticker_list),len(new_holds),len(deleted_holds),classname=self.ClassName),5)
 
 			if len(new_holds) > 0:
 				for item in new_holds:
 					self.SQL.InsertFundHistoryChange({
 						"number": fund["fundNum"],
 						"name": fund_name,
-						"msg": "New stock ({0}) was added to {1} {2}".format(item,fund["fundNum"],fund_name)
+						"msg": "New stock ({0}) was added to {1} {2}".format(item,fund["fundNum"],fund_name),
+						"ticker": item,
+						"action": "STOCK_BUY"
 					})
 			
 			if len(deleted_holds) > 0:
@@ -446,7 +450,9 @@ class Context():
 					self.SQL.InsertFundHistoryChange({
 						"number": fund["fundNum"],
 						"name": fund_name,
-						"msg": "Stock ({0}) was deleted from {1} ({2})".format(item,fund["fundNum"],fund_name)
+						"msg": "Stock ({0}) was deleted from {1} ({2})".format(item,fund["fundNum"],fund_name),
+						"ticker": item,
+						"action": "STOCK_SELL"
 					})
 					# Delete from stock_to_fund
 
@@ -471,7 +477,7 @@ class Context():
 						fund_id  = fund["fund_id"]
 						is_exist, item = self.SQL.IsStockExist(hold["TICKER"])
 						if is_exist is False:
-							self.Node.LogMSG("({classname})# Update local DB with holding ({0}) ".format(hold["TICKER"],classname=self.ClassName),5)
+							# self.Node.LogMSG("({classname})# Update local DB with holding ({0}) ".format(hold["TICKER"],classname=self.ClassName),5)
 							stock_id = self.SQL.InsertStock(stock_db)
 						else:
 							stock_id = item["id"]
@@ -480,13 +486,13 @@ class Context():
 						if self.SQL.IsFundToStockExist(fund_id, stock_id) is False:
 							bond_db["fund_id"]  = fund_id
 							bond_db["stock_id"] = stock_id
-							self.Node.LogMSG("({classname})# Update local DB with bonding ({0}) {1} ({2} -> {3})".format(fund["fundNum"], hold["TICKER"],fund_id,stock_id,classname=self.ClassName),5)
+							# self.Node.LogMSG("({classname})# Update local DB with bonding ({0}) {1} ({2} -> {3})".format(fund["fundNum"], hold["TICKER"],fund_id,stock_id,classname=self.ClassName),5)
 							self.SQL.InsertStockToFund(bond_db)
 						else:
 							pass
 
 	def DBUpdateWorker(self):
-		self.Node.LogMSG("({classname})# Request all funds from Funnder".format(classname=self.ClassName),5)
+		# self.Node.LogMSG("({classname})# Request all funds from Funnder".format(classname=self.ClassName),5)
 		funds = self.Funder.GetFunderJsonDB()
 		if funds is not None:
 			funds_count = len(funds)
@@ -514,17 +520,18 @@ class Context():
 						"mimic":		fund["mehaka"],
 						"json":			"" # json.dumps(fund,ensure_ascii=False)
 					}
+					self.Node.LogMSG("({classname})# Fund number ({0})".format(number,classname=self.ClassName),5)
 					if fund is not None:
 						valid, data = self.CheckValidity(fund_db)
 						if valid is True:
 							is_exist, item = self.SQL.IsFundInfoExist(number)
 							if is_exist is False:
-								self.Node.LogMSG("({classname})# Insert local DB with fund ({0}) info ".format(number,classname=self.ClassName),5)
+								#self.Node.LogMSG("({classname})# Insert local DB with fund ({0}) info ".format(number,classname=self.ClassName),5)
 								fund["fund_id"] = self.SQL.InsertFundInfo(data)
 								self.UpdateFundHoldings(fund)
 							else:
 								if fund["lastUpdate"] not in item["last_updated"]:
-									self.Node.LogMSG("({classname})# Update local DB with fund ({0}) info ".format(number,classname=self.ClassName),5)
+									#self.Node.LogMSG("({classname})# Update local DB with fund ({0}) info ".format(number,classname=self.ClassName),5)
 									# TODO - Check for info changes
 									info = self.SQL.SelectFundInfoByNumber(number)
 									# self.CheckForFundInfoChange(info, fund_db)
