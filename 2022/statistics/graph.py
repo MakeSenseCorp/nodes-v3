@@ -52,7 +52,7 @@ def Get5D(ticker):
 	'''
 	hist = []
 	objtk = yf.Ticker(ticker)
-	data = objtk.history(period="1mo", interval="5m")
+	data = objtk.history(period="3mo", interval="60m")
 	for idx, row in data.iterrows():
 		hist.append({
 			"date": "{0}".format(idx),
@@ -357,7 +357,7 @@ def main():
 		perc_integral = 0.0
 		for idx, sample in enumerate(Y):
 			perc_integral += sample
-			if (perc_integral / hist_sum) > 0.1:
+			if (perc_integral / hist_sum) > 0.3:
 				filter_thershold = X[idx]
 				break
 		# ------------------------------------------------------------------ HISTOGRAM END
@@ -369,6 +369,43 @@ def main():
 		# ------------------------------------------------------------------ DIFF REMOVE NOISE END
 
 		#ax2.plot(x1[:-1], y2)
+
+		# ------------------------------------------------------------------ FIND GROUPS START
+		roi_list = []
+		start_of_peak 	= 0
+		item_counter 	= 0
+		prev_item 		= 0
+		scale_const = (pmax - pmin) / 8
+		for idx, item in enumerate(y2):
+			if prev_item == 0 and item < 0: # START OF PEAK
+				start_of_peak = idx
+			elif prev_item < 0 and item < 0: # MIDDLE OF PEAK
+				pass
+			elif prev_item == 0 and item == 0: # NO PEAK
+				# Count items
+				item_counter += 1
+			elif prev_item < 0 and item == 0: # END OF PEAK
+				# Check length of items between previouse peak
+				if item_counter < 10 and len(roi_list) > 0:
+					roi_list[-1]["end"] = idx
+				else:
+					roi_list.append({
+						"start": start_of_peak,
+						"end": idx
+					})
+				# Start items counter
+				item_counter = 0
+			else:
+				# ANY OTHER CASE
+				pass
+
+			prev_item = item
+		
+		y6 = [pmin] * len(y2)
+		for item in roi_list:
+			for idx in range(item["start"], item["end"]):
+				y6[idx] = pmin + scale_const
+		# ------------------------------------------------------------------ FIND GROUPS END
 		
 		# ------------------------------------------------------------------ DIFF SCALE TO GRAPH START
 		scale_const = (pmax - pmin) / 2
@@ -381,6 +418,7 @@ def main():
 		ax1.plot(x1, y1)
 		ax1.plot(x1[:-1], y2, color='orange')
 		ax1.plot(x1[:-1], y7, color='orange')
+		ax1.plot(x1[:-1], y6, color='red')
 		ax1.plot(x4, y4, color='red', linestyle='dashed')
 		ax1.plot(x5, y5, color='green', linestyle='dashed')
 
