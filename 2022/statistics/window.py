@@ -37,7 +37,7 @@ def Get5D(ticker):
 	'''
 	hist = []
 	objtk = yf.Ticker(ticker)
-	data = objtk.history(period="3mo", interval="60m")
+	data = objtk.history(period="1mo", interval="5m")
 	for idx, row in data.iterrows():
 		hist.append({
 			"date": "{0}".format(idx),
@@ -75,6 +75,7 @@ def CreateHistogram(buffer, bin_size):
 		if len(buffer) > 0:
 			# Find min and max for this buffer
 			pmin, pmax = FindBufferMaxMin(buffer)
+			# print("pmax:{0}, pmin:{1}, bin_size:{2}".format(pmax,pmin,bin_size))
 			# Calculate freq
 			freq = (float(pmax) - float(pmin)) / float(bin_size)
 			if freq == 0:
@@ -121,6 +122,12 @@ def GetIntersetPoints(data):
 
 	# ------------------------------------------------------------------ DIFF REMOVE POSITIVE SLOPE START
 	for idx, item in enumerate(data_diff):
+		if item < 0:
+			if idx < len(data_diff) - 2:
+				if data_diff[idx + 1] > 0:
+					pass
+				else:
+					data_diff[idx] = 0
 		if item > 0:
 			data_diff[idx] = 0
 	# ------------------------------------------------------------------ DIFF REMOVE POSITIVE SLOPE END
@@ -139,7 +146,7 @@ def GetIntersetPoints(data):
 	perc_integral 	 = 0.0
 	for idx, sample in enumerate(hist_y):
 		perc_integral += sample
-		if (perc_integral / hist_sum) > 0.3:
+		if (perc_integral / hist_sum) > 0.1:
 			filter_thershold = hist_x[idx]
 			break
 	# ------------------------------------------------------------------ HISTOGRAM END
@@ -218,7 +225,7 @@ def main():
 
 		rois  		= None
 		rois_map 	= {}
-		window_size = 40 # hours
+		window_size = 96 # hours
 		w_start 	= 0
 		w_end 		= window_size
 		# print(len(y_buff), y_buff)
@@ -238,6 +245,8 @@ def main():
 		y1 = [pmin] * len(x_buff)
 		for idx in rois_map:
 			y1[idx] = pmin + scale_const
+		
+		print(y1)
 
 		fig, (ax1) = plt.subplots(1, 1)
 		fig.subplots_adjust(hspace=0.5)
