@@ -255,13 +255,13 @@ class StockMarket():
 				if vol > 1000000:
 					return True
 				elif vol > 500000:
-					if ts - stock["ts_last_updated"] > 5.0:
+					if ts - stock["ts_last_updated"] > 30.0:
 						return True
 				elif vol > 100000:
-					if ts - stock["ts_last_updated"] > 10.0:
+					if ts - stock["ts_last_updated"] > 60.0:
 						return True
 				else:
-					if ts - stock["ts_last_updated"] > 30.0:
+					if ts - stock["ts_last_updated"] > 90.0:
 						return True
 			else:
 				return True
@@ -285,7 +285,7 @@ class StockMarket():
 		self.ThreadPoolLocker.release()
 		Interval 			= 0.5
 		Itterations 		= 0
-		ItterationFactor 	= 4
+		ItterationFactor 	= 1
 
 		algos = StockCalculation()
 		algos.StockSimplePredictionChangeCallback = self.StockSimplePredictionChangeCallback
@@ -301,7 +301,7 @@ class StockMarket():
 				ticker 							= item["ticker"]
 				stock  							= self.CacheDB[ticker]
 				# Print working message
-				self.LogMSG("({classname})# [MINION] Update stock ({0}) ({1})".format(index,ticker,classname=self.ClassName), 5)
+				self.LogMSG("({classname})# [MINION] Update stock ({0}) ({1}) ({2})".format(index,ticker,Itterations,classname=self.ClassName), 5)
 				# Update local stock DB
 				if stock is not None:
 					error, stock["price"] = atock_api.GetStockCurrentPrice(ticker) # Get stock price
@@ -309,7 +309,7 @@ class StockMarket():
 						stock["price"] = None
 					else:
 						# Get 1 day history
-						if Itterations % (ItterationFactor * 1) == 0 or stock["5D"] is None:
+						if Itterations % (ItterationFactor * 1) == 0 or stock["1D"] is None:
 							error, stock["1D"] = atock_api.Get1D(ticker)
 							if error is True:
 								stock["1D"] = None
@@ -373,21 +373,24 @@ class StockMarket():
 						# Check for thresholds
 						for threshold in stock["thresholds"]:
 							threshold["activated"] = False
-							if threshold["type"] == 1:
+							if threshold["type"] == 1: # UPPER
 								if float(threshold["value"]) > float(stock["price"]):
 									threshold["activated"] = True
-							elif threshold["type"] == 2:
+							elif threshold["type"] == 2: # EQUAL
 								if float(threshold["value"]) == float(stock["price"]):
 									threshold["activated"] = True
-							elif threshold["type"] == 3:
+							elif threshold["type"] == 3: # LOWER
 								if float(threshold["value"]) < float(stock["price"]):
 									threshold["activated"] = True
 							else:
 								pass
 							
+							# Threshold reached its value
 							if threshold["activated"] is True:
-								if self.ThresholdEventCallback is not None:
-									self.ThresholdEventCallback(ticker, stock["price"], threshold)
+								if time.time() - int(threshold["last_emit_ts"]) > 60 * 30:
+									threshold["emit_counter"] += 1
+									if self.ThresholdEventCallback is not None:
+										self.ThresholdEventCallback(ticker, stock["price"], threshold)
 						
 						if error is True:
 							# Stock was not updated correctly
@@ -395,7 +398,7 @@ class StockMarket():
 						else:
 							# Update stock status to updated and update timestamp
 							stock["updated"] = True
-							stock["ts_last_updated"] 	= time.time()
+							stock["ts_last_updated"] = time.time()
 				# Free to accept new job
 				self.ThreadPoolStatus[index] = False
 				# Signal master in case he waits on signal
@@ -421,6 +424,8 @@ class StockMarket():
 		# Wait untill minions will report for duty
 		while self.JoblessMinions < self.ThreadCount:
 			time.sleep(1)
+		
+		self.MarketPollingInterval = 10
 
 		d_ticker = ""
 		while self.WorkerRunning is True:
@@ -428,10 +433,11 @@ class StockMarket():
 				self.MarketOpen = self.IsMarketOpen()
 				if self.Halt is False:
 					if self.MarketOpen is True or self.FirstStockUpdateRun is False:
-						if self.MarketOpen is False:
-							self.MarketPollingInterval = 10
-						else:
-							self.MarketPollingInterval = 1
+						#if self.MarketOpen is False:
+						#	self.MarketPollingInterval = 10
+						#else:
+						#	self.MarketPollingInterval = 1
+
 						# Itterate over all user stocks
 						for ticker in self.CacheDB:
 							if self.Halt is True:
@@ -490,6 +496,8 @@ class StockMarket():
 	def UpdateStocks(self):
 		self.FirstStockUpdateRun = False
 	
+	# ---- THRESHOLDS ----
+
 	def RemoveThreshold(self, ticker, threshold_id):
 		self.Locker.acquire()
 		try:
@@ -525,11 +533,22 @@ class StockMarket():
 		self.Locker.acquire()
 		try:
 			stock = self.CacheDB[ticker]
-			threshold["id"] = time.time()
-			stock["thresholds"].append(threshold)
+			# Check if threshold exist
+			for item in stock["thresholds"]:
+				if item["name"] == threshold["name"]:
+					# Update
+					pass
+				else:
+					# Append
+					threshold["id"] = time.time()
+					threshold["last_emit_ts"] = 0
+					threshold["emit_counter"] = 0
+					stock["thresholds"].append(threshold)
 		except:
 			pass
 		self.Locker.release()
+	
+	# ---- THRESHOLDS ----
 
 	def GenerateEmtpyStock(self):
 		return {

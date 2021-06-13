@@ -66,6 +66,7 @@ class Context():
 			'db_delete_stock':					self.DBDeleteStockHandler,
 			'db_delete_action':					self.DBDeleteActionHandler,
 			'calulate_basic_prediction':		self.CalculateBasicPredictionHandler,
+			'threshold':						self.ThresholdHandler,
 			'undefined':						self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -94,7 +95,7 @@ class Context():
 		# self.Timer.AddTimeItem(10, self.PrintConnections) # In scope of main Node thread
 	
 	def ThresholdEvent(self, ticker, price, threshold):
-		self.Node.LogMSG("({classname})# [StockSimplePredictionChangeEvent]".format(classname=self.ClassName),5)
+		self.Node.LogMSG("({classname})# [ThresholdEvent]".format(classname=self.ClassName),5)
 
 		if "risk" in threshold["name"]:
 			html = '''
@@ -113,73 +114,55 @@ class Context():
 					</tr>
 				</table>
 			'''.format(ticker, price, threshold["value"])
-			# self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Risk", html)
+		else:
+			html = '''
+				<table>
+					<tr>
+						<td><span>Ticker</span></td>
+						<td><span>{0}</span></td>
+					</tr>
+					<tr>
+						<td><span>Price</span></td>
+						<td><span>{1}</span></td>
+					</tr>
+				</table>
+			'''
+		self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Risk", html)
 
+	'''
+		index: Prediction type (1D = 0, 5D = 1, 1MO = 2, 3MO = 3, 6MO = 4, 1Y = 5)
+	'''
 	def StockSimplePredictionChangeEvent(self, ticker, index):
 		self.Node.LogMSG("({classname})# [StockSimplePredictionChangeEvent]".format(classname=self.ClassName),5)
+
+		# We need to send mail only on prediction of 5D and 1MO
+		if index not in [1,2]:
+			return
+		
 		stock = self.MarketRemote.CacheDB[ticker]
 		if stock is not None:
 			try:
 				prediction 			= stock["predictions"]["basic"][index]
 				current_action  	= prediction["action"]["current"]
-				previouse_action	= prediction["action"]["previouse"]
-				action_flags 		= prediction["action_flags"]
 
-				key = int("".join(str(x) for x in action_flags), 2)
-
-				send_mail = False
-				map_action = {
-					0: "none",
-					1: "none",
-					2: "unknown",
-					3: "sell",
-					4: "none",
-					5: "none",
-					6: "buy",
-					7: "none"
-				}
-
-				if "sell" in current_action:
-					if "sell" in map_action[key]:
-						action_flags[2] = 0
-						# Send mail changed to sell
-						send_mail = True
-					action_flags[0] = 1
-				elif "hold" in current_action:
-					action_flags[1] = 1
-					# FEATURE: Were from you arrived (buy or sell)
-				elif "buy" in current_action:
-					if "buy" in map_action[key]:
-						action_flags[0] = 0
-						# Send mail changed to buy
-						send_mail = True
-					action_flags[2] = 1
-				else:
-					pass
-
-				if send_mail is True:
-					self.Node.LogMSG("({classname})# [StockSimplePredictionChangeEvent] Send Mail ({0} {1} {2} {3})".format(ticker, stock["price"], previouse_action, current_action, classname=self.ClassName),5)
-					html = '''
-						<table>
-							<tr>
-								<td><span>Ticker</span></td>
-								<td><span>{0}</span></td>
-							</tr>
-							<tr>
-								<td><span>Price</span></td>
-								<td><span>{1}</span></td>
-							</tr>
-							<tr>
-								<td><span>Previouse Prediction</span></td>
-								<td><span>{2}</span></td>
-							</tr>
-							<tr>
-								<td><span>Current Prediction</span></td>
-								<td><span>{3}</span></td>
-							</tr>
-						</table>
-					'''.format(ticker, stock["price"], previouse_action, current_action)
-					self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Prediction Change", html)
+				self.Node.LogMSG("({classname})# [StockSimplePredictionChangeEvent] Send Mail ({0} {1} {2})".format(ticker, stock["price"], current_action, classname=self.ClassName),5)
+				html = '''
+					<table>
+						<tr>
+							<td><span>Ticker</span></td>
+							<td><span>{0}</span></td>
+						</tr>
+						<tr>
+							<td><span>Price</span></td>
+							<td><span>{1}</span></td>
+						</tr>
+						<tr>
+							<td><span>Prediction</span></td>
+							<td><span>{2}</span></td>
+						</tr>
+					</table>
+				'''.format(ticker, stock["price"], current_action)
+				self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Prediction Change", html)
 			except Exception as e:
 				self.Node.LogMSG("({classname})# [EXCEPTION] (StockSimplePredictionChangeEvent) {0} {1}".format(ticker,str(e),classname=self.ClassName),5)
 
@@ -233,6 +216,39 @@ class Context():
 		except Exception as e:
 			print(e)
 		return False
+	
+	'''
+		Each stock can have one lower limit.
+		When ever this limit reached user will have the message.
+	'''
+	def AddLowerLimitThreshold(self, ticker, value):
+		try:
+			# Check if limit already exist
+			self.MarketRemote.AppendThreshold(ticker, {
+				"stock_action_id": 0,
+				"value": float(value),
+				"type": 3,
+				"activated": False,
+				"name": "lower_limit_{0}".format(ticker)
+			})
+		except Exception as e:
+			self.Node.LogMSG("({classname})# [EXCEPTION] AddLowerLimitThreshold {0}".format(str(e),classname=self.ClassName), 5)
+
+	'''
+		Each stock can have one upper limit.
+		When ever this limit reached user will have the message.
+	'''
+	def AddUpperLimitThreshold(self, ticker, value):
+		try:
+			self.MarketRemote.AppendThreshold(ticker, {
+				"stock_action_id": 0,
+				"value": float(value),
+				"type": 1,
+				"activated": False,
+				"name": "upper_limit_{0}".format(ticker)
+			})
+		except Exception as e:
+			self.Node.LogMSG("({classname})# [EXCEPTION] AddUpperLimitThreshold {0}".format(str(e),classname=self.ClassName), 5)
 
 	def AddRiskThreshold(self, ticker, act_id, price, risk):
 		try:
@@ -250,6 +266,39 @@ class Context():
 			})
 		except Exception as e:
 			print(e)
+
+	def ThresholdHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [ThresholdHandler] {0}".format(payload,classname=self.ClassName),5)
+		if "action" in payload:
+			action = payload["action"]
+			ticker = payload["ticker"]
+			if "select" in action:
+				threshold = self.SQL.GetStockThresholds(ticker)
+				return {
+					"thresholds": threshold
+				}
+			elif "insert" in action:
+				pass
+			elif "update" in action:
+				upper = payload["upper"]
+				lower = payload["lower"]
+				# Update runtime engine
+				self.AddUpperLimitThreshold(ticker, upper["value"]) # UPPER
+				self.AddLowerLimitThreshold(ticker, lower["value"]) # LOWER
+				# Update DB
+				if self.SQL.GetStockThresholds(ticker) is None:
+					pass
+				else:
+					# Update existing
+					self.SQL.UpdateStockThreshold(upper["id"], upper["value"])
+					self.SQL.UpdateStockThreshold(lower["id"], lower["value"])
+			elif "delete" in action:
+				pass
+		
+		return {
+			"status": True
+		}
 
 	def CalculateBasicPredictionHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
@@ -372,9 +421,12 @@ class Context():
 	def DBInsertStockHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0}".format(payload,classname=self.ClassName),5)
+
+		ticker = payload["ticker"]
+
 		# Check if stock already in the DB
-		if self.SQL.StockExist(payload["ticker"]) is False:
-			info = self.MarketRemote.API.GetStockInfoRaw(payload["ticker"])
+		if self.SQL.StockExist(ticker) is False:
+			info = self.MarketRemote.API.GetStockInfoRaw(ticker)
 			self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0} Append to stock DB".format(payload,classname=self.ClassName),5)
 			sector = ""
 			if "sector" in info:
@@ -384,11 +436,29 @@ class Context():
 				industry = info["industry"]
 			self.SQL.InsertStock({
 				'name': info["shortName"],
-				'ticker': payload["ticker"],
+				'ticker': ticker,
 				'market_price': self.CheckForDict(info["previousClose"], "previousClose"),
 				'sector': info["sector"],
 				'industry': info["industry"]
 			})
+
+			# Add UPPER & LOWER threshold
+			if self.SQL.GetStockThresholds(ticker) is None:
+				# Insert new row
+				self.SQL.InsertStockThreshold({
+					"ticker": ticker,
+					"value": 0.0,
+					"type": 10
+				})
+				self.SQL.InsertStockThreshold({
+					"ticker": ticker,
+					"value": 0.0,
+					"type": 11
+				})
+			# Append thresholds to runtime
+			self.AddUpperLimitThreshold(ticker, 0.0) # UPPER
+			self.AddLowerLimitThreshold(ticker, 0.0) # LOWER
+			
 			self.Node.LogMSG("({classname})# [DBInsertStockHandler] {0} Append to stock monitoring".format(payload,classname=self.ClassName),5)
 			# Append to stock monitoring
 			self.MarketRemote.AppendStock(payload["ticker"].upper())
@@ -939,9 +1009,37 @@ class Context():
 		if stocks is not None:
 			if len(stocks) > 0:
 				for stock in stocks:
+					ticker = stock["ticker"]
 					#self.Node.LogMSG("({classname})# {0}".format(stock,classname=self.ClassName),5)
-					self.MarketRemote.AppendStock(stock["ticker"])
-					self.AddRiskThresholdToStock(stock["ticker"])
+					self.MarketRemote.AppendStock(ticker)
+					self.AddRiskThresholdToStock(ticker)
+					# Get all thresholds for this ticker
+					thresholds = self.SQL.GetStockThresholds(ticker)
+					if thresholds is None:
+						self.Node.LogMSG("({classname})# Thresholds ...".format(classname=self.ClassName),5)
+						self.AddUpperLimitThreshold(ticker, 0.0) # UPPER
+						self.AddLowerLimitThreshold(ticker, 0.0) # LOWER
+						# Insert into DB
+						self.SQL.InsertStockThreshold({
+							"ticker": ticker,
+							"value": 0.0,
+							"type": 10
+						})
+						self.SQL.InsertStockThreshold({
+							"ticker": ticker,
+							"value": 0.0,
+							"type": 11
+						})
+					else:
+						for item in thresholds:
+							if item["type"] == 10:
+								self.AddUpperLimitThreshold(ticker, item["value"]) # UPPER
+							elif item["type"] == 11:
+								self.AddLowerLimitThreshold(ticker, item["value"]) # LOWER
+							else:
+								pass
+		
+		# Start market service
 		self.MarketRemote.Start()
 
 		# Create file system for storing videos

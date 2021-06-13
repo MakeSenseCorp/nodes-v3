@@ -13,6 +13,7 @@ function ModuleStockAppend() {
     this.Selector                   = null;
     this.PortfolioList              = null;
     this.StockLoaderProgressBar	    = null;
+    this.Thresholds                 = null;
     // Portfolio
     this.PortfolioID 	            = 0;
     this.PortfolioName              = "All";
@@ -166,6 +167,7 @@ ModuleStockAppend.prototype.UpdateUI = function(scope, stocks) {
                             <span class="dropdown-item" style="color: GREEN; cursor:pointer; font-size: 12px;" onclick="`+scope.DOMName+`.OpenActionAppendModal('`+stock.ticker+`','SELL');">Sell</span>
                             <span class="dropdown-item" style="color: BLUE; cursor:pointer; font-size: 12px;" onclick="`+scope.DOMName+`.OpenStockActionsHistoryModal('`+stock.ticker+`');">History</span>
                             <span class="dropdown-item" style="color: BLUE; cursor:pointer; font-size: 12px;" onclick="`+scope.DOMName+`.OpenPortfolioSelectorModal('`+stock.ticker+`');">Portfolios</span>
+                            <span class="dropdown-item" style="color: BLUE; cursor:pointer; font-size: 12px;" onclick="`+scope.DOMName+`.OpenThresholdModal('`+stock.ticker+`');">Thresholds</span>
                             <span class="dropdown-item" style="color: RED; cursor:pointer; font-size: 12px;" onclick="`+scope.DOMName+`.DeleteStock('`+stock.ticker+`');">Delete</span>
                         </div>
                     </div>
@@ -327,6 +329,28 @@ ModuleStockAppend.prototype.OpenPortfolioSelectorModal = function(ticker) {
         window.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
         window.Modal.Build("sm");
         window.Modal.Show();
+    });
+}
+
+ModuleStockAppend.prototype.SaveThresholds = function() {
+    this.Thresholds.UpdateStockThresholds(function() {
+        console.log("SaveThresholds... Done..");
+    });
+}
+
+ModuleStockAppend.prototype.OpenThresholdModal = function(ticker) {
+    var self = this;
+    this.Thresholds = new ModuleStockThresholdsView(ticker);
+    this.Thresholds.SetObjectDOMName(this.DOMName+".Thresholds");
+    this.Thresholds.Build(null, function(module) {
+        window.Modal.Remove();
+        window.Modal.SetTitle("Thresholds");
+        window.Modal.SetContent(module.HTML);
+        window.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+        window.Modal.SetFooter(`<button type="button" id="modal_optimize_run" class="btn btn-success" onclick="window.StockAppend.SaveThresholds();">Save</button><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+        window.Modal.Build("sm");
+        window.Modal.Show();
+        self.Thresholds.GetStockThresholds(ticker);
     });
 }
 

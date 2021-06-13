@@ -73,6 +73,14 @@ class StockDB():
 							"timestamp" 				REAL,
 							"info"						TEXT
 						);''')
+		
+		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "stocks_thresholds" (
+							"id"						INTEGER PRIMARY KEY AUTOINCREMENT,
+							"ticker" 					TEXT,
+							"value" 					REAL,
+							"type"						INTEGER
+						);''')
+
 		self.Init()
 
 	def Init(self):
@@ -115,25 +123,6 @@ class StockDB():
 			for row in rows:
 				portfolios.append(row[0])
 		return portfolios
-	
-	def GetStocks(self):
-		query = "SELECT * FROM stocks_info"
-		self.CURS.execute(query)
-		
-		stocks = []
-		rows = self.CURS.fetchall()
-		if len(rows) > 0:
-			for row in rows:
-				stocks.append({
-					"id":			row[0],
-					"name": 		row[1],
-					"ticker": 		row[2],
-					"sector": 		row[3],
-					"industry": 	row[4],
-					"market_price": row[5],
-					"yf_info":		row[6]
-				})
-		return stocks
 	
 	def GetStocksByProfile(self, id):
 		if 0 == id:
@@ -331,6 +320,8 @@ class StockDB():
 		
 		return False
 	
+	# ---- STOCKS ----
+
 	def StockExist(self, ticker):
 		if self.GetStock(ticker) is not None:
 			return True
@@ -344,6 +335,102 @@ class StockDB():
 		if len(rows) > 0:
 			return rows[0]
 		return None
+
+	def GetStocks(self):
+		query = "SELECT * FROM stocks_info"
+		self.CURS.execute(query)
+		
+		stocks = []
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			for row in rows:
+				stocks.append({
+					"id":			row[0],
+					"name": 		row[1],
+					"ticker": 		row[2],
+					"sector": 		row[3],
+					"industry": 	row[4],
+					"market_price": row[5],
+					"yf_info":		row[6]
+				})
+		return stocks
+	
+	def InsertStock(self, stock):
+		query = '''
+			INSERT INTO stocks_info (id,name,ticker,sector,industry,market_price,yf_info)
+			VALUES (NULL,'{0}','{1}','{2}','{3}',{4},'')
+		'''.format(stock["name"],stock["ticker"].upper(),stock["sector"],stock["industry"],stock["market_price"])
+		self.CURS.execute(query)
+		self.DB.commit()
+		return self.CURS.lastrowid
+	
+	def DeleteStock(self, ticker):
+		self.CURS.execute('''
+			DELETE FROM stock_to_portfolio
+			WHERE ticker = '{0}'
+		'''.format(ticker))
+		self.DB.commit()
+
+		self.CURS.execute('''
+			DELETE FROM stocks_info
+			WHERE ticker = '{0}'
+		'''.format(ticker))
+		self.DB.commit()
+	
+	# ---- STOCKS ----
+
+	
+	# ---- THRESHOLDS ----
+
+	def GetStockThresholds(self, ticker):
+		query = "SELECT * FROM stocks_thresholds WHERE ticker='{0}'".format(ticker.upper())
+		self.CURS.execute(query)
+		
+		thresholds = []
+		rows = self.CURS.fetchall()
+		if len(rows) > 0:
+			for row in rows:
+				thresholds.append({
+					"id":		row[0],
+					"ticker": 	row[1],
+					"value": 	row[2],
+					"type": 	row[3]
+				})
+			return thresholds
+		return None
+	
+	def InsertStockThreshold(self, threshold):
+		query = '''
+			INSERT INTO stocks_thresholds (id,ticker,value,type)
+			VALUES (NULL,'{0}',{1},{2})
+		'''.format(threshold["ticker"].upper(),threshold["value"],threshold["type"])
+		self.CURS.execute(query)
+		self.DB.commit()
+		return self.CURS.lastrowid
+	
+	def UpdateStockThreshold(self, id, value):
+		query = '''
+			UPDATE stocks_thresholds
+			SET value = {0}
+			WHERE id = {1}
+		'''.format(value,id)
+
+		try:
+			self.CURS.execute(query)
+			self.DB.commit()
+		except:
+			return -1
+		
+		return self.CURS.lastrowid
+	
+	def DeleteThreshold(self, id):
+		self.CURS.execute('''
+			DELETE FROM stocks_thresholds
+			WHERE id = {0}
+		'''.format(id))
+		self.DB.commit()
+	
+	# ---- THRESHOLDS ----
 	
 	def GetStockHistoryActionById(self, act_id):
 		query = "SELECT * FROM stocks_history WHERE id={0}".format(act_id)
@@ -417,15 +504,6 @@ class StockDB():
 		if len(rows) > 0:
 			return rows[0][0]
 		return None
-	
-	def InsertStock(self, stock):
-		query = '''
-			INSERT INTO stocks_info (id,name,ticker,sector,industry,market_price,yf_info)
-			VALUES (NULL,'{0}','{1}','{2}','{3}',{4},'')
-		'''.format(stock["name"],stock["ticker"].upper(),stock["sector"],stock["industry"],stock["market_price"])
-		self.CURS.execute(query)
-		self.DB.commit()
-		return self.CURS.lastrowid
 	
 	def InsertStockToPortfolio(self, ticker, portfolio_id):
 		query = '''
@@ -533,19 +611,6 @@ class StockDB():
 			DELETE FROM portfolios
 			WHERE id = {0}
 		'''.format(id))
-		self.DB.commit()
-	
-	def DeleteStock(self, ticker):
-		self.CURS.execute('''
-			DELETE FROM stock_to_portfolio
-			WHERE ticker = '{0}'
-		'''.format(ticker))
-		self.DB.commit()
-
-		self.CURS.execute('''
-			DELETE FROM stocks_info
-			WHERE ticker = '{0}'
-		'''.format(ticker))
 		self.DB.commit()
 	
 	def DeleteActionById(self, id):

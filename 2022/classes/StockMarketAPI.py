@@ -29,16 +29,20 @@ class API():
 		error = False
 		for retry in range(3):
 			try:
+				#print("[GetStockCurrentPrice] Get ticker ".format(ticker))
 				objtk = yf.Ticker(ticker)
 				time.sleep(self.Delay)
-				df_stock = objtk.history(period="1d", interval="5m")
+				#print("[GetStockCurrentPrice] Get ticker history ".format(ticker))
+				df_stock = objtk.history(period="1d", interval="1m")
 				time.sleep(self.Delay)
+				#print("[GetStockCurrentPrice] Get ticker close price ".format(ticker))
 				price = "{0:.3f}".format(df_stock["Close"].iloc[-1])
 			except Exception as e:
 				if retry == 3:
 					print("({classname})# [EXCEPTION] GetStockCurrentPrice FAILED {0} {1}".format(ticker,str(e),classname=self.ClassName))
 					return True, 0.0
 				print("({classname})# [EXCEPTION] GetStockCurrentPrice RETRY [{1}] {0}".format(ticker,retry,classname=self.ClassName))
+				time.sleep(3)
 				
 		return error, float(price)
 	
