@@ -372,8 +372,13 @@ class Context():
 	def DBDeleteStockHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [DBDeleteStockHandler] {0}".format(payload,classname=self.ClassName),5)
-		self.SQL.DeleteStock(payload["ticker"])
-		self.MarketRemote.RemoveStock(payload["ticker"])
+		ticker = payload["ticker"]
+
+		self.SQL.DeleteStock(ticker)
+		self.MarketRemote.RemoveStock(ticker)
+		# Delete all thresholds
+		self.SQL.DeleteallThresholds(ticker)
+
 		return {
 			"status": True
 		}
@@ -1032,6 +1037,7 @@ class Context():
 						})
 					else:
 						for item in thresholds:
+							# self.Node.LogMSG("({classname})# {0}".format(item,classname=self.ClassName),5)
 							if item["type"] == 10:
 								self.AddUpperLimitThreshold(ticker, item["value"]) # UPPER
 							elif item["type"] == 11:

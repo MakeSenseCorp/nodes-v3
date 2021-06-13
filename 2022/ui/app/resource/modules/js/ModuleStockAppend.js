@@ -335,6 +335,7 @@ ModuleStockAppend.prototype.OpenPortfolioSelectorModal = function(ticker) {
 ModuleStockAppend.prototype.SaveThresholds = function() {
     this.Thresholds.UpdateStockThresholds(function() {
         console.log("SaveThresholds... Done..");
+        window.StockAppend.CleanModal();
     });
 }
 

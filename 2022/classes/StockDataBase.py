@@ -430,6 +430,13 @@ class StockDB():
 		'''.format(id))
 		self.DB.commit()
 	
+	def DeleteallThresholds(self, ticker):
+		self.CURS.execute('''
+			DELETE FROM stocks_thresholds
+			WHERE ticker = '{0}'
+		'''.format(ticker))
+		self.DB.commit()
+	
 	# ---- THRESHOLDS ----
 	
 	def GetStockHistoryActionById(self, act_id):

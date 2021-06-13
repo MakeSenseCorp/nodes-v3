@@ -376,19 +376,27 @@ class StockMarket():
 							if threshold["type"] == 1: # UPPER
 								if float(threshold["value"]) > float(stock["price"]):
 									threshold["activated"] = True
+								else:
+									threshold["last_emit_ts"] = 0
 							elif threshold["type"] == 2: # EQUAL
 								if float(threshold["value"]) == float(stock["price"]):
 									threshold["activated"] = True
+								else:
+									pass # Need to deside what to do here.
 							elif threshold["type"] == 3: # LOWER
 								if float(threshold["value"]) < float(stock["price"]):
 									threshold["activated"] = True
+								else:
+									threshold["last_emit_ts"] = 0
 							else:
 								pass
 							
 							# Threshold reached its value
 							if threshold["activated"] is True:
+								print("THRESHOLD", float(threshold["value"]), float(stock["price"]), threshold["emit_counter"], int(threshold["last_emit_ts"]))
 								if time.time() - int(threshold["last_emit_ts"]) > 60 * 30:
 									threshold["emit_counter"] += 1
+									threshold["last_emit_ts"] = time.time()
 									if self.ThresholdEventCallback is not None:
 										self.ThresholdEventCallback(ticker, stock["price"], threshold)
 						
@@ -430,7 +438,8 @@ class StockMarket():
 		d_ticker = ""
 		while self.WorkerRunning is True:
 			try:
-				self.MarketOpen = self.IsMarketOpen()
+				# self.MarketOpen = self.IsMarketOpen()
+				self.MarketOpen = True
 				if self.Halt is False:
 					if self.MarketOpen is True or self.FirstStockUpdateRun is False:
 						#if self.MarketOpen is False:
@@ -537,15 +546,15 @@ class StockMarket():
 			for item in stock["thresholds"]:
 				if item["name"] == threshold["name"]:
 					# Update
-					pass
-				else:
-					# Append
-					threshold["id"] = time.time()
-					threshold["last_emit_ts"] = 0
-					threshold["emit_counter"] = 0
-					stock["thresholds"].append(threshold)
+					return
+			
+			# Append
+			threshold["id"] = time.time()
+			threshold["last_emit_ts"] = 0
+			threshold["emit_counter"] = 0
+			stock["thresholds"].append(threshold)
 		except:
-			pass
+			self.LogMSG("({classname})# [EXCEPTION] AppendThreshold {0}".format(str(e),classname=self.ClassName), 5)
 		self.Locker.release()
 	
 	# ---- THRESHOLDS ----
