@@ -40,6 +40,7 @@ ModuleStockAppend.prototype.SetHostingID = function(id) {
 ModuleStockAppend.prototype.Build = function(data, callback) {
     var self = this;
 
+    console.log("ModuleStockAppend.Build");
     node.API.GetFileContent(NodeUUID, {
         "file_path": "modules/html/ModuleStockAppend.html"
     }, function(res) {
@@ -186,11 +187,15 @@ ModuleStockAppend.prototype.UpdateUI = function(scope, stocks) {
 }
 
 ModuleStockAppend.prototype.UpdateTableSammaryUI = function(data) {
-    console.log(data);
-    document.getElementById("id_m_stock_append_table_price_summary_total_stock_diff").innerHTML = data.total_stock_diff.toFixed(2);
-    document.getElementById("id_m_stock_append_table_price_summery_number").innerHTML           = data.stocks_count;
-    document.getElementById("id_m_stock_append_table_price_summery_earnings").innerHTML         = data.earnings.toFixed(2);
-    document.getElementById("id_m_stock_append_table_price_summary_total_nvestment").innerHTML  = data.total_current_investment.toFixed(2); // `${data.total_current_investment.toFixed(2)} (${data.total_investment.toFixed(2)}) $`;
+    if (data !== undefined && data !== null) {
+        var objForCheck = document.getElementById("id_m_stock_append_table_price_summary_total_stock_diff");
+        if (objForCheck !== undefined && objForCheck !== null) {
+            document.getElementById("id_m_stock_append_table_price_summary_total_stock_diff").innerHTML = data.total_stock_diff.toFixed(2);
+            document.getElementById("id_m_stock_append_table_price_summery_number").innerHTML           = data.stocks_count;
+            document.getElementById("id_m_stock_append_table_price_summery_earnings").innerHTML         = data.earnings.toFixed(2);
+            document.getElementById("id_m_stock_append_table_price_summary_total_nvestment").innerHTML  = data.total_current_investment.toFixed(2); // `${data.total_current_investment.toFixed(2)} (${data.total_investment.toFixed(2)}) $`;
+        }
+    }
 }
 
 ModuleStockAppend.prototype.GetPortfolioStocks = function(id, name) {
@@ -335,7 +340,7 @@ ModuleStockAppend.prototype.OpenPortfolioSelectorModal = function(ticker) {
 ModuleStockAppend.prototype.SaveThresholds = function() {
     this.Thresholds.UpdateStockThresholds(function() {
         console.log("SaveThresholds... Done..");
-        window.StockAppend.CleanModal();
+        window.Modal.Hide();
     });
 }
 
@@ -373,13 +378,15 @@ ModuleStockAppend.prototype.UpdateStockInfoView = function(ticker) {
     this.FindStockInMarket();
 }
 
-ModuleStockAppend.prototype.CheckThreshold = function(stock) {
+ModuleStockAppend.prototype.CheckThreshold = function(stock, like) {
     var threshold_activated = false;
 
     if (stock.thresholds.length > 0) {
         for (key in stock.thresholds) {
             threshold = stock.thresholds[key];
-            threshold_activated = threshold.activated;
+            if (threshold.name.includes(like)) {
+                threshold_activated = threshold.activated;
+            }
         }
     }
 
@@ -569,8 +576,10 @@ ModuleStockAppend.prototype.UpdateStockTableFromLocalMarket = function() {
         }
 
         this.SimplePredictionUpdate(stock);
-        if (this.CheckThreshold(stock) == true) {
+        if (this.CheckThreshold(stock, "risk") == true) {
             priceEventObj.innerHTML = `<span style="color: red;" data-feather="alert-triangle" data-placement="top" data-toggle="tooltip" title="Stock At Risk"><span></span>`;
+        } else if (this.CheckThreshold(stock, "limit") == true) {
+            priceEventObj.innerHTML = `<span style="color: green;" data-feather="alert-triangle" data-placement="top" data-toggle="tooltip" title="Stock At Risk"><span></span>`;
         } else {
             priceEventObj.innerHTML = "";
         }
@@ -595,8 +604,10 @@ ModuleStockAppend.prototype.UpdateStockTableAsync = function(data, scope) {
         }
         
         scope.SimplePredictionUpdate(stock);
-        if (scope.CheckThreshold(stock) == true) {
+        if (scope.CheckThreshold(stock, "risk") == true) {
             priceEventObj.innerHTML = `<span style="color: red;" data-feather="alert-triangle" data-placement="top" data-toggle="tooltip" title="Stock At Risk"><span></span>`;
+        } else if (scope.CheckThreshold(stock, "limit") == true) {
+            priceEventObj.innerHTML = `<span style="color: green;" data-feather="alert-triangle" data-placement="top" data-toggle="tooltip" title="Stock At Risk"><span></span>`;
         } else {
             priceEventObj.innerHTML = "";
         }

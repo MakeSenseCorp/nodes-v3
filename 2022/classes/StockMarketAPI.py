@@ -14,7 +14,7 @@ import math
 class API():
 	def __init__(self):
 		self.ClassName	= "StockMarketApi"
-		self.Delay 		= 0.2
+		self.Delay 		= 0.5
 	
 	def CheckForNan(self, value):
 		if value == value:

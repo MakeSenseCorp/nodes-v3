@@ -130,9 +130,6 @@ class StockMarket():
 		self.Logger						= None
 		self.Halt 						= False
 
-		self.Algos 						= StockCalculation()
-		self.API 						= StockMarketAPI.API()
-
 		# Callbacks
 		self.FullLoopPerformedCallback 				= None
 		self.StockChangeCallback 					= None
@@ -308,8 +305,13 @@ class StockMarket():
 					if error is True:
 						stock["price"] = None
 					else:
+						#
+						# ---- Get History, Calculate Basic Prediction and Get Basic Statistics
+						#
+
 						# Get 1 day history
 						if Itterations % (ItterationFactor * 1) == 0 or stock["1D"] is None:
+							# self.LogMSG("({classname})# [MINION] 1D ({0})".format(ticker,classname=self.ClassName), 5)
 							error, stock["1D"] = atock_api.Get1D(ticker)
 							if error is True:
 								stock["1D"] = None
@@ -319,6 +321,7 @@ class StockMarket():
 								stock["statistics"]["basic"][0] = algos.GetBasicStatistics(stock_prices)
 						# Get 5 days history
 						if Itterations % (ItterationFactor * 2) == 0 or stock["5D"] is None:
+							# self.LogMSG("({classname})# [MINION] 5D ({0})".format(ticker,classname=self.ClassName), 5)
 							error, stock["5D"] = atock_api.Get5D(ticker)
 							if error is True:
 								stock["5D"] = None
@@ -328,6 +331,7 @@ class StockMarket():
 								stock["statistics"]["basic"][1] = algos.GetBasicStatistics(stock_prices)
 						# Get 1 month history
 						if Itterations % (ItterationFactor * 4) == 0 or stock["1MO"] is None:
+							# self.LogMSG("({classname})# [MINION] 1MO ({0})".format(ticker,classname=self.ClassName), 5)
 							error, stock["1MO"] = atock_api.Get1MO(ticker)
 							if error is True:
 								stock["1MO"] = None
@@ -337,6 +341,7 @@ class StockMarket():
 								stock["statistics"]["basic"][2] = algos.GetBasicStatistics(stock_prices)
 						# Get 3 months history
 						if Itterations % (ItterationFactor * 16) == 0 or stock["3MO"] is None:
+							# self.LogMSG("({classname})# [MINION] 3MO ({0})".format(ticker,classname=self.ClassName), 5)
 							error, stock["3MO"] = atock_api.Get3MO(ticker)
 							if error is True:
 								stock["3MO"] = None
@@ -346,6 +351,7 @@ class StockMarket():
 								stock["statistics"]["basic"][3] = algos.GetBasicStatistics(stock_prices)
 						# Get 6 months history
 						if Itterations % (ItterationFactor * 32) == 0 or stock["6MO"] is None:
+							# self.LogMSG("({classname})# [MINION] 6MO ({0})".format(ticker,classname=self.ClassName), 5)
 							error, stock["6MO"] = atock_api.Get6MO(ticker)
 							if error is True:
 								stock["6MO"] = None
@@ -355,6 +361,7 @@ class StockMarket():
 								stock["statistics"]["basic"][4] = algos.GetBasicStatistics(stock_prices)
 						# Get 1 year history
 						if Itterations % (ItterationFactor * 64) == 0 or stock["1Y"] is None:
+							# self.LogMSG("({classname})# [MINION] 1Y ({0})".format(ticker,classname=self.ClassName), 5)
 							error, stock["1Y"] = atock_api.Get1Y(ticker)
 							if error is True:
 								stock["1Y"] = None
@@ -363,12 +370,20 @@ class StockMarket():
 								stock_prices = self.GetPriceListFromStockPeriod(stock["1Y"], "close")
 								stock["statistics"]["basic"][5] = algos.GetBasicStatistics(stock_prices)
 						
-						# Calculate price difference bteween today and previouse day
+						#
+						# ---- Get Price Difference
+						#
+
+						# Calculate price difference between today and previouse day
 						if stock["1D"] is not None and stock["5D"] is not None:
 							today_open = stock["1D"][0]
 							for idx, item in enumerate(stock["5D"]):
 								if item["date"] == today_open["date"]:
 									stock["prev_market_price"] = stock["5D"][idx-1]["close"]
+						
+						#
+						# ---- Stock Thresholds
+						#
 
 						# Check for thresholds
 						for threshold in stock["thresholds"]:
@@ -397,8 +412,15 @@ class StockMarket():
 								if time.time() - int(threshold["last_emit_ts"]) > 60 * 30:
 									threshold["emit_counter"] += 1
 									threshold["last_emit_ts"] = time.time()
+									# 
+									# ---- Event Emitted (THRESHOLD)
+									#
 									if self.ThresholdEventCallback is not None:
 										self.ThresholdEventCallback(ticker, stock["price"], threshold)
+						
+						#
+						# ---- Other
+						#
 						
 						if error is True:
 							# Stock was not updated correctly
@@ -419,6 +441,7 @@ class StockMarket():
 				self.Signal.set()
 			# Wait several MS
 			time.sleep(Interval)
+			# Next itteration
 			Itterations += 1
 	
 	def StockMonitorWorker(self):
@@ -453,7 +476,6 @@ class StockMarket():
 								# Get out
 								break
 							stock 	 = self.CacheDB[ticker]
-							# self.LogMSG("({classname})# [MASTER] {0} {1}".format(ticker,stock,classname=self.ClassName), 5)
 							d_ticker = ticker
 							# Check if stock is not null
 							if stock is not None:
@@ -507,17 +529,27 @@ class StockMarket():
 	
 	# ---- THRESHOLDS ----
 
+	def GetRunTimeThresholds(self, ticker):
+		self.Locker.acquire()
+		try:
+			stock = self.CacheDB[ticker]
+			self.Locker.release()
+			return stock["thresholds"]
+		except:
+			pass
+		self.Locker.release()
+
 	def RemoveThreshold(self, ticker, threshold_id):
 		self.Locker.acquire()
 		try:
 			stock = self.CacheDB[ticker]
 			threshold = None
-			for item in stock["thresholds"]:
+			for idx, item in enumerate(stock["thresholds"]):
 				if item["id"] == threshold_id:
-					threshold = item
+					threshold = idx
 					break
 			if threshold is not None:
-				del threshold
+				del stock["thresholds"][threshold]
 		except:
 			pass
 		self.Locker.release()
@@ -546,6 +578,7 @@ class StockMarket():
 			for item in stock["thresholds"]:
 				if item["name"] == threshold["name"]:
 					# Update
+					self.Locker.release()
 					return
 			
 			# Append
@@ -553,7 +586,7 @@ class StockMarket():
 			threshold["last_emit_ts"] = 0
 			threshold["emit_counter"] = 0
 			stock["thresholds"].append(threshold)
-		except:
+		except Exception as e:
 			self.LogMSG("({classname})# [EXCEPTION] AppendThreshold {0}".format(str(e),classname=self.ClassName), 5)
 		self.Locker.release()
 	

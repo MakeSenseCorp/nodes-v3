@@ -16,7 +16,13 @@ function ModuleStockThresholdsView(ticker) {
                                                 </div>
                                             </div>
                                             <div class="form-group row">
-                                                <div class="col-sm-8">
+                                                <div class="col-sm-4">
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input type="checkbox" class="custom-control-input" onclick="[DOM].EnableThreshold(this, 10);" id="id_m_stock_threshold_enable_upper">
+                                                        <label class="custom-control-label" for="id_m_stock_threshold_enable_upper">Enable</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-sm-4">
                                                     <label for="id_m_stock_threshold_upper_threshold" class="col-sm-8 col-form-label">Upper</label>
                                                 </div>
                                                 <div class="col-sm-4">
@@ -24,7 +30,13 @@ function ModuleStockThresholdsView(ticker) {
                                                 </div>
                                             </div>
                                             <div class="form-group row">
-                                                <div class="col-sm-8">
+                                                <div class="col-sm-4">
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input type="checkbox" class="custom-control-input" onclick="[DOM].EnableThreshold(this, 11);" id="id_m_stock_threshold_enable_lower">
+                                                        <label class="custom-control-label" for="id_m_stock_threshold_enable_lower">Enable</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-sm-4">
                                                     <label for="id_m_stock_threshold_lower_threshold" class="col-sm-8 col-form-label">Lower</label>
                                                 </div>
                                                 <div class="col-sm-4">
@@ -39,11 +51,13 @@ function ModuleStockThresholdsView(ticker) {
     this.Ticker                     = ticker;
     this.Upper                      = {
         "id": 0,
-        "value": 0.0
+        "value": 0.0,
+        "enabled": false
     };
     this.Lower                      = {
         "id": 0,
-        "value": 0.0
+        "value": 0.0,
+        "enabled": false
     };
 
     return this;
@@ -57,6 +71,19 @@ ModuleStockThresholdsView.prototype.SetHostingID = function(id) {
     this.HostingID = id;
 }
 
+ModuleStockThresholdsView.prototype.EnableThreshold = function(obj, type) {
+    switch (type) {
+        case 10:
+            this.Upper.enabled = obj.checked;
+            break;
+        case 11:
+            this.Lower.enabled = obj.checked;
+            break;
+        default:
+            break;
+    }
+}
+
 ModuleStockThresholdsView.prototype.UpdateStockThresholds = function(callback) {
     var self = this;
     var upperValue = document.getElementById("id_m_stock_threshold_upper_threshold").value;
@@ -66,11 +93,13 @@ ModuleStockThresholdsView.prototype.UpdateStockThresholds = function(callback) {
         "action": "update",
         "upper": {
             "id": this.Upper.id,
-            "value": upperValue
+            "value": upperValue,
+            "enabled": this.Upper.enabled
         },
         "lower": {
             "id": this.Lower.id,
-            "value": lowerValue
+            "value": lowerValue,
+            "enabled": this.Lower.enabled
         }
     }, function(res) {
         var payload = res.data.payload;
@@ -95,10 +124,14 @@ ModuleStockThresholdsView.prototype.GetStockThresholds = function() {
                     if (threshold.type == 10) {
                         self.Upper.id = threshold.id;
                         self.Upper.value = threshold.value;
+                        self.Upper.enabled = (threshold.enabled == 1) ? true: false;
+                        document.getElementById("id_m_stock_threshold_enable_upper").checked = (threshold.enabled == 1) ? true: false;
                         document.getElementById("id_m_stock_threshold_upper_threshold").value = threshold.value;
                     } else if (threshold.type == 11) {
                         self.Lower.id = threshold.id;
                         self.Lower.value = threshold.value;
+                        self.Lower.enabled = (threshold.enabled == 1) ? true: false;
+                        document.getElementById("id_m_stock_threshold_enable_lower").checked = (threshold.enabled == 1) ? true: false;
                         document.getElementById("id_m_stock_threshold_lower_threshold").value = threshold.value;
                     }
                 }

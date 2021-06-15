@@ -127,7 +127,7 @@ class Context():
 					</tr>
 				</table>
 			'''
-		self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Risk", html)
+		# self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Risk", html)
 
 	'''
 		index: Prediction type (1D = 0, 5D = 1, 1MO = 2, 3MO = 3, 6MO = 4, 1Y = 5)
@@ -162,7 +162,7 @@ class Context():
 						</tr>
 					</table>
 				'''.format(ticker, stock["price"], current_action)
-				self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Prediction Change", html)
+				# self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Prediction Change", html)
 			except Exception as e:
 				self.Node.LogMSG("({classname})# [EXCEPTION] (StockSimplePredictionChangeEvent) {0} {1}".format(ticker,str(e),classname=self.ClassName),5)
 
@@ -199,7 +199,7 @@ class Context():
 				'''.format(stock["ticker"], stock["price"],basic_pred_html)
 
 			html = "<table>{0}</table>".format(html_rows)
-			self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Node Started", html)
+			# self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Node Started", html)
 		except:
 			pass
 
@@ -273,6 +273,7 @@ class Context():
 		if "action" in payload:
 			action = payload["action"]
 			ticker = payload["ticker"]
+
 			if "select" in action:
 				threshold = self.SQL.GetStockThresholds(ticker)
 				return {
@@ -283,16 +284,34 @@ class Context():
 			elif "update" in action:
 				upper = payload["upper"]
 				lower = payload["lower"]
+				runtime_thresholds = self.MarketRemote.GetRunTimeThresholds(ticker)
+
 				# Update runtime engine
-				self.AddUpperLimitThreshold(ticker, upper["value"]) # UPPER
-				self.AddLowerLimitThreshold(ticker, lower["value"]) # LOWER
+				if upper["enabled"] == True:
+					self.AddUpperLimitThreshold(ticker, upper["value"]) # UPPER
+				else:
+					# Remove threshold
+					for item in runtime_thresholds:
+						if "upper_limit" in item["name"]:
+							self.MarketRemote.RemoveThreshold(ticker, item["id"])
+							break
+				
+				if lower["enabled"] == True:
+					self.AddLowerLimitThreshold(ticker, lower["value"]) # LOWER
+				else:
+					# Remove threshold
+					for item in runtime_thresholds:
+						if "lower_limit" in item["name"]:
+							self.MarketRemote.RemoveThreshold(ticker, item["id"])
+							break
+				
 				# Update DB
 				if self.SQL.GetStockThresholds(ticker) is None:
 					pass
 				else:
 					# Update existing
-					self.SQL.UpdateStockThreshold(upper["id"], upper["value"])
-					self.SQL.UpdateStockThreshold(lower["id"], lower["value"])
+					self.SQL.UpdateStockThreshold(upper["id"], upper["value"], upper["enabled"])
+					self.SQL.UpdateStockThreshold(lower["id"], lower["value"], lower["enabled"])
 			elif "delete" in action:
 				pass
 		
@@ -1015,15 +1034,16 @@ class Context():
 			if len(stocks) > 0:
 				for stock in stocks:
 					ticker = stock["ticker"]
-					#self.Node.LogMSG("({classname})# {0}".format(stock,classname=self.ClassName),5)
+					# self.Node.LogMSG("({classname})# {0}".format(stock,classname=self.ClassName),5)
 					self.MarketRemote.AppendStock(ticker)
 					self.AddRiskThresholdToStock(ticker)
 					# Get all thresholds for this ticker
+
+					self.Node.LogMSG("({classname})# Append Thresholds to Runtime Service ...".format(classname=self.ClassName),5)
 					thresholds = self.SQL.GetStockThresholds(ticker)
 					if thresholds is None:
-						self.Node.LogMSG("({classname})# Thresholds ...".format(classname=self.ClassName),5)
-						self.AddUpperLimitThreshold(ticker, 0.0) # UPPER
-						self.AddLowerLimitThreshold(ticker, 0.0) # LOWER
+						# self.AddUpperLimitThreshold(ticker, 0.0) # UPPER
+						# self.AddLowerLimitThreshold(ticker, 0.0) # LOWER
 						# Insert into DB
 						self.SQL.InsertStockThreshold({
 							"ticker": ticker,
@@ -1037,14 +1057,17 @@ class Context():
 						})
 					else:
 						for item in thresholds:
-							# self.Node.LogMSG("({classname})# {0}".format(item,classname=self.ClassName),5)
+							self.Node.LogMSG("({classname})# {0}".format(item,classname=self.ClassName),5)
 							if item["type"] == 10:
-								self.AddUpperLimitThreshold(ticker, item["value"]) # UPPER
+								if item["enabled"] == 1:
+									self.AddUpperLimitThreshold(ticker, item["value"]) # UPPER
 							elif item["type"] == 11:
-								self.AddLowerLimitThreshold(ticker, item["value"]) # LOWER
+								if item["enabled"] == 1:
+									self.AddLowerLimitThreshold(ticker, item["value"]) # LOWER
 							else:
 								pass
 		
+		self.Node.LogMSG("({classname})# Starting Market Runtime Service ...".format(classname=self.ClassName),5)
 		# Start market service
 		self.MarketRemote.Start()
 

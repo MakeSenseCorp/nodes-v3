@@ -78,7 +78,8 @@ class StockDB():
 							"id"						INTEGER PRIMARY KEY AUTOINCREMENT,
 							"ticker" 					TEXT,
 							"value" 					REAL,
-							"type"						INTEGER
+							"type"						INTEGER,
+							"enabled"					INTEGER
 						);''')
 
 		self.Init()
@@ -394,26 +395,27 @@ class StockDB():
 					"id":		row[0],
 					"ticker": 	row[1],
 					"value": 	row[2],
-					"type": 	row[3]
+					"type": 	row[3],
+					"enabled":	row[4]
 				})
 			return thresholds
 		return None
 	
 	def InsertStockThreshold(self, threshold):
 		query = '''
-			INSERT INTO stocks_thresholds (id,ticker,value,type)
-			VALUES (NULL,'{0}',{1},{2})
-		'''.format(threshold["ticker"].upper(),threshold["value"],threshold["type"])
+			INSERT INTO stocks_thresholds (id,ticker,value,type,enabled)
+			VALUES (NULL,'{0}',{1},{2},{3})
+		'''.format(threshold["ticker"].upper(),threshold["value"],threshold["type"],0)
 		self.CURS.execute(query)
 		self.DB.commit()
 		return self.CURS.lastrowid
 	
-	def UpdateStockThreshold(self, id, value):
+	def UpdateStockThreshold(self, id, value, enabled):
 		query = '''
 			UPDATE stocks_thresholds
-			SET value = {0}
+			SET value = {0}, enabled = {2}
 			WHERE id = {1}
-		'''.format(value,id)
+		'''.format(value,id,enabled)
 
 		try:
 			self.CURS.execute(query)
