@@ -125,7 +125,7 @@ class StockDB():
 				portfolios.append(row[0])
 		return portfolios
 	
-	def GetStocksByProfile(self, id):
+	def GetStocksByPortfolioId(self, id):
 		if 0 == id:
 			query = '''
 				SELECT * FROM stocks_info 

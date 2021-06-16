@@ -21,6 +21,7 @@ from mksdk import MkSSlaveNode
 from mksdk import MkSScheduling
 from mksdk import MkSFileUploader
 
+from classes import StockMarketAPI
 from classes import StockMarketRemote
 from classes import StockMarket
 from classes import StockDataBase
@@ -67,6 +68,7 @@ class Context():
 			'db_delete_action':					self.DBDeleteActionHandler,
 			'calulate_basic_prediction':		self.CalculateBasicPredictionHandler,
 			'threshold':						self.ThresholdHandler,
+			'portfolio_history_change':			self.PortfolioHistoryChangeHandler,
 			'undefined':						self.UndefindHandler
 		}
 		self.Node.ApplicationResponseHandlers	= {
@@ -266,6 +268,38 @@ class Context():
 			})
 		except Exception as e:
 			print(e)
+
+	def PotfolioHistoryChangeWorker(self, portfolio_id):
+		stock_api = StockMarketAPI.API()
+		# Get portfolio's stocks
+		stocks = self.SQL.GetStocksByPortfolioId(portfolio_id)
+		for stock in stocks:
+			ticker = stock["ticker"]
+			sum_price  = 0.0
+			price_list = []
+			# Get stock history 30 days
+			history = stock_api.GetStockHistory(ticker, "1mo", "1d")
+			for idx, item in enumerate(history):
+				if idx == 0:
+					continue
+				price_curr = item["close"]
+				price_curr = history[idx-1]["close"]
+
+	def PortfolioHistoryChangeHandler(self, sock, packet):
+		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
+		self.Node.LogMSG("({classname})# [PortfolioHistoryChangeHandler] {0}".format(payload,classname=self.ClassName),5)
+
+		if "portfolio_id" in payload:
+			portfolio_id = payload["portfolio_id"]
+			#_thread.start_new_thread(self.StockMonitorWorker, (portfolio_id,))
+
+			return {
+				"status": True
+			}
+		
+		return {
+			"status": False
+		}
 
 	def ThresholdHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
@@ -914,7 +948,7 @@ class Context():
 		if status["local_stock_market_ready"] is False:
 			updated_stocks 	= 0
 			# Get portfolio stocks
-			db_stocks  		= self.SQL.GetStocksByProfile(self.CurrentPortfolio)
+			db_stocks  		= self.SQL.GetStocksByPortfolioId(self.CurrentPortfolio)
 			for db_stock in db_stocks:
 				ticker = db_stock["ticker"]
 				if mkt_stocks[ticker]["updated"] is True:

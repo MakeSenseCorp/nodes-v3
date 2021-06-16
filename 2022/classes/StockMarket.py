@@ -32,7 +32,7 @@ class StockMarket():
 		#	self.Node.LogMSG("({classname})# [GetMarketStocksHandler] Local Market DB is NOT ready yet.".format(classname=self.ClassName),5)
 		#	updated_stocks 	= 0
 		#	# Get portfolio stocks
-		#	db_stocks  		= self.SQL.GetStocksByProfile(self.CurrentPortfolio)
+		#	db_stocks  		= self.SQL.GetStocksByPortfolioId(self.CurrentPortfolio)
 		#	for db_stock in db_stocks:
 		#		ticker = db_stock["ticker"]
 		#		if mkt_stocks[ticker]["updated"] is True:

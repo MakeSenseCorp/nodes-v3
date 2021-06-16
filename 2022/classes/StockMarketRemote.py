@@ -130,6 +130,9 @@ class StockMarket():
 		self.Logger						= None
 		self.Halt 						= False
 
+		self.Algos 						= StockCalculation()
+		self.API 						= StockMarketAPI.API()
+
 		# Callbacks
 		self.FullLoopPerformedCallback 				= None
 		self.StockChangeCallback 					= None
