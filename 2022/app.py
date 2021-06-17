@@ -271,19 +271,69 @@ class Context():
 
 	def PotfolioHistoryChangeWorker(self, portfolio_id):
 		stock_api = StockMarketAPI.API()
+		stocks_diff_list = []
 		# Get portfolio's stocks
 		stocks = self.SQL.GetStocksByPortfolioId(portfolio_id)
 		for stock in stocks:
 			ticker = stock["ticker"]
-			sum_price  = 0.0
 			price_list = []
+			sum_diff = 0.0
 			# Get stock history 30 days
-			history = stock_api.GetStockHistory(ticker, "1mo", "1d")
+			error, history = stock_api.GetStockHistory(ticker, "1mo", "1d")
 			for idx, item in enumerate(history):
 				if idx == 0:
 					continue
 				price_curr = item["close"]
-				price_curr = history[idx-1]["close"]
+				price_prev = history[idx-1]["close"]
+				price_diff = float(price_curr) - float(price_prev)
+				price_list.append({
+					"date": item["date"],
+					"price_diff": price_diff,
+					"price": price_curr
+				})
+				sum_diff += price_diff
+			stocks_diff_list.append({
+				"ticker": ticker,
+				"data": price_list,
+				"sum_diff": sum_diff
+			})
+		
+		sum_diff = 0.0
+		stocks_diff_sum_list = {}
+		for item in stocks_diff_list:
+			data = item["data"]
+			for sample in data:
+				if sample["date"] not in stocks_diff_sum_list:
+					stocks_diff_sum_list[sample["date"]] = float(sample["price_diff"])
+				else:
+					stocks_diff_sum_list[sample["date"]] += float(sample["price_diff"])
+				sum_diff += float(sample["price_diff"])
+		self.Node.LogMSG("({classname})# [PotfolioHistoryChangeWorker] {0}".format(sum_diff, classname=self.ClassName),5)
+
+		buy_count = 0
+		sum_diff = 0.0
+		for item in stocks_diff_list:
+			data = item["data"]
+			for sample in data:
+				diff = float(sample["price_diff"])
+				if diff > 0:
+					if buy_count > 0:
+						sum_diff += (diff * buy_count)
+						buy_count = 0
+				else:
+					buy_count += 1
+					sum_diff += diff
+		
+		self.Node.LogMSG("({classname})# [PotfolioHistoryChangeWorker] {0}".format(sum_diff, classname=self.ClassName),5)
+	
+		THIS.Node.EmitOnNodeChange({
+			'event': "portfolio_history_change",
+			'data': [
+				{
+					
+				} 	
+			]
+		})
 
 	def PortfolioHistoryChangeHandler(self, sock, packet):
 		payload = THIS.Node.BasicProtocol.GetPayloadFromJson(packet)
@@ -291,7 +341,7 @@ class Context():
 
 		if "portfolio_id" in payload:
 			portfolio_id = payload["portfolio_id"]
-			#_thread.start_new_thread(self.StockMonitorWorker, (portfolio_id,))
+			_thread.start_new_thread(self.StockMonitorWorker, (portfolio_id,))
 
 			return {
 				"status": True
@@ -1113,6 +1163,8 @@ class Context():
 		self.Uploader = MkSFileUploader.Manager(self)
 		self.Uploader.SetUploadPath(os.path.join(".",self.LocalStoragePath))
 		self.Uploader.Run()
+
+		self.PotfolioHistoryChangeWorker(0)
 
 		# self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Node Started", "")
 	
