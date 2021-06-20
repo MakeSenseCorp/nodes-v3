@@ -33,6 +33,16 @@
                         </div>
                         <div class="btn-group mr-2">
                             <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="id_m_stock_append_statistics_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <span id="id_m_stock_append_statistics_span">Statistics</span>
+                                </button>
+                                <div class="dropdown-menu text-center" aria-labelledby="id_m_stock_append_statistics_dropdown" id="id_m_stock_append_statistics_dropdown_items">
+                                    <span class="dropdown-item" onclick="window.StockAppend.OpenStatisticsModal(1);" style="cursor:pointer">Portfolio History Change</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="btn-group mr-2">
+                            <div class="dropdown">
                                 <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="id_m_stock_append_basic_prediction_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                     <span id="id_m_stock_append_basic_prediction_dropdown_span">Predictions</span>
                                 </button>

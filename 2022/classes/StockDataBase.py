@@ -130,6 +130,7 @@ class StockDB():
 			query = '''
 				SELECT * FROM stocks_info 
 				LEFT JOIN stock_to_portfolio ON stocks_info.ticker == stock_to_portfolio.ticker
+				GROUP BY name
 			'''
 		else:
 			query = '''

@@ -8,6 +8,7 @@ function ModulePortfolioHistoryChange(ticker) {
     // Objects section
     this.HostingObject              = null;
     this.ComponentObject            = null;
+    this.PortfolioId                = -1;
 
     return this;
 }
@@ -40,14 +41,79 @@ ModulePortfolioHistoryChange.prototype.Build = function(data, callback) {
     });
 }
 
-ModulePortfolioHistoryChange.prototype.Start = function(portfolio_id) {
+ModulePortfolioHistoryChange.prototype.SetPotfolioId = function(portfolio_id) {
+    this.PortfolioId = portfolio_id;
+}
+
+ModulePortfolioHistoryChange.prototype.GetStockList = function() {
+    console.log("GetStockList", this.PortfolioId);
+    
+    node.API.SendCustomCommand(NodeUUID, "get_portfolio_stocks", {
+        "portfolio_id": this.PortfolioId
+    }, function(res) {
+        var payload = res.data.payload;
+        console.log(payload);
+    });
+}
+
+ModulePortfolioHistoryChange.prototype.Start = function() {
     var self = this;
 
     node.API.SendCustomCommand(NodeUUID, "portfolio_history_change", {
-        "portfolio_id": portfolio_id
+        "portfolio_id": this.PortfolioId
     }, function(res) {
         var payload = res.data.payload;
+        console.log(payload);
+        if (payload.status == true) {
+
+        } else {
+
+        }
     });
+}
+
+ModulePortfolioHistoryChange.prototype.TableUIChangeEvent = function() {
+    feather.replace();
+}
+
+ModulePortfolioHistoryChange.prototype.UpdateStatistics = function(output) {
+    var data  = [];
+    var table = new MksBasicTable();
+
+    table.EnableListing();
+    table.SetListingWindowSize(15);
+    table.RegisterUIChangeEvent(this.TableUIChangeEvent);
+    table.SetSchema(["Ticker", "Sum", "Total Diff", "Data"]);
+
+    for (key in output.stocks) {
+        var stock = output.stocks[key];
+        var row = [];
+        var color = "black";
+
+        row.push(`<h6 class="my-0"><a style="color:blue; cursor:pointer" >`+stock.ticker+`</a></h6>`);
+        if (stock.sum_diff < 0) {
+            color = "red";
+        } else {
+            color = "green";
+        }
+        row.push(`<span style="color:`+color+`">`+stock.sum_diff.toFixed(2)+`</span>`);
+        if (stock.total_diff < 0) {
+            color = "red";
+        } else {
+            color = "green";
+        }
+        row.push(`<span style="color:`+color+`">`+stock.total_diff.toFixed(2)+`</span>`);
+        row.push(`<h6 class="my-0"><a style="color:blue; cursor:pointer" onclick="">Data</a></h6>`);
+        data.push(row);
+    }
+
+    console.log(data);
+
+    table.ShowRowNumber(false);
+    table.ShowHeader(true);
+    table.SetData(data);
+    table.Build(document.getElementById("id_m_portfolio_history_change_output_table"));
+    feather.replace();
 }
 
 ModulePortfolioHistoryChange.prototype.Hide = function() {

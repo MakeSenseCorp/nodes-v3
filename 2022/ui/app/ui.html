@@ -164,6 +164,7 @@
 			require ModuleStockDetails
 			require ModulePortfolioView
 			require ModuleAction
+			require ModulePortfolioHistoryChange
 			require ModuleStockAppend
 			require ModuleImportActions
 			require ModulePortfolioSelectorView
@@ -181,7 +182,8 @@
 
 			var UserInit = function() {
 				// User Code #1 - Start
-
+				window.MKS = {};
+				window.MKS.Statistics = {};
 				// User Code #1 - End
 			}
 
@@ -235,6 +237,8 @@
 					}
 					break;
 					case "portfolio_history_change": {
+						console.log(data);
+						window.MKS.Statistics.PortfolioHistoryChange.UpdateStatistics(data);
 					}
 					break;
 				}

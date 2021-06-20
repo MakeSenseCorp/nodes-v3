@@ -276,6 +276,7 @@ class Context():
 		stocks = self.SQL.GetStocksByPortfolioId(portfolio_id)
 		for stock in stocks:
 			ticker = stock["ticker"]
+			self.Node.LogMSG("({classname})# [PotfolioHistoryChangeWorker] {0}".format(ticker, classname=self.ClassName),5)
 			price_list = []
 			sum_diff = 0.0
 			# Get stock history 30 days
@@ -295,44 +296,48 @@ class Context():
 			stocks_diff_list.append({
 				"ticker": ticker,
 				"data": price_list,
-				"sum_diff": sum_diff
+				"sum_diff": sum_diff,
+				"total_diff": 0.0
 			})
 		
-		sum_diff = 0.0
-		stocks_diff_sum_list = {}
-		for item in stocks_diff_list:
-			data = item["data"]
-			for sample in data:
-				if sample["date"] not in stocks_diff_sum_list:
-					stocks_diff_sum_list[sample["date"]] = float(sample["price_diff"])
-				else:
-					stocks_diff_sum_list[sample["date"]] += float(sample["price_diff"])
-				sum_diff += float(sample["price_diff"])
-		self.Node.LogMSG("({classname})# [PotfolioHistoryChangeWorker] {0}".format(sum_diff, classname=self.ClassName),5)
+		#sum_diff = 0.0
+		#stocks_diff_sum_list = {}
+		#for item in stocks_diff_list:
+		#	data = item["data"]
+		#	for sample in data:
+		#		if sample["date"] not in stocks_diff_sum_list:
+		#			stocks_diff_sum_list[sample["date"]] = float(sample["price_diff"])
+		#		else:
+		#			stocks_diff_sum_list[sample["date"]] += float(sample["price_diff"])
+		#		sum_diff += float(sample["price_diff"])
+		#self.Node.LogMSG("({classname})# [PotfolioHistoryChangeWorker] {0}".format(sum_diff, classname=self.ClassName),5)
 
 		buy_count = 0
 		sum_diff = 0.0
 		for item in stocks_diff_list:
 			data = item["data"]
+			stock_sum_diff = 0.0
 			for sample in data:
 				diff = float(sample["price_diff"])
 				if diff > 0:
 					if buy_count > 0:
 						sum_diff += (diff * buy_count)
+						stock_sum_diff += (diff * buy_count)
 						buy_count = 0
 				else:
 					buy_count += 1
 					sum_diff += diff
+					stock_sum_diff += diff
+			item["total_diff"] = stock_sum_diff
 		
 		self.Node.LogMSG("({classname})# [PotfolioHistoryChangeWorker] {0}".format(sum_diff, classname=self.ClassName),5)
 	
 		THIS.Node.EmitOnNodeChange({
 			'event': "portfolio_history_change",
-			'data': [
-				{
-					
-				} 	
-			]
+			'data': {
+				"stocks": stocks_diff_list,
+				"total_diff": sum_diff	
+			}
 		})
 
 	def PortfolioHistoryChangeHandler(self, sock, packet):
@@ -341,7 +346,7 @@ class Context():
 
 		if "portfolio_id" in payload:
 			portfolio_id = payload["portfolio_id"]
-			_thread.start_new_thread(self.StockMonitorWorker, (portfolio_id,))
+			_thread.start_new_thread(self.PotfolioHistoryChangeWorker, (portfolio_id,))
 
 			return {
 				"status": True
@@ -979,10 +984,15 @@ class Context():
 			}
 		}
 
-	# [CURRENTLY NOT IN USE]
 	def GetPortfolioStocksHandler(self, sock, packet):
 		payload	= self.Node.BasicProtocol.GetPayloadFromJson(packet)
 		self.Node.LogMSG("({classname})# [GetPortfolioStocksHandler] {0}".format(payload, classname=self.ClassName),5)
+
+		portfolio_id = payload["portfolio_id"]
+
+		return { 
+			"stocks": self.SQL.GetStocksByPortfolioId(portfolio_id)
+		}
 
 		'''
 		self.CurrentPortfolio	= int(payload["portfolio_id"])
@@ -1164,8 +1174,7 @@ class Context():
 		self.Uploader.SetUploadPath(os.path.join(".",self.LocalStoragePath))
 		self.Uploader.Run()
 
-		self.PotfolioHistoryChangeWorker(0)
-
+		# self.PotfolioHistoryChangeWorker(0)
 		# self.Node.SendMail("yevgeniy.kiveisha@gmail.com", "Stock Monitor Node Started", "")
 	
 	def OnGetNodesListHandler(self, uuids):

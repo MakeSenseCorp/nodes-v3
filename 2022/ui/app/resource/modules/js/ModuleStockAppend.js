@@ -651,6 +651,27 @@ ModuleStockAppend.prototype.GetDataBaseStocks = function() {
     });
 }
 
+ModuleStockAppend.prototype.OpenStatisticsModal = function(portfolio_id) {
+    var self = this;
+
+    console.log("OpenStatisticsModal");
+
+    window.MKS.Statistics.PortfolioHistoryChange = new ModulePortfolioHistoryChange();
+    window.MKS.Statistics.PortfolioHistoryChange.SetHostingID("portfolio_history_change_modal");
+    window.MKS.Statistics.PortfolioHistoryChange.SetObjectDOMName("window.MKS.Statistics.PortfolioHistoryChange");
+    window.MKS.Statistics.PortfolioHistoryChange.Build(null, function(module) {
+        window.Modal.Remove();
+        window.Modal.SetTitle("Portfolio History Change");
+        window.Modal.SetContent(module.HTML);
+        window.Modal.SetFooter(`<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+        window.Modal.Build("lg");
+        window.Modal.Show();
+
+        module.SetPotfolioId(0);
+        // module.GetStockList();
+    });
+}
+
 ModuleStockAppend.prototype.Hide = function() {
     var self = this;
     this.ComponentObject.classList.add("d-none")
