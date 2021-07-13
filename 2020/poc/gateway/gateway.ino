@@ -265,6 +265,10 @@ int rx_data(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_
   uint8_t opcode  = buff_rx[1];
   uint8_t size    = buff_rx[2];
 
+  if (size > 0) {
+    memcpy((uint8_t *)&(tx_buff_ptr->payload[0]), &buff_rx[3], size);
+  }
+
   tx_buff_ptr->node_id  = node_id;
   tx_buff_ptr->opcode   = opcode;
   tx_buff_ptr->size     = size;

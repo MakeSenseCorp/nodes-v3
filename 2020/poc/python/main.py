@@ -19,6 +19,25 @@ class NRFCommands():
 		self.OPCODE_GET_NODES_LIST	= 109
 		self.OPCODE_SET_NODES_DATA	= 110
 		self.OPCODE_GET_NODES_DATA	= 111
+	
+	'''
+	{UART PACKET}
+	-------------
+	[MAGIC_NUMBER] 		(2 Bytes)
+	[Direction] 		(1 Byte)
+	[Opcode]			(1 Byte)
+	[Content Length] 	(1 Byte)
+	[Payload]			(57 Bytes)
+	[MAGIC_NUMBER] 		(2 Bytes)
+
+	{NRF PACKET}
+	------------
+	[NodeID] 			(1 Byte)
+	[Opcode] 			(1 Byte)
+	[Size] 				(1 Byte)
+	[Payload]			(12 Bytes)
+	[CRC] 				(1 Byte)
+	'''
 
 	def SetNodeDataCommand(self, index, data):
 		return struct.pack("BBBBBIBB", 0xDE, 0xAD, 0x1, self.OPCODE_SET_NODES_DATA, index, data, 0xAD, 0xDE)
@@ -242,7 +261,7 @@ class Terminal():
 			print("Wrong parameter")
 
 	def GetRemoteNodeInfoNodeHandler(self, data):
-		payload = [self.Commands.OPCODE_GET_NODE_INFO]
+		payload = [self.Commands.OPCODE_GET_NODE_INFO, 0]
 		packet = self.Commands.ReadRemoteCommand(self.RemoteNodeId, payload)
 		packet = self.HW.Send(self.WorkingPort, packet)
 		if len(packet) > 0:
@@ -286,14 +305,26 @@ class Terminal():
 				print("(ERROR) Return OPCODE is incorrect.")
 		else:
 			print("(ERROR) Return packet is less then expected.")
+	
+	def IntToBytes(self, value, length):
+		byte_array = []
+		while value != 0:
+			byte_array = [value % 256] + byte_array
+			value = value // 256
+		
+		# ATMEL will read data from left to right
+		byte_array = byte_array + [0]*(length-len(byte_array))
+		return byte_array
 
 	def SetNodeDataHandler(self, data):
 		index = int(data[0])
 		value = int(data[1])
-		payload = [self.Commands.OPCODE_SET_NODES_DATA, index, value]
+		#arr_value = value.to_bytes(4, 'big')
+		arr_value = self.IntToBytes(value, 4)
+		payload = [self.Commands.OPCODE_SET_NODES_DATA, 5, index] + arr_value
 		packet = self.Commands.ReadRemoteCommand(self.RemoteNodeId, payload)
 		packet = self.HW.Send(self.WorkingPort, packet)
-		if len(packet) > 0:
+		if packet is not None and len(packet) > 0:
 			if packet[1] == self.Commands.OPCODE_RX_DATA:
 				print("Packet: {0}".format(packet))
 			else:

@@ -8,7 +8,7 @@
 #define MESSAGE_HEADER_PAYLOAD_SIZE   2
 #define MAX_COMMAND_TABLE_SIZE        128
 #define SERIAL_COMMAND_TABLE_SIZE     12
-#define RADIO_COMMAND_TABLE_SIZE      1
+#define RADIO_COMMAND_TABLE_SIZE      3
 #define DHT_PIN                       2
 
 typedef int	(*NrfCallbackPtr)(void);
@@ -285,8 +285,46 @@ int nrf_get_node_info(void) {
   return 0;
 }
 
+typedef struct {
+  uint8_t index;
+  uint32_t value;
+} nrf_set_node_data_t;
 int nrf_set_node_data(void) {
+  nrf_set_node_data_t* data_rx = (nrf_set_node_data_t*)&(rx_buff_ptr->payload[0]);
+  nrf_set_node_data_t* data_tx = (nrf_set_node_data_t*)&(tx_buff_ptr->payload[0]);
+  Serial.println("nrf_set_node_data");
 
+  for (uint8_t i = 0; i < 10; i++) {
+    Serial.print(rx_buff_ptr->payload[i]);
+    Serial.print(" ");
+  } Serial.println();
+
+  switch (data_rx->index) {
+    case 1:
+    break;
+    case 2:
+    break;
+    case 3: {
+      relay.value = data_rx->value;
+      data_tx->index = data_rx->index;
+      data_tx->value = relay.value;
+      Serial.println(relay.value);
+
+      if (!relay.value) {
+        digitalWrite(LED_BUILTIN, LOW);
+      } else {
+        digitalWrite(LED_BUILTIN, HIGH);
+      }
+    }
+    break;
+    default:
+    break;
+  }
+
+  tx_buff_ptr->node_id  = NODE_ID;
+  tx_buff_ptr->opcode   = rx_buff_ptr->opcode;
+  tx_buff_ptr->size     = 0;
+  tx_buff_ptr->crc      = 0xff;
 }
 
 int nrf_get_node_data(void) {
