@@ -5,10 +5,7 @@ import sys
 import serial
 import serial.tools.list_ports
 import struct
-if sys.version_info[0] < 3:
-	import thread
-else:
-	import _thread
+import _thread
 import threading
 
 class Adaptor ():
@@ -61,7 +58,7 @@ class Adaptor ():
 			self.RecievePacketsWorkerRunning 	= True
 			self.DeviceConnected 				= True
 			self.ExitRecievePacketsWorker		= False
-			thread.start_new_thread(self.RecievePacketsWorker, ())
+			_thread.start_new_thread(self.RecievePacketsWorker, ())
 			return True
 		
 		return False
@@ -87,8 +84,8 @@ class Adaptor ():
 		# Now the device pause all async (if supporting) tasks
 		time.sleep(0.1)
 		if self.SerialAdapter is not None:
-			self.SerialAdapter.write(str(data) + '\n')
-			#print ("({classname})# TX ({0}) {1}".format(self.DevicePath, ":".join("{:02x}".format(ord(c)) for c in data),classname=self.ClassName))
+			self.SerialAdapter.write(data + '\n'.encode())
+			#print ("({classname})# TX ({0}) {1}".format(self.DevicePath, ":".join("{:02x}".format(c) for c in data),classname=self.ClassName))
 			tick_timer = 0
 			while self.DataArrived == False and self.DeviceConnected == True and tick_timer < 30:
 				time.sleep(0.1)
@@ -105,7 +102,7 @@ class Adaptor ():
 		while self.RecievePacketsWorkerRunning == True:
 			try:
 				s_byte = self.SerialAdapter.read(1)
-				if s_byte != "":
+				if s_byte != "" and len(s_byte) > 0:
 					shift_buffer[0] = shift_buffer[1]
 					shift_buffer[1] = struct.unpack("B", s_byte)[0]
 					# ''.join([str(elem) if elem not in ['\r','\n',''] else "-" for elem in shift_buffer])
@@ -147,6 +144,7 @@ class Adaptor ():
 					elif packet_data_start is False and packet_data_end is False:  # Error
 						pass
 			except Exception as e:
+				print(s_byte, len(s_byte))
 				print ("({classname})# [ERROR] (RecievePacketsWorker) ({2}) {0} {1}".format(str(e), self.RXData, self.DevicePath, classname=self.ClassName))
 				if "device disconnected?" in str(e):
 					# Device disconnected

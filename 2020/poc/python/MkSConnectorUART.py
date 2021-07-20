@@ -5,10 +5,7 @@ import time
 import struct
 import json
 import queue
-if sys.version_info[0] < 3:
-	import thread
-else:
-	import _thread
+import _thread
 import threading
 
 import MkSUSBAdaptor
@@ -31,7 +28,7 @@ class Connector (MkSAbstractConnector.AbstractConnector):
 		self.QueueLock      	    		= threading.Lock()
 		self.Packets      					= queue.Queue()
 
-		thread.start_new_thread(self.RecievePacketsWorker, ())
+		_thread.start_new_thread(self.RecievePacketsWorker, ())
 	
 	def RecievePacketsWorker (self):
 		self.RecievePacketsWorkerRunning = True
@@ -92,7 +89,7 @@ class Connector (MkSAbstractConnector.AbstractConnector):
 			tx_packet = self.Protocol.GetDeviceTypeCommand()
 			rx_packet = self.Adapters[path]["adaptor"].Send(tx_packet)
 			if (len(rx_packet) > 3):
-				device_type = ''.join([str(unichr(elem)) for elem in rx_packet[3:]])
+				device_type = ''.join([str(chr(elem)) for elem in rx_packet[3:]])
 				self.Adapters[path]["type"] = device_type
 				return device_type
 		return None
@@ -183,7 +180,7 @@ class Connector (MkSAbstractConnector.AbstractConnector):
 		self.IsConnected = False
 		self.RecievePacketsWorkerRunning = False
 		while len(self.Adapters) > 0:
-			key = self.Adapters.keys()[0]
+			key = list(self.Adapters.keys())[0]
 			self.SingleDisconnect(key)	
 
 	def IsValidDevice(self):

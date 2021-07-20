@@ -50,7 +50,7 @@ class NRFCommands():
 	
 	def ReadRemoteCommand(self, node_id, msg):
 		s_msg = ''.join(chr(x) for x in msg)
-		return struct.pack("BBBBBB{0}sBB".format(len(msg)), 0xDE, 0xAD, 0x1, self.OPCODE_RX_DATA, 1, node_id, s_msg, 0xAD, 0xDE)
+		return struct.pack("BBBBBB{0}sBB".format(len(msg)), 0xDE, 0xAD, 0x1, self.OPCODE_RX_DATA, 1, node_id, s_msg.encode(), 0xAD, 0xDE)
 	
 	def WriteRemoteCommand(self, node_id):
 		return struct.pack("BBBBBBBB", 0xDE, 0xAD, 0x1, self.OPCODE_TX_DATA, 1, node_id, 0xAD, 0xDE)
@@ -367,9 +367,10 @@ def main():
 		return
 	'''
 
-	while(terminal.ProcessRunning is True):
-		try:
-			raw  	= raw_input('> ')
+	try:
+		while(terminal.ProcessRunning is True):
+		
+			raw  	= input('> ')
 			data 	= raw.split(" ")
 			cmd  	= data[0]
 			params 	= data[1:]
@@ -379,8 +380,8 @@ def main():
 			else:
 				if cmd not in [""]:
 					print("unknown command")
-		except Exception as e:
-			print("{0}".format(e))
+	except Exception as e:
+		print("{0}".format(e))
 
 	terminal.Close()
 	print("Bye.")
