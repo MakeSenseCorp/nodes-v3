@@ -1,0 +1,2 @@
+1. Whenever node disconnected let the tool know. (async data from FW)
+2. When requesting data from disconnected node, return must be zero or define errors.

@@ -50,6 +50,7 @@ class NRFCommands():
 	
 	def ReadRemoteCommand(self, node_id, msg):
 		s_msg = ''.join(chr(x) for x in msg)
+		# 													   [MN]    [DIR]          [OP]     [LEN]   [ID]   [OP] [LEN] [P]     [MN]
 		return struct.pack("BBBBBB{0}sBB".format(len(msg)), 0xDE, 0xAD, 0x1, self.OPCODE_RX_DATA, 1, node_id, s_msg.encode(), 0xAD, 0xDE)
 	
 	def WriteRemoteCommand(self, node_id):
@@ -102,12 +103,12 @@ class Terminal():
 			"addnodeindex": 			self.AddNodeIndexHandler,
 			"delnodeindex": 			self.DelNodeIndexHandler,
 			# NODE REMOTE CONNECTED
-			"setworkingnode_r": 		self.SetWorkingNodeIdHandler,
+			"setworkingnode_r": 		self.SetRemoteWorkingNodeIdHandler,
 			"getnodeinfo_r": 			self.GetRemoteNodeInfoNodeHandler,
-			"getnodedata_r": 			self.GetNodeDataHandler,
-			"setnodedata_r": 			self.SetNodeDataHandler,
-			"setnodeaddress_r": 		self.UndefinedHandler,
-			"getnodeaddress_r": 		self.UndefinedHandler
+			"getnodedata_r": 			self.GetRemoteNodeDataHandler,
+			"setnodedata_r": 			self.SetRemoteNodeDataHandler,
+			"setnodeaddress_r": 		self.SetRemoteNodeAddressHandler,
+			"getnodeaddress_r": 		self.GetRemoteNodeAddressHandler
 		}
 
 		self.NodeTypeMap = {
@@ -175,6 +176,10 @@ class Terminal():
 			address = int(data[0])
 			packet = self.Commands.SetAddressCommand(address)
 			packet = self.HW.Send(self.WorkingPort, packet)
+
+			if packet is None:
+				return
+
 			if len(packet) > 3:
 				if packet[1] == self.Commands.OPCODE_SET_ADDRESS:
 					print("Node index set to {0}".format(packet[3]))
@@ -188,6 +193,10 @@ class Terminal():
 	def GetNodeAddressHandler(self, data):
 		packet = self.Commands.GetAddressCommand()
 		packet = self.HW.Send(self.WorkingPort, packet)
+
+		if packet is None:
+			return
+		
 		if len(packet) > 3:
 			if packet[1] == self.Commands.OPCODE_GET_ADDRESS:
 				print("Node index: {0}".format(packet[3]))
@@ -205,6 +214,10 @@ class Terminal():
 	def GetNodeInfoHandler(self, data):
 		packet = self.Commands.GetNodeInfoCommand()
 		info = self.HW.Send(self.WorkingPort, packet)
+
+		if info is None:
+			return
+		
 		if len(info) > 3:
 			if info[1] == self.Commands.OPCODE_GET_NODE_INFO:
 				print("Node Info: {0}".format(info))
@@ -216,6 +229,10 @@ class Terminal():
 	def GetNodesMapHandler(self, data):
 		packet = self.Commands.GetNodesMapCommand()
 		map = self.HW.Send(self.WorkingPort, packet)
+
+		if map is None:
+			return
+		
 		if len(map) > 3:
 			if map[1] == self.Commands.OPCODE_GET_NODES_MAP:
 				print("Map: {0}".format(map))
@@ -229,6 +246,10 @@ class Terminal():
 			index = int(data[0])
 			packet = self.Commands.AddNodeIndexCommand(index)
 			packet = self.HW.Send(self.WorkingPort, packet)
+
+			if packet is None:
+				return
+
 			if len(packet) > 0:
 				if packet[1] == self.Commands.OPCODE_ADD_NODE_INDEX:
 					print("Packet: {0}".format(packet))
@@ -244,6 +265,10 @@ class Terminal():
 			index = int(data[0])
 			packet = self.Commands.DelNodeIndexCommand(index)
 			packet = self.HW.Send(self.WorkingPort, packet)
+
+			if packet is None:
+				return
+
 			if len(packet) > 0:
 				if packet[1] == self.Commands.OPCODE_DEL_NODE_INDEX:
 					print("Packet: {0}".format(packet))
@@ -254,7 +279,7 @@ class Terminal():
 		else:
 			print("Wrong parameter")
 
-	def SetWorkingNodeIdHandler(self, data):
+	def SetRemoteWorkingNodeIdHandler(self, data):
 		if len(data) > 0:
 			self.RemoteNodeId = int(data[0])
 		else:
@@ -264,6 +289,10 @@ class Terminal():
 		payload = [self.Commands.OPCODE_GET_NODE_INFO, 0]
 		packet = self.Commands.ReadRemoteCommand(self.RemoteNodeId, payload)
 		packet = self.HW.Send(self.WorkingPort, packet)
+
+		if packet is None:
+			return
+		
 		if len(packet) > 0:
 			if packet[1] == self.Commands.OPCODE_RX_DATA:
 				print("Packet: {0}".format(packet))
@@ -283,6 +312,10 @@ class Terminal():
 	def GetNodeListHandler(self, data):
 		packet = self.Commands.GetNodeListCommand()
 		packet = self.HW.Send(self.WorkingPort, packet)
+
+		if packet is None:
+			return
+		
 		if len(packet) > 0:
 			if packet[1] == self.Commands.OPCODE_GET_NODES_LIST:
 				print("Packet: {0}".format(packet))
@@ -294,10 +327,14 @@ class Terminal():
 		else:
 			print("(ERROR) Return packet is less then expected.")
 	
-	def GetNodeDataHandler(self, data):
+	def GetRemoteNodeDataHandler(self, data):
 		payload = [self.Commands.OPCODE_GET_NODES_DATA]
 		packet = self.Commands.ReadRemoteCommand(self.RemoteNodeId, payload)
 		packet = self.HW.Send(self.WorkingPort, packet)
+
+		if packet is None:
+			return
+		
 		if len(packet) > 0:
 			if packet[1] == self.Commands.OPCODE_RX_DATA:
 				print("Packet: {0}".format(packet))
@@ -316,12 +353,41 @@ class Terminal():
 		byte_array = byte_array + [0]*(length-len(byte_array))
 		return byte_array
 
-	def SetNodeDataHandler(self, data):
+	def SetRemoteNodeDataHandler(self, data):
 		index = int(data[0])
 		value = int(data[1])
 		#arr_value = value.to_bytes(4, 'big')
 		arr_value = self.IntToBytes(value, 4)
 		payload = [self.Commands.OPCODE_SET_NODES_DATA, 5, index] + arr_value
+		packet = self.Commands.ReadRemoteCommand(self.RemoteNodeId, payload)
+		packet = self.HW.Send(self.WorkingPort, packet)
+		if packet is not None and len(packet) > 0:
+			if packet[1] == self.Commands.OPCODE_RX_DATA:
+				print("Packet: {0}".format(packet))
+			else:
+				print("(ERROR) Return OPCODE is incorrect.")
+		else:
+			print("(ERROR) Return packet is less then expected.")
+	
+	def SetRemoteNodeAddressHandler(self, data):
+		if len(data) > 0:
+			address = int(data[0])
+			# OPCODE : LEN : PAYLOAD
+			payload = [self.Commands.OPCODE_SET_ADDRESS, 1, address]
+			packet = self.Commands.ReadRemoteCommand(self.RemoteNodeId, payload)
+			packet = self.HW.Send(self.WorkingPort, packet)
+			if packet is not None and len(packet) > 0:
+				if packet[1] == self.Commands.OPCODE_RX_DATA:
+					print("Packet: {0}".format(packet))
+				else:
+					print("(ERROR) Return OPCODE is incorrect.")
+			else:
+				print("(ERROR) Return packet is less then expected.")
+		else:
+			print("Wrong parameter")
+	
+	def GetRemoteNodeAddressHandler(self, data):
+		payload = [self.Commands.OPCODE_GET_ADDRESS]
 		packet = self.Commands.ReadRemoteCommand(self.RemoteNodeId, payload)
 		packet = self.HW.Send(self.WorkingPort, packet)
 		if packet is not None and len(packet) > 0:

@@ -146,7 +146,7 @@ class Adaptor ():
 			except Exception as e:
 				print(s_byte, len(s_byte))
 				print ("({classname})# [ERROR] (RecievePacketsWorker) ({2}) {0} {1}".format(str(e), self.RXData, self.DevicePath, classname=self.ClassName))
-				if "device disconnected?" in str(e):
+				if "device disconnected?" in str(e) or "ClearCommError" in str(e) or "Access is denied." in str(e):
 					# Device disconnected
 					self.DeviceConnected 				= True
 					self.RecievePacketsWorkerRunning 	= False
