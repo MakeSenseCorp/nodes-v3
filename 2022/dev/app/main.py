@@ -6,50 +6,67 @@ import datetime as dt
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import _thread
+import json
+import subprocess
 
-from pandas.core.indexing import convert_from_missing_indexer_tuple
-
+import MkSLogger
 import StockMarketAPI
 import NasdaqApi
 import AlgoMath
+import MkSLocalWebServer
 
 class Task():
-	def __init__(self):
+	def __init__(self, name):
 		self.TaskEnabled 	= False
 		self.Running 		= False
 		self.Paused 		= False
+		self.Logger 		= MkSLogger.Logger(name)
+
+		self.Logger.EnablePrint()
+		self.Logger.SetLogLevel(1)
+		self.Logger.EnableLogger()
 
 	def Start(self):
 		if self.TaskEnabled is False:
 			self.TaskEnabled = True
-			_thread.start_new_thread(self.RecievePacketsWorker, ())
+			_thread.start_new_thread(self.WorkerThread, ())
 		
 		self.Paused  = False
 
 	def Stop(self):
-		self.Running = False
+		if self.Running is True:
+			self.Logger.Log("Thread STOP", 1)
+			self.Running = False
 	
 	def Pause(self):
+		self.Logger.Log("Thread PAUSE", 1)
 		self.Paused = True
 	
 	def Resume(self):
+		self.Logger.Log("Thread RESUME", 1)
 		self.Paused = False
 	
 	def WorkerThread(self):
+		self.Logger.Log("Thread START", 1)
 		self.Running = True
-		while self.Running:
-			if self.Pause is False:
+		while self.Running is True:
+			if self.Paused is False:
 				self.Handler()
 		self.TaskEnabled = False
+		self.Logger.Log("Thread EXIT", 1)
 
 	def Handler(self):
 		pass
 
 class BounderiesTask(Task):
 	def __init__(self):
-		Task.__init__(self)
-		self.Limits 	= StockBounderies()
-		self.Tickers 	= [
+		Task.__init__(self, "BounderiesTask")
+		self.Name 					= "BounderiesTask"
+		self.Limits 				= StockBounderies()
+		self.MainLoopInterval		= 10
+		self.StockUpdateInterval	= 60 * 5
+		self.StockInterval 			= 1
+		self.Tickers 				= [
 			{
 				"ticker": "aapl",
 				"timestamp": 0.0
@@ -73,11 +90,15 @@ class BounderiesTask(Task):
 		]
 	
 	def Handler(self):
-		for key in self.Tickers:
-			ticker = self.Tickers[key]
-			if time.time() - ticker["timestamp"] > 60 * 1:
-				print(self.Limits.Calculate(key))
+		for ticker in self.Tickers:
+			if time.time() - ticker["timestamp"] > self.StockUpdateInterval:
+				self.Logger.Log("Query {0} stock".format(ticker["ticker"]), 1)
+				data = self.Limits.Calculate(ticker["ticker"])
+				self.Limits.Print(self.Logger, data)
+
+				time.sleep(self.StockInterval)
 				ticker["timestamp"] = time.time()
+		time.sleep(self.MainLoopInterval)
 
 class StockBounderies():
 	def __init__(self):
@@ -350,9 +371,20 @@ class StockBounderies():
 		month 			= self.CalculateMonth(ticker)
 		three_months 	= self.Calculate3Month(ticker)
 		six_months 		= self.Calculate6Month(ticker)
-		year 		= self.CalculateYear(ticker)
+		year 			= self.CalculateYear(ticker)
 		
 		return yesturday, week, month, three_months, six_months, year
+	
+	def Print(self, logger, data):
+
+		logger.Log("Type\t\tPrice\tMIN\tMAX\tSTD\tAMP\tPrice\tLow\tHigh", 1)
+		logger.Log("----\t\t-----\t---\t---\t---\t---\t-----\t---\t----", 1)
+		for idx, item in enumerate(data):
+			if item is not None:
+				if item["name"] not in ["3 Months", "6 Months"]:
+					logger.Log("{0}\t\t{1:.2f}\t{2:.2f}\t{3:.2f}\t{4:.2f}\t{5:.2f}\t{6:.2f}\t{7:.2f}\t{8:.2f}".format(item["name"], item["price"], item["min"], item["max"], item["std"], item["amp"], item["limit"]["price"], item["limit"]["low"], item["limit"]["high"]), 1)
+				else:
+					logger.Log("{0}\t{1:.2f}\t{2:.2f}\t{3:.2f}\t{4:.2f}\t{5:.2f}\t{6:.2f}\t{7:.2f}\t{8:.2f}".format(item["name"], item["price"], item["min"], item["max"], item["std"], item["amp"], item["limit"]["price"], item["limit"]["low"], item["limit"]["high"]), 1)
 
 class Terminal():
 	def __init__(self):
@@ -370,7 +402,8 @@ class Terminal():
 			"graph": 					self.GraphHandler,
 			"mavg_buy":					self.MovingAvarageBuyHandler,
 			"bounderies": 				self.BounderiesHandler,
-			"tasks":					self.TasksHandler,
+			"task":						self.TasksHandler,
+			"app":						self.AppHandler,
 			"exit": 					self.ExitHandler
 		}
 		self.LastHistoryBuffer = None
@@ -422,7 +455,24 @@ class Terminal():
 		self.ProcessRunning = False
 
 	def TasksHandler(self, data):
-		self.CalculateStopLoss("aapl")
+		if len(data) > 1:
+			name 		= data[0]
+			action 		= data[1]
+
+			if name in self.Tasks:
+				task = self.Tasks[name]
+				if action == "start":
+					task.Start()
+				elif action == "stop":
+					task.Stop()
+				elif action == "pause":
+					task.Pause()
+				elif action == "resume":
+					task.Resume()
+				else:
+					pass
+		else:
+			print("Wrong parameter")
 	
 	def BounderiesHandler(self, data):
 		if len(data) > 0:
@@ -589,6 +639,9 @@ class Terminal():
 	def ListHandler(self, data):
 		pass
 
+	def AppHandler(self, data):
+		subprocess.call(["ui.cmd"])
+	
 	def HelpHandler(self, data):
 		print('''
 	Periods:\t1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
@@ -599,7 +652,8 @@ class Terminal():
 	nasdaq\t\tNasdaq.\n
 	graph\t\tShow graph of a stock.\n
 	mavg_buy\tCalculate earning for basic moving avarage change.\n
-	bounderies\tShow limit bounderies [day, week, month, 3months, 6months, year]
+	bounderies\tShow limit bounderies [day, week, month, 3months, 6months, year]\n
+	task\t\tTerminal can execute predefined tasks. (Type 'task list' for available tasks)\n
 	exit\t\tExit application.\n
 		''')
 	
@@ -628,6 +682,16 @@ def main():
 	args = parser.parse_args()
 	terminal = Terminal()
 
+	# Data for the pages.
+	web_data 	= {
+		'ip': str("localhost"),
+		'port': str(1981)
+	}
+	data = json.dumps(web_data)
+	web	= MkSLocalWebServer.WebInterface("Context", 8181)
+	web.AddEndpoint("/", "index", None, data)
+	web.Run()
+
 	try:
 		while(terminal.ProcessRunning is True):
 			raw  	= input('> ')
@@ -648,4 +712,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
