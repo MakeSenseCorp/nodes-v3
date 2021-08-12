@@ -94,8 +94,8 @@ unsigned char DEVICE_SUB_TYPE = GATWAY;
 unsigned char NODE_ID = 0;
 
 RF24 radio(7, 8); // CE, CSN
-const byte rx[6] = "10000";
-const byte tx[6] = "20000";
+byte rx[6] = "10000";
+byte tx[6] = "20000";
 byte nrf_rx_buff[16];
 byte nrf_tx_buff[16];
 message_t* rx_buff_ptr = (message_t *)nrf_rx_buff;
@@ -144,7 +144,7 @@ void print_nrf_slaves() {
   debug_serial.println("");
 }
 
-void handle_nrf_network() {
+void send_client(uint8_t index) {
   uint8_t         status = false;
   sensor_db_t*    tx_sensor_item;
   sensor_db_t*    rx_sensor_item;
@@ -155,15 +155,20 @@ void handle_nrf_network() {
   bool report = false;
   uint8_t pipe;
 
-  tx_sensor_item = &polling_nodes_db[current_polling_node_index];
+  tx_sensor_item = &polling_nodes_db[index];
 
   // Create payload
-  tx_buff_ptr->node_id  = polling_nodes[current_polling_node_index];
+  tx_buff_ptr->node_id  = polling_nodes[index];
   tx_buff_ptr->opcode   = OPCODE_GET_NODE_INFO;
   tx_buff_ptr->size     = 1;
   tx_buff_ptr->crc      = 0xff;
 
-  print_tx();
+  // print_tx();
+
+  // Set NRF address according to node id
+  tx[0] = (byte)polling_nodes[index];
+  radio.openWritingPipe(tx);
+  // Send
   start_timer = micros();                                     // start the timer
   report = radio.write(&nrf_tx_buff, sizeof(nrf_tx_buff));    // transmit & save the report
   end_timer = micros();                                       // end the timer
@@ -180,11 +185,29 @@ void handle_nrf_network() {
 
     if (radio.available(&pipe)) {                          // is there a payload received
       radio.read(&nrf_rx_buff, sizeof(nrf_rx_buff));       // get payload from RX FIFO
-      print_rx();
+      // print_rx();
+      rx_sensor_item = &polling_nodes_db[find_index_by_id(rx_buff_ptr->node_id)];
+      rx_sensor_item->timeout_count = 0;
+      rx_sensor_item->status = STATUS_CONNECTED;
     } else {
       // No data from client
+      if (tx_sensor_item->timeout_count < TIMEOUT_DISCONNECT_COUNT) {
+        tx_sensor_item->timeout_count++;
+      }
+    }
+  } else {
+    if (tx_sensor_item->timeout_count < TIMEOUT_DISCONNECT_COUNT) {
+      tx_sensor_item->timeout_count++;
     }
   }
+
+  if (tx_sensor_item->timeout_count > TIMEOUT_DISCONNECT_COUNT) {
+    tx_sensor_item->status = STATUS_DISCONNECTED;
+  }
+}
+
+void handle_nrf_network() {
+  send_client(current_polling_node_index);
 
   // Next node
   current_polling_node_index++; 
@@ -196,10 +219,9 @@ void handle_nrf_network() {
 
 void itterate_radio(void) {  
   if (polling_nodes_count) {
-    print_nrf_slaves();
+    // print_nrf_slaves();
     handle_nrf_network();
-    delay(500);
-    debug_serial.println();
+    delay(10);
   }
 }
 
@@ -326,13 +348,20 @@ int heartbeat(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int le
 }
 
 int rx_data(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_rx) {
-  unsigned long started_waiting_at = millis();
-  bool timeout = false;
-
   uint8_t node_id = buff_rx[0];
   uint8_t opcode  = buff_rx[1];
   uint8_t size    = buff_rx[2];
   uint8_t index   = find_index_by_id(node_id);
+
+  uint8_t         status = false;
+  sensor_db_t*    tx_sensor_item;
+  sensor_db_t*    rx_sensor_item;
+
+  unsigned long start_timer   = 0;
+  unsigned long end_timer     = 0;
+  unsigned long start_timeout = 0;
+  bool report = false;
+  uint8_t pipe;
 
   if (index == 255) {
     return 0;
@@ -353,33 +382,49 @@ int rx_data(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_
   debug_serial.print(node_id);
   debug_serial.print(" index ");
   debug_serial.print(index);
-  debug_serial.print(". ");
+  debug_serial.println(". ");
 
-  radio.stopListening();
-  delay(10);
-  radio.flush_tx();
-  radio.write(&nrf_tx_buff, sizeof(nrf_tx_buff));
-  radio.startListening();
-  delay(100);
+  // ----------------------------------
+  // Set NRF address according to node id
+  tx[0] = (byte)polling_nodes[index];
+  radio.openWritingPipe(tx);
+  // Send
+  start_timer = micros();                                     // start the timer
+  report = radio.write(&nrf_tx_buff, sizeof(nrf_tx_buff));    // transmit & save the report
+  end_timer = micros();                                       // end the timer
 
-  while (!radio.available() && !timeout) {
-    if (millis() - started_waiting_at > 1000) {
-      timeout = true;
+  if (report) {
+    radio.startListening();                                // put in RX mode
+    start_timeout = millis();                              // timer to detect timeout
+    while (!radio.available()) {                           // wait for response
+      if (millis() - start_timeout > 500) {               // only wait 200 ms
+        break;
+      }
     }
-  }
+    radio.stopListening();                                 // put back in TX mode
 
-  if (timeout) {
-    if (polling_nodes_db[index].timeout_count > TIMEOUT_DISCONNECT_COUNT) {
-      polling_nodes_db[index].status = STATUS_DISCONNECTED;
+    if (radio.available(&pipe)) {                          // is there a payload received
+      radio.read(&nrf_rx_buff, sizeof(nrf_rx_buff));       // get payload from RX FIFO
+      // print_rx();
+      rx_sensor_item = &polling_nodes_db[find_index_by_id(rx_buff_ptr->node_id)];
+      rx_sensor_item->timeout_count = 0;
+      rx_sensor_item->status = STATUS_CONNECTED;
     } else {
-      polling_nodes_db[index].timeout_count++;
+      // No data from client
+      if (tx_sensor_item->timeout_count < TIMEOUT_DISCONNECT_COUNT) {
+        tx_sensor_item->timeout_count++;
+      }
     }
   } else {
-    radio.read(&nrf_rx_buff, sizeof(nrf_rx_buff));
-    // Update locla DB
-    polling_nodes_db[index].status         = STATUS_CONNECTED;
-    polling_nodes_db[index].timeout_count  = 0;
+    if (tx_sensor_item->timeout_count < TIMEOUT_DISCONNECT_COUNT) {
+      tx_sensor_item->timeout_count++;
+    }
   }
+
+  if (tx_sensor_item->timeout_count > TIMEOUT_DISCONNECT_COUNT) {
+    tx_sensor_item->status = STATUS_DISCONNECTED;
+  }
+  // ----------------------------------
 
   memcpy(buff_tx, nrf_rx_buff, sizeof(nrf_rx_buff));
   memset(nrf_tx_buff, 0x0, sizeof(nrf_tx_buff));

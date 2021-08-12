@@ -104,8 +104,8 @@ sensor_relay_t relay = { 3, 1 };
 // DHT dht(DHT_PIN, DHT11);
 
 RF24 radio(7, 8); // CE, CSN
-const byte rx[6] = "10000";
-const byte tx[6] = "20000";
+byte tx[6] = "10000";
+byte rx[6] = "20000";
 byte nrf_rx_buff[16];
 byte nrf_tx_buff[16];
 message_t* rx_buff_ptr = (message_t *)nrf_rx_buff;
@@ -117,11 +117,12 @@ unsigned char NODE_ID = 0;
 unsigned long rx_counter = 0;
 
 void initiate_radio(void) {
+  rx[0] = (byte)NODE_ID;
   radio.begin();
   // radio.setAutoAck( false ) ;
   radio.enableAckPayload();
-  radio.openWritingPipe(rx);
-  radio.openReadingPipe(1,tx);
+  radio.openWritingPipe(tx);
+  radio.openReadingPipe(1,rx);
   radio.setPALevel(RF24_PA_MAX);
   radio.setDataRate(RF24_250KBPS);
   // radio.setRetries(3,5); // delay, count
@@ -204,6 +205,7 @@ void setup() {
   Serial.begin(115200);
   delay(10);
   
+  NODE_ID = EEPROM.read(0);
   Serial.println("Loading Firmware ... [Node]");
   Serial.print("Initiate Radio... ");
   initiate_radio();
@@ -211,7 +213,6 @@ void setup() {
   radio.startListening();
 
   pinMode(LED_BUILTIN, OUTPUT);
-  NODE_ID = EEPROM.read(0);
   Serial.print("Node ID is ");
   Serial.println(NODE_ID);
   // dht.begin();
@@ -342,9 +343,11 @@ int nrf_set_node_data(void) {
       Serial.println(relay.value);
 
       if (!relay.value) {
-        digitalWrite(LED_BUILTIN, LOW);
+        Serial.println("OFF");
+        // digitalWrite(LED_BUILTIN, LOW);
       } else {
-        digitalWrite(LED_BUILTIN, HIGH);
+        Serial.println("ON");
+        // digitalWrite(LED_BUILTIN, HIGH);
       }
     }
     break;
