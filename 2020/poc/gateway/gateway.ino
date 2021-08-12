@@ -3,9 +3,15 @@
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
+#include <SoftwareSerial.h>
 
-#define MAX_NODES_INDEX 32
-#define SERIAL_COMMAND_TABLE_SIZE 18
+#define MAX_NODES_INDEX             32
+#define SERIAL_COMMAND_TABLE_SIZE   18
+#define TIMEOUT_DISCONNECT_COUNT    10
+#define STATUS_CONNECTED            1
+#define STATUS_DISCONNECTED         0
+
+SoftwareSerial debug_serial(2, 3);
 
 typedef struct {
   uint8_t node_id;
@@ -15,12 +21,19 @@ typedef struct {
   uint8_t crc;
 } message_t;
 
+typedef struct {
+  unsigned long a;
+  unsigned long b;
+  float freq;
+} freq_t;
+
 void check_timeout_nodes(void);
 void initiate_radio(void);
 void itterate_radio(void);
 uint8_t itterate_serial(void);
 uint8_t append_polling_node(uint8_t node_id);
 uint8_t remove_polling_node(uint8_t node_id);
+uint8_t find_index_by_id(uint8_t node_id);
 
 int get_config_registor(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_rx);
 int set_config_registor(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_rx);
@@ -73,75 +86,120 @@ typedef struct {
 } sensor_db_t;
 sensor_db_t polling_nodes_db[MAX_NODES_INDEX];
 
-uint8_t polling_nodes_count = 3;
-uint8_t current_polling_node_index = 0;
+uint8_t polling_nodes_count         = 3;
+uint8_t current_polling_node_index  = 0;
 
 unsigned char DEVICE_TYPE[] = { '2','0','2','0' };
 unsigned char DEVICE_SUB_TYPE = GATWAY;
 unsigned char NODE_ID = 0;
 
 RF24 radio(7, 8); // CE, CSN
-const byte rx[6] = "00001";
-const byte tx[6] = "00002";
+const byte rx[6] = "10000";
+const byte tx[6] = "20000";
 byte nrf_rx_buff[16];
 byte nrf_tx_buff[16];
 message_t* rx_buff_ptr = (message_t *)nrf_rx_buff;
 message_t* tx_buff_ptr = (message_t *)nrf_tx_buff;
+freq_t nrf_itter = {0, 0, 0.0};
 
 void initiate_radio(void) {
   radio.begin();
+  // radio.setAutoAck( false ) ;
   radio.enableAckPayload();
+  // radio.disableAckPayload();
   radio.openWritingPipe(tx);
   radio.openReadingPipe(1,rx);
   radio.setPALevel(RF24_PA_MAX);
+  radio.setDataRate(RF24_250KBPS);
+  // radio.setRetries(3,5); // delay, count
   radio.stopListening();
 }
 
-void itterate_radio(void) {
-  if (polling_nodes_count) {
+void print_tx() {
+  debug_serial.print("TX: ");
+  for (uint8_t i = 0; i < 16; i++) {
+    debug_serial.print(nrf_tx_buff[i], HEX);
+    debug_serial.print(" ");
+  } debug_serial.println();
+}
 
-    unsigned long started_waiting_at = millis();
-    bool timeout = false;
-    
-    tx_buff_ptr->node_id  = polling_nodes[current_polling_node_index];
-    tx_buff_ptr->opcode   = OPCODE_GET_NODE_INFO;
-    tx_buff_ptr->size     = 1;
-    tx_buff_ptr->crc      = 0xff;
+void print_rx() {
+  debug_serial.print("RX: ");
+  for (uint8_t i = 0; i < 16; i++) {
+    debug_serial.print(nrf_rx_buff[i], HEX);
+    debug_serial.print(" ");
+  } debug_serial.println();
+}
 
-    radio.stopListening();
-    radio.write(&nrf_tx_buff, sizeof(nrf_tx_buff));
-    radio.startListening();
+void print_nrf_slaves() {
+  debug_serial.println("");
+  for (uint8_t i = 0; i < polling_nodes_count; i++) {
+    debug_serial.print(polling_nodes[i]);
+    debug_serial.print(" ");
+    debug_serial.print(polling_nodes_db[i].status);
+    debug_serial.print(" ");
+    debug_serial.print(polling_nodes_db[i].timeout_count);
+    debug_serial.println("");
+  }
+  debug_serial.println("");
+}
 
-    while (!radio.available() && !timeout) {
-      if (millis() - started_waiting_at > 1000) {
-        timeout = true;
-      } 
-    }
+void handle_nrf_network() {
+  uint8_t         status = false;
+  sensor_db_t*    tx_sensor_item;
+  sensor_db_t*    rx_sensor_item;
 
-    if (timeout) {
-      if (polling_nodes_db[tx_buff_ptr->node_id-1].timeout_count > 5) {
-        polling_nodes_db[tx_buff_ptr->node_id-1].status = 0;
-      } else {
-        polling_nodes_db[tx_buff_ptr->node_id-1].timeout_count++;
+  unsigned long start_timer   = 0;
+  unsigned long end_timer     = 0;
+  unsigned long start_timeout = 0;
+  bool report = false;
+  uint8_t pipe;
+
+  tx_sensor_item = &polling_nodes_db[current_polling_node_index];
+
+  // Create payload
+  tx_buff_ptr->node_id  = polling_nodes[current_polling_node_index];
+  tx_buff_ptr->opcode   = OPCODE_GET_NODE_INFO;
+  tx_buff_ptr->size     = 1;
+  tx_buff_ptr->crc      = 0xff;
+
+  print_tx();
+  start_timer = micros();                                     // start the timer
+  report = radio.write(&nrf_tx_buff, sizeof(nrf_tx_buff));    // transmit & save the report
+  end_timer = micros();                                       // end the timer
+
+  if (report) {
+    radio.startListening();                                // put in RX mode
+    start_timeout = millis();                              // timer to detect timeout
+    while (!radio.available()) {                           // wait for response
+      if (millis() - start_timeout > 500) {               // only wait 200 ms
+        break;
       }
+    }
+    radio.stopListening();                                 // put back in TX mode
+
+    if (radio.available(&pipe)) {                          // is there a payload received
+      radio.read(&nrf_rx_buff, sizeof(nrf_rx_buff));       // get payload from RX FIFO
+      print_rx();
     } else {
-      radio.read(&nrf_rx_buff, sizeof(nrf_rx_buff));
-
-      // Update locla DB
-      // memcpy((polling_nodes_db[rx_buff_ptr->node_id-1].last_message), nrf_rx_buff, sizeof(message_t));
-      polling_nodes_db[tx_buff_ptr->node_id-1].status = 1;
-      polling_nodes_db[tx_buff_ptr->node_id-1].timeout_count = 0;
-
-      delay(1000);
+      // No data from client
     }
+  }
 
-    // Next node
-    current_polling_node_index++; 
-    if (current_polling_node_index == MAX_NODES_INDEX || 
-        current_polling_node_index == polling_nodes_count)
-    {
-      current_polling_node_index = 0;
-    }
+  // Next node
+  current_polling_node_index++; 
+  if (current_polling_node_index == MAX_NODES_INDEX || 
+      current_polling_node_index == polling_nodes_count) {
+    current_polling_node_index = 0;
+  }
+}
+
+void itterate_radio(void) {  
+  if (polling_nodes_count) {
+    print_nrf_slaves();
+    handle_nrf_network();
+    delay(500);
+    debug_serial.println();
   }
 }
 
@@ -192,30 +250,40 @@ uint8_t remove_polling_node(uint8_t node_id) {
   return 0x0;
 }
 
+uint8_t find_index_by_id(uint8_t node_id) {
+  if (!polling_nodes_count) {
+    return 0x0;
+  }
+
+  for (uint8_t i = 0; i < polling_nodes_count; i++) {
+    if (node_id == polling_nodes[i]) {
+      return i;
+    }
+  }
+  return 255;
+}
+
 void setup() {
   Serial.begin(115200);
   delay(10);
+  debug_serial.begin(9600);
   
-  Serial.println("Loading Firmware ...");
-  Serial.print("Initiate Radio... ");
+  debug_serial.println("Loading Firmware ... [Gateway]");
+  debug_serial.print("Initiate Radio... ");
   initiate_radio();
-  Serial.println("Done.");
+  debug_serial.println("Done.");
 
-  pinMode(LED_BUILTIN, OUTPUT);
   NODE_ID = EEPROM.read(0);
 
   for (uint8_t i = 0; i < MAX_NODES_INDEX; i++) {
     polling_nodes_db[i].timeout_count = 0;
-    polling_nodes_db[i].status        = 0;
+    polling_nodes_db[i].status        = STATUS_DISCONNECTED;
   }
 }
 
 void loop() {
-  // itterate_serial();
-  if (itterate_serial()) {
-  } else {
-    itterate_radio();
-  }
+  itterate_serial();
+  itterate_radio();
 
   delay(10);
 }
@@ -264,6 +332,13 @@ int rx_data(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_
   uint8_t node_id = buff_rx[0];
   uint8_t opcode  = buff_rx[1];
   uint8_t size    = buff_rx[2];
+  uint8_t index   = find_index_by_id(node_id);
+
+  if (index == 255) {
+    return 0;
+  }
+
+  // Check if NODE connected.
 
   if (size > 0) {
     memcpy((uint8_t *)&(tx_buff_ptr->payload[0]), &buff_rx[3], size);
@@ -274,9 +349,18 @@ int rx_data(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_
   tx_buff_ptr->size     = size;
   tx_buff_ptr->crc      = 0xff;
   
+  debug_serial.print("Requesting node id ");
+  debug_serial.print(node_id);
+  debug_serial.print(" index ");
+  debug_serial.print(index);
+  debug_serial.print(". ");
+
   radio.stopListening();
+  delay(10);
+  radio.flush_tx();
   radio.write(&nrf_tx_buff, sizeof(nrf_tx_buff));
   radio.startListening();
+  delay(100);
 
   while (!radio.available() && !timeout) {
     if (millis() - started_waiting_at > 1000) {
@@ -285,17 +369,16 @@ int rx_data(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_
   }
 
   if (timeout) {
-    if (polling_nodes_db[tx_buff_ptr->node_id-1].timeout_count > 5) {
-      polling_nodes_db[tx_buff_ptr->node_id-1].status = 0;
+    if (polling_nodes_db[index].timeout_count > TIMEOUT_DISCONNECT_COUNT) {
+      polling_nodes_db[index].status = STATUS_DISCONNECTED;
     } else {
-      polling_nodes_db[tx_buff_ptr->node_id-1].timeout_count++;
+      polling_nodes_db[index].timeout_count++;
     }
   } else {
     radio.read(&nrf_rx_buff, sizeof(nrf_rx_buff));
     // Update locla DB
-    // memcpy((polling_nodes_db[rx_buff_ptr->node_id-1].last_message), nrf_rx_buff, sizeof(message_t));
-    polling_nodes_db[rx_buff_ptr->node_id-1].status         = 1;
-    polling_nodes_db[rx_buff_ptr->node_id-1].timeout_count  = 0;
+    polling_nodes_db[index].status         = STATUS_CONNECTED;
+    polling_nodes_db[index].timeout_count  = 0;
   }
 
   memcpy(buff_tx, nrf_rx_buff, sizeof(nrf_rx_buff));
@@ -306,7 +389,7 @@ int rx_data(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_
 }
 
 int tx_data(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_rx) {
-
+  return 0;
 }
 
 int set_address(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_rx) {
@@ -361,9 +444,50 @@ int get_nodes_list(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, i
   for (uint8_t i = 0; i < polling_nodes_count; i++) {
     buff_tx[offset] = polling_nodes[i]; // node_id
     offset++;
-    buff_tx[offset] = polling_nodes_db[polling_nodes[i]-1].status; // status
+    buff_tx[offset] = polling_nodes_db[i].status; // status
     offset++;
   }
 
   return offset;
 }
+
+
+/*
+radio.openWritingPipe(tx);
+    unsigned long start_timer = micros();                           // start the timer
+    bool report = radio.write(&nrf_tx_buff, sizeof(nrf_tx_buff));   // transmit & save the report
+    unsigned long end_timer = micros();                             // end the timer
+
+    if (report) {
+      if (tx_sensor_item->timeout_count < TIMEOUT_DISCONNECT_COUNT) {
+        tx_sensor_item->timeout_count++;
+      }
+      delay(1000);
+      //debug_serial.print(F("Transmitted time "));                   // payload was delivered
+      //debug_serial.print(end_timer - start_timer);                  // print the timer result
+      uint8_t pipe;
+      if (radio.available(&pipe)) {                                 
+        radio.read(&nrf_rx_buff, sizeof(nrf_rx_buff));              // get incoming ACK payload
+        rx_sensor_item = &polling_nodes_db[find_index_by_id(rx_buff_ptr->node_id)];
+        rx_sensor_item->timeout_count = 0;
+        rx_sensor_item->status = STATUS_CONNECTED;
+
+        debug_serial.print("RX: ");
+        for (uint8_t i = 0; i < 16; i++) {
+          debug_serial.print(nrf_rx_buff[i], HEX);
+          debug_serial.print(" ");
+        } debug_serial.println();
+        status = 1;
+      } else {
+        // timeout
+        status = 2;
+      }
+    } else {
+      // Not transmitted
+      status = 3;
+    }
+
+    if (tx_sensor_item->timeout_count > TIMEOUT_DISCONNECT_COUNT) {
+      tx_sensor_item->status = STATUS_DISCONNECTED;
+    }
+*/

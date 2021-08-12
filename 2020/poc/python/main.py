@@ -399,7 +399,7 @@ class Terminal():
 			print("(ERROR) Return packet is less then expected.")
 
 	def AdaptorAsyncDataCallback(self, path, packet):
-		pass
+		print(packet)
 
 	def AdaptorDisconnectedCallback(self, path, rf_type):
 		pass

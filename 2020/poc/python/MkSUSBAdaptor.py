@@ -105,7 +105,7 @@ class Adaptor ():
 				if s_byte != "" and len(s_byte) > 0:
 					shift_buffer[0] = shift_buffer[1]
 					shift_buffer[1] = struct.unpack("B", s_byte)[0]
-					# ''.join([str(elem) if elem not in ['\r','\n',''] else "-" for elem in shift_buffer])
+					# print(''.join([str(elem) if elem not in ['\r','\n',''] else "-" for elem in shift_buffer]))
 
 					if shift_buffer[0] == 0xde and shift_buffer[1] == 0xad: # Confirmed start packet
 						packet_data = []
