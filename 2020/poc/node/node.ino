@@ -171,7 +171,7 @@ void handle_nrf_network() {
 
   if (radio.available(&pipe)) {                           // is there a payload? get the pipe number that recieved it
     radio.read(&nrf_rx_buff, sizeof(nrf_rx_buff));
-    print_rx();
+    // print_rx();
     handle_request();
 
     radio.stopListening();                                // put in TX mode

@@ -80,7 +80,7 @@ uint8_t polling_nodes[MAX_NODES_INDEX] = {  1,2,5,0,0,0,0,0,0,0,
                                             0,0,0,0,0,0,0,0,0,0,
                                             0,0};
 typedef struct {
-  // uint8_t last_message[16];
+  uint8_t last_message[16];
   uint8_t status;
   uint8_t timeout_count;
 } sensor_db_t;
@@ -145,6 +145,8 @@ void print_nrf_slaves() {
 }
 
 void send_client(uint8_t index) {
+  bool exit = false;
+  uint8_t count = 0;
   uint8_t         status = false;
   sensor_db_t*    tx_sensor_item;
   sensor_db_t*    rx_sensor_item;
@@ -157,6 +159,8 @@ void send_client(uint8_t index) {
 
   tx_sensor_item = &polling_nodes_db[index];
 
+  memset(nrf_tx_buff, 0x0, sizeof(nrf_tx_buff));
+  memset(nrf_rx_buff, 0x0, sizeof(nrf_rx_buff));
   // Create payload
   tx_buff_ptr->node_id  = polling_nodes[index];
   tx_buff_ptr->opcode   = OPCODE_GET_NODE_INFO;
@@ -168,41 +172,51 @@ void send_client(uint8_t index) {
   // Set NRF address according to node id
   tx[0] = (byte)polling_nodes[index];
   radio.openWritingPipe(tx);
-  // Send
-  start_timer = micros();                                     // start the timer
-  report = radio.write(&nrf_tx_buff, sizeof(nrf_tx_buff));    // transmit & save the report
-  end_timer = micros();                                       // end the timer
 
-  if (report) {
-    radio.startListening();                                // put in RX mode
-    start_timeout = millis();                              // timer to detect timeout
-    while (!radio.available()) {                           // wait for response
-      if (millis() - start_timeout > 500) {               // only wait 200 ms
-        break;
+  while(!exit && count < 10) {
+    // Send
+    start_timer = micros();                                     // start the timer
+    report = radio.write(&nrf_tx_buff, sizeof(nrf_tx_buff));    // transmit & save the report
+    end_timer = micros();                                       // end the timer
+
+    if (report) {
+      radio.startListening();                                // put in RX mode
+      start_timeout = millis();                              // timer to detect timeout
+      while (!radio.available()) {                           // wait for response
+        if (millis() - start_timeout > 500) {               // only wait 200 ms
+          break;
+        }
       }
-    }
-    radio.stopListening();                                 // put back in TX mode
+      radio.stopListening();                                 // put back in TX mode
 
-    if (radio.available(&pipe)) {                          // is there a payload received
-      radio.read(&nrf_rx_buff, sizeof(nrf_rx_buff));       // get payload from RX FIFO
-      // print_rx();
-      rx_sensor_item = &polling_nodes_db[find_index_by_id(rx_buff_ptr->node_id)];
-      rx_sensor_item->timeout_count = 0;
-      rx_sensor_item->status = STATUS_CONNECTED;
+      if (radio.available(&pipe)) {                          // is there a payload received
+        memset(nrf_rx_buff, 0x0, sizeof(nrf_rx_buff));
+        radio.read(&nrf_rx_buff, sizeof(nrf_rx_buff));       // get payload from RX FIFO
+        // print_rx();
+        rx_sensor_item = &polling_nodes_db[find_index_by_id(rx_buff_ptr->node_id)];
+        rx_sensor_item->timeout_count = 0;
+        rx_sensor_item->status = STATUS_CONNECTED;
+        if (rx_buff_ptr->node_id == tx_buff_ptr->node_id) {
+          exit = true;
+        }
+      } else {
+        // No data from client
+        if (tx_sensor_item->timeout_count < TIMEOUT_DISCONNECT_COUNT) {
+          tx_sensor_item->timeout_count++;
+        }
+      }
     } else {
-      // No data from client
       if (tx_sensor_item->timeout_count < TIMEOUT_DISCONNECT_COUNT) {
         tx_sensor_item->timeout_count++;
       }
     }
-  } else {
-    if (tx_sensor_item->timeout_count < TIMEOUT_DISCONNECT_COUNT) {
-      tx_sensor_item->timeout_count++;
-    }
-  }
 
-  if (tx_sensor_item->timeout_count > TIMEOUT_DISCONNECT_COUNT) {
-    tx_sensor_item->status = STATUS_DISCONNECTED;
+    if (tx_sensor_item->timeout_count > TIMEOUT_DISCONNECT_COUNT) {
+      tx_sensor_item->status = STATUS_DISCONNECTED;
+    }
+
+    delay(50);
+    count++;
   }
 }
 
@@ -348,6 +362,8 @@ int heartbeat(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int le
 }
 
 int rx_data(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_rx) {
+  bool exit = false;
+  uint8_t count = 0;
   uint8_t node_id = buff_rx[0];
   uint8_t opcode  = buff_rx[1];
   uint8_t size    = buff_rx[2];
@@ -369,6 +385,8 @@ int rx_data(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_
 
   // Check if NODE connected.
 
+  memset(nrf_tx_buff, 0x0, sizeof(nrf_tx_buff));
+  memset(nrf_rx_buff, 0x0, sizeof(nrf_rx_buff));
   if (size > 0) {
     memcpy((uint8_t *)&(tx_buff_ptr->payload[0]), &buff_rx[3], size);
   }
@@ -388,41 +406,49 @@ int rx_data(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_
   // Set NRF address according to node id
   tx[0] = (byte)polling_nodes[index];
   radio.openWritingPipe(tx);
-  // Send
-  start_timer = micros();                                     // start the timer
-  report = radio.write(&nrf_tx_buff, sizeof(nrf_tx_buff));    // transmit & save the report
-  end_timer = micros();                                       // end the timer
+  while(!exit && count < 10) {
+    // Send
+    start_timer = micros();                                     // start the timer
+    report = radio.write(&nrf_tx_buff, sizeof(nrf_tx_buff));    // transmit & save the report
+    end_timer = micros();                                       // end the timer
 
-  if (report) {
-    radio.startListening();                                // put in RX mode
-    start_timeout = millis();                              // timer to detect timeout
-    while (!radio.available()) {                           // wait for response
-      if (millis() - start_timeout > 500) {               // only wait 200 ms
-        break;
+    if (report) {
+      radio.startListening();                                // put in RX mode
+      start_timeout = millis();                              // timer to detect timeout
+      while (!radio.available()) {                           // wait for response
+        if (millis() - start_timeout > 500) {               // only wait 200 ms
+          break;
+        }
       }
-    }
-    radio.stopListening();                                 // put back in TX mode
+      radio.stopListening();                                 // put back in TX mode
 
-    if (radio.available(&pipe)) {                          // is there a payload received
-      radio.read(&nrf_rx_buff, sizeof(nrf_rx_buff));       // get payload from RX FIFO
-      // print_rx();
-      rx_sensor_item = &polling_nodes_db[find_index_by_id(rx_buff_ptr->node_id)];
-      rx_sensor_item->timeout_count = 0;
-      rx_sensor_item->status = STATUS_CONNECTED;
+      if (radio.available(&pipe)) {                          // is there a payload received
+        radio.read(&nrf_rx_buff, sizeof(nrf_rx_buff));       // get payload from RX FIFO
+        print_rx();
+        rx_sensor_item = &polling_nodes_db[find_index_by_id(rx_buff_ptr->node_id)];
+        rx_sensor_item->timeout_count = 0;
+        rx_sensor_item->status = STATUS_CONNECTED;
+        if (rx_buff_ptr->node_id == tx_buff_ptr->node_id) {
+          exit = true;
+        }
+      } else {
+        // No data from client
+        if (tx_sensor_item->timeout_count < TIMEOUT_DISCONNECT_COUNT) {
+          tx_sensor_item->timeout_count++;
+        }
+      }
     } else {
-      // No data from client
       if (tx_sensor_item->timeout_count < TIMEOUT_DISCONNECT_COUNT) {
         tx_sensor_item->timeout_count++;
       }
     }
-  } else {
-    if (tx_sensor_item->timeout_count < TIMEOUT_DISCONNECT_COUNT) {
-      tx_sensor_item->timeout_count++;
-    }
-  }
 
-  if (tx_sensor_item->timeout_count > TIMEOUT_DISCONNECT_COUNT) {
-    tx_sensor_item->status = STATUS_DISCONNECTED;
+    if (tx_sensor_item->timeout_count > TIMEOUT_DISCONNECT_COUNT) {
+      tx_sensor_item->status = STATUS_DISCONNECTED;
+    }
+
+    delay(250);
+    count++;
   }
   // ----------------------------------
 
