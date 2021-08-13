@@ -161,7 +161,7 @@ void handle_request() {
     Serial.print("ID (");
     Serial.print(rx_buff_ptr->node_id);
     Serial.println(") NOT ME!");
-    radio.flush_rx();
+    // radio.flush_rx();
   }
 }
 
@@ -266,9 +266,11 @@ int set_address(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int 
   EEPROM.write(0, buff_rx[0]);
   NODE_ID = EEPROM.read(0);
   buff_tx[0] = NODE_ID;
+  rx[0] = (byte)NODE_ID;
 }
 
 int get_address(unsigned char* buff_tx, int len_tx, unsigned char* buff_rx, int len_rx) {
+  rx[0] = (byte)NODE_ID;
   NODE_ID = EEPROM.read(0);
   buff_tx[0] = NODE_ID;
 }
@@ -370,12 +372,14 @@ int nrf_set_address(void) {
   Serial.println(rx_buff_ptr->payload[0]);
   NODE_ID = EEPROM.read(0);
   tx_buff_ptr->payload[0] = NODE_ID;
+  rx[0] = (byte)NODE_ID;
 }
 
 int nrf_get_address(void) {
   Serial.println("nrf_get_address");
   NODE_ID = EEPROM.read(0);
   tx_buff_ptr->payload[0] = NODE_ID;
+  rx[0] = (byte)NODE_ID;
 }
 
 
