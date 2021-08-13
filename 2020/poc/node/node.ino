@@ -145,44 +145,53 @@ void print_rx() {
   } Serial.println();
 }
 
-void handle_request() {
+uint8_t handle_request() {
   if (rx_buff_ptr->node_id == NODE_ID) {
     memset(nrf_tx_buff, 0x0, sizeof(nrf_tx_buff));
     for (unsigned char idx = 0; idx < RADIO_COMMAND_TABLE_SIZE; idx++) {
       if (nrf_handlers_map[idx].command == rx_buff_ptr->opcode) {
         nrf_handlers_map[idx].handler();
         // load the payload for the first received transmission on pipe 0
-        radio.writeAckPayload(1, &nrf_tx_buff, sizeof(nrf_tx_buff));
+        // radio.writeAckPayload(1, &nrf_tx_buff, sizeof(nrf_tx_buff));
         rx_counter++;
-        break;
+        return 0x1;
       }
     }
   } else {
     Serial.print("ID (");
     Serial.print(rx_buff_ptr->node_id);
     Serial.println(") NOT ME!");
+    return 0x0;
     // radio.flush_rx();
   }
+
+  return 0x0;
+}
+
+void send_data() {
+  bool report = false;
+  radio.stopListening();                                // put in TX mode
+    for (uint8_t i = 0; i < 3; i++) {
+      radio.writeFast(&nrf_tx_buff, sizeof(nrf_tx_buff));   // load response to TX FIFO
+      report = radio.txStandBy(150);                        // keep retrying for 150 ms
+      
+      if (report) {
+        print_tx();
+        break;
+      }
+    }
+    radio.startListening();                               // put back in RX mode
 }
 
 void handle_nrf_network() {
   uint8_t pipe;
-  bool report = false;
+  
 
   if (radio.available(&pipe)) {                           // is there a payload? get the pipe number that recieved it
     radio.read(&nrf_rx_buff, sizeof(nrf_rx_buff));
     // print_rx();
-    handle_request();
-
-    radio.stopListening();                                // put in TX mode
-    for (uint8_t i = 0; i < 3; i++) {
-      radio.writeFast(&nrf_tx_buff, sizeof(nrf_tx_buff));   // load response to TX FIFO
-      report = radio.txStandBy(150);                        // keep retrying for 150 ms
-    }
-    radio.startListening();                               // put back in RX mode
-
-    if (report) {
-      print_tx();
+    if (handle_request()) {
+      send_data();
     }
   }
 }
@@ -212,7 +221,7 @@ void setup() {
   Serial.println("Done.");
   radio.startListening();
 
-  pinMode(LED_BUILTIN, OUTPUT);
+  // pinMode(LED_BUILTIN, OUTPUT);
   Serial.print("Node ID is ");
   Serial.println(NODE_ID);
   // dht.begin();

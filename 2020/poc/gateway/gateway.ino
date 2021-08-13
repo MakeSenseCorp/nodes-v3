@@ -7,7 +7,7 @@
 
 #define MAX_NODES_INDEX             32
 #define SERIAL_COMMAND_TABLE_SIZE   18
-#define TIMEOUT_DISCONNECT_COUNT    10
+#define TIMEOUT_DISCONNECT_COUNT    100
 #define STATUS_CONNECTED            1
 #define STATUS_DISCONNECTED         0
 
@@ -211,11 +211,11 @@ void send_client(uint8_t index) {
       }
     }
 
-    if (tx_sensor_item->timeout_count > TIMEOUT_DISCONNECT_COUNT) {
+    if (tx_sensor_item->timeout_count >= TIMEOUT_DISCONNECT_COUNT) {
       tx_sensor_item->status = STATUS_DISCONNECTED;
     }
 
-    delay(50);
+    delay(32);
     count++;
   }
 }
