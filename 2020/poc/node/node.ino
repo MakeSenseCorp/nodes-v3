@@ -4,6 +4,7 @@
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
+#include <SoftwareSerial.h>
 
 #define MESSAGE_HEADER_PAYLOAD_SIZE   2
 #define MAX_COMMAND_TABLE_SIZE        128
@@ -48,6 +49,8 @@ typedef struct {
   uint8_t type;
   uint8_t value;
 } sensor_relay_t;
+
+SoftwareSerial debug_serial(2, 3);
 
 uint16_t dummy_value = 0;
 
@@ -130,19 +133,19 @@ void initiate_radio(void) {
 }
 
 void print_tx() {
-  Serial.print("TX: ");
+  debug_serial.print("TX: ");
   for (uint8_t i = 0; i < 16; i++) {
-    Serial.print(nrf_tx_buff[i], HEX);
-    Serial.print(" ");
-  } Serial.println();
+    debug_serial.print(nrf_tx_buff[i], HEX);
+    debug_serial.print(" ");
+  } debug_serial.println();
 }
 
 void print_rx() {
-  Serial.print("RX: ");
+  debug_serial.print("RX: ");
   for (uint8_t i = 0; i < 16; i++) {
-    Serial.print(nrf_rx_buff[i], HEX);
-    Serial.print(" ");
-  } Serial.println();
+    debug_serial.print(nrf_rx_buff[i], HEX);
+    debug_serial.print(" ");
+  } debug_serial.println();
 }
 
 uint8_t handle_request() {
@@ -158,9 +161,9 @@ uint8_t handle_request() {
       }
     }
   } else {
-    Serial.print("ID (");
-    Serial.print(rx_buff_ptr->node_id);
-    Serial.println(") NOT ME!");
+    debug_serial.print("ID (");
+    debug_serial.print(rx_buff_ptr->node_id);
+    debug_serial.println(") NOT ME!");
     return 0x0;
     // radio.flush_rx();
   }
@@ -213,17 +216,18 @@ uint8_t itterate_serial(void) {
 void setup() {
   Serial.begin(115200);
   delay(10);
+  debug_serial.begin(9600);
   
   NODE_ID = EEPROM.read(0);
-  Serial.println("Loading Firmware ... [Node]");
-  Serial.print("Initiate Radio... ");
+  debug_serial.println("Loading Firmware ... [Node]");
+  debug_serial.print("Initiate Radio... ");
   initiate_radio();
-  Serial.println("Done.");
+  debug_serial.println("Done.");
   radio.startListening();
 
   // pinMode(LED_BUILTIN, OUTPUT);
-  Serial.print("Node ID is ");
-  Serial.println(NODE_ID);
+  debug_serial.print("Node ID is ");
+  debug_serial.println(NODE_ID);
   // dht.begin();
 }
 
@@ -304,8 +308,8 @@ int nrf_get_node_info(void) {
   node_info_header_t* node_header = (node_info_header_t*)&(tx_buff_ptr->payload[0]);
   uint8_t offset = sizeof(node_info_header_t);
 
-  Serial.print(rx_counter);
-  Serial.println(" nrf_get_node_info");
+  debug_serial.print(rx_counter);
+  debug_serial.println(" nrf_get_node_info");
 
   node_header->type = 50;
   node_header->payload_length = sizeof(sensor_temperature_t) + sizeof(sensor_humidity_t) + sizeof(sensor_relay_t);
@@ -335,12 +339,12 @@ typedef struct {
 int nrf_set_node_data(void) {
   nrf_set_node_data_t* data_rx = (nrf_set_node_data_t*)&(rx_buff_ptr->payload[0]);
   nrf_set_node_data_t* data_tx = (nrf_set_node_data_t*)&(tx_buff_ptr->payload[0]);
-  Serial.println("nrf_set_node_data");
+  debug_serial.println("nrf_set_node_data");
 
   for (uint8_t i = 0; i < 10; i++) {
-    Serial.print(rx_buff_ptr->payload[i]);
-    Serial.print(" ");
-  } Serial.println();
+    debug_serial.print(rx_buff_ptr->payload[i]);
+    debug_serial.print(" ");
+  } debug_serial.println();
 
   switch (data_rx->index) {
     case 1:
@@ -351,13 +355,13 @@ int nrf_set_node_data(void) {
       relay.value = data_rx->value;
       data_tx->index = data_rx->index;
       data_tx->value = relay.value;
-      Serial.println(relay.value);
+      debug_serial.println(relay.value);
 
       if (!relay.value) {
-        Serial.println("OFF");
+        debug_serial.println("OFF");
         // digitalWrite(LED_BUILTIN, LOW);
       } else {
-        Serial.println("ON");
+        debug_serial.println("ON");
         // digitalWrite(LED_BUILTIN, HIGH);
       }
     }
@@ -373,19 +377,19 @@ int nrf_set_node_data(void) {
 }
 
 int nrf_get_node_data(void) {
-  Serial.println("nrf_get_node_data");
+  debug_serial.println("nrf_get_node_data");
 }
 
 int nrf_set_address(void) {
   EEPROM.write(0, rx_buff_ptr->payload[0]);
-  Serial.println(rx_buff_ptr->payload[0]);
+  debug_serial.println(rx_buff_ptr->payload[0]);
   NODE_ID = EEPROM.read(0);
   tx_buff_ptr->payload[0] = NODE_ID;
   rx[0] = (byte)NODE_ID;
 }
 
 int nrf_get_address(void) {
-  Serial.println("nrf_get_address");
+  debug_serial.println("nrf_get_address");
   NODE_ID = EEPROM.read(0);
   tx_buff_ptr->payload[0] = NODE_ID;
   rx[0] = (byte)NODE_ID;
@@ -410,9 +414,9 @@ uint8_t pipe;
         }
       }
     } else {
-      Serial.print("ID (");
-      Serial.print(rx_buff_ptr->node_id);
-      Serial.println(") NOT ME!");
+      debug_serial.print("ID (");
+      debug_serial.print(rx_buff_ptr->node_id);
+      debug_serial.println(") NOT ME!");
       radio.flush_rx();
     }
   }
