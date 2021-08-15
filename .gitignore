@@ -1,0 +1,5 @@
+.matplotlib/
+.pylint.d/
+2022/dev/app/logs/
+2022/import/
+stocks.db_ORIG

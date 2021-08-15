@@ -64,7 +64,7 @@ class BounderiesTask(Task):
 		self.Name 					= "BounderiesTask"
 		self.Limits 				= StockBounderies()
 		self.MainLoopInterval		= 10
-		self.StockUpdateInterval	= 60 * 5
+		self.StockUpdateInterval	= 60 * 10
 		self.StockInterval 			= 1
 		self.Tickers 				= [
 			{
@@ -84,7 +84,23 @@ class BounderiesTask(Task):
 				"timestamp": 0.0
 			},
 			{
+				"ticker": "amd",
+				"timestamp": 0.0
+			},
+			{
+				"ticker": "nclh",
+				"timestamp": 0.0
+			},
+			{
+				"ticker": "shlx",
+				"timestamp": 0.0
+			},
+			{
 				"ticker": "t",
+				"timestamp": 0.0
+			},
+			{
+				"ticker": "ebay",
 				"timestamp": 0.0
 			}
 		]
@@ -92,9 +108,19 @@ class BounderiesTask(Task):
 	def Handler(self):
 		for ticker in self.Tickers:
 			if time.time() - ticker["timestamp"] > self.StockUpdateInterval:
-				self.Logger.Log("Query {0} stock".format(ticker["ticker"]), 1)
+				# self.Logger.Log("Query {0} stock".format(ticker["ticker"]), 1)
 				data = self.Limits.Calculate(ticker["ticker"])
-				self.Limits.Print(self.Logger, data)
+				# self.Limits.Print(self.Logger, data)
+				# self.Logger.Log("",1)
+
+				for item in data:
+					if item["price"] > item["limit"]["high"]:
+						self.Logger.Log("{0}: {1} price {2:.2f} HIGHER ({3:.2f})".format(item["name"], item["ticker"], item["price"], item["limit"]["high"]),1)
+					elif item["price"] < item["limit"]["low"]:
+						self.Logger.Log("{0}: {1} price {2:.2f} LOWER ({3:.2f})".format(item["name"], item["ticker"], item["price"], item["limit"]["low"]),1)
+					else:
+						pass
+				# self.Logger.Log("",1)
 
 				time.sleep(self.StockInterval)
 				ticker["timestamp"] = time.time()
