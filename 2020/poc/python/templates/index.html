@@ -110,6 +110,9 @@
                 app.API.SendCustomCommand("gateway_info", {}, function(data, error) {
                     console.log(data);
                 });
+                app.API.SendCustomCommand("serial_list", {}, function(data, error) {
+                    console.log(data);
+                });
             });
 
             feather.replace();
