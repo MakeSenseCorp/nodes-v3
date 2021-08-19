@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Application</title>
+        <link rel="icon" href="{{ url_for('static', filename='images/node/favicon.ico') }}">
+        <link href="{{ url_for('static', filename='css/vendor/bootstrap.min.css') }}" rel="stylesheet">
+    </head>
+    <body>
+        <nav class="navbar navbar-dark bg-dark flex-md-nowrap p-0 shadow">
+            <a class="navbar-brand col-sm-3 col-md-2 mr-0" href="#">Application</a>
+            <ul class="navbar-nav px-3">
+                <li class="nav-item text-nowrap">
+                    <a class="nav-link" href="#">10:00 AM</a>
+                </li>
+            </ul>
+        </nav>
+        <br>
+        <main role="main" class="container">
+            <nav class="navbar navbar-expand-lg navbar-light bg-light">
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link" id="id_m_main_gateway" href="#" onclick="">Gateway</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="id_m_main_sensors" href="#" onclick="">Sensors</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="id_m_main_settings" href="#">Settings</a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom"></div>
+            <footer class="footer"></footer>
+        </main>
+
+        <!-- Icons -->
+        <script src="{{ url_for('static', filename='js/vendor/feather.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/vendor/jquery-3.3.1.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/vendor/bootstrap.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/umks/MKSApi.js') }}"></script>
+
+        <script type="text/javascript">
+            var myVar       = "{{ data }}";
+            var decodedJSON = $('<div/>').html(myVar).text();
+            var web_data    = $.parseJSON(decodedJSON);
+
+            var ip    = web_data.ip;
+            var port  = web_data.port;
+            console.log(web_data);
+
+            function Application() {
+                var self = this;
+                // Get makesense api instanse.
+                this.API = MkSAPIBuilder.GetInstance();
+                // Default handler
+                this.API.OnUnexpectedDataArrived = function (packet) {
+                    console.log(packet);
+                }
+                this.API.ModulesLoadedCallback = function () {
+                    self.NodeLoaded();
+                }
+                this.EventMapper = {};
+
+                return this;
+            }
+            Application.prototype.RegisterEventHandler = function(name, callback, scope) {
+                this.EventMapper[name] = { 
+                    callback: callback,
+                    scope: scope
+                };
+            }
+            Application.prototype.UnregisterEventHandler = function(name) {
+                delete this.EventMapper[name];
+            }
+            Application.prototype.Publish = function(name, data) {
+                var handler  = this.EventMapper[name];
+                if (handler !== undefined && handler !== null) {
+                    handler.callback(data, handler.scope);
+                }
+            }
+            Application.prototype.Connect = function(ip, port, callback) {
+                var self = this;
+                console.log("Connect Application");
+                // Python will emit messages
+                self.API.OnNodeChangeCallback = self.OnChangeEvent.bind(self);
+                this.API.ConnectLocalWS(ip, port, function() {
+                    console.log("Connected to local websocket");
+                    callback();
+                });
+            }
+            Application.prototype.NodeLoaded = function () {
+            }
+            Application.prototype.OnChangeEvent = function(packet) {
+                var event = packet.payload.event;
+                var data = packet.payload.data;
+                this.Publish(event, data);
+            }
+            Application.prototype.ListHandler = function(data, scope) {
+                console.log(data);
+            }
+
+            var app = new Application();
+            app.RegisterEventHandler("ListHandler", app.ListHandler, app);
+            app.Connect(ip, port, function() {
+                app.API.SendCustomCommand("gateway_info", {}, function(data, error) {
+                    console.log(data);
+                });
+            });
+
+            feather.replace();
+            window.resizeTo(1200,800);
+        </script>
+    </body>
+</html>
