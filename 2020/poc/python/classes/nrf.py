@@ -253,11 +253,13 @@ class NRF(hardware.HardwareLayer):
 							# Temperature, Humidity & Relay
 							temperature = nrf_packet[3] | nrf_packet[4] << 8
 							humidity 	= nrf_packet[6] | nrf_packet[7] << 8
-							relay 		= nrf_packet[9]
+							pir 		= nrf_packet[9]
+							relay 		= nrf_packet[11]
 							return {
 								'temperature': temperature,
 								'humidity': humidity,
 								'relay': relay,
+								'movement': pir,
 								'packet': packet
 							}
 						else:

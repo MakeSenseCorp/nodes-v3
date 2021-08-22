@@ -78,6 +78,10 @@ class Terminal(TerminalLayer):
 		self.WorkingPort = ""
 		self.RemoteNodeId = 0
 	
+	def UpdateApplication(self, data):
+		if self.Application is not None:
+			self.Application.EmitEvent(data)
+	
 	def RegisterHardware(self, hw_layer):
 		self.HW = hw_layer
 	
@@ -91,7 +95,7 @@ class Terminal(TerminalLayer):
 		comports = self.HW.ListSerialComPorts()
 		for idx, comport in enumerate(comports):
 			print("{0}.\tComPort: {1}\n\tConnected: {2}\n\tType: {3}\n".format(idx+1, comport["port"], comport["is_connected"], comport["type"]))
-		self.Application.EmitEvent({
+		self.UpdateApplication({
 			'event': "ListHandler",
 			'data': comports
 		})
@@ -102,6 +106,10 @@ class Terminal(TerminalLayer):
 			baudrate = int(data[1])
 			print("Connect serial port {0} baudrate {1}".format(port, baudrate))
 			status = self.HW.SingleConnect(port, baudrate)
+			self.UpdateApplication({
+				'event': "ConnectHandler",
+				'data': status
+			})
 			if status is False:
 				print("Connection FAILED.")
 			else:
@@ -114,6 +122,10 @@ class Terminal(TerminalLayer):
 			port = data[0]
 			print("Disconnect serial port {0}".format(port))
 			status = self.HW.SingleDisconnect(port)
+			self.UpdateApplication({
+				'event': "DisconnectHandler",
+				'data': status
+			})
 			if status is False:
 				print("Disconnect FAILED")
 			else:
@@ -154,41 +166,86 @@ class Terminal(TerminalLayer):
 			print("Wrong parameter")
 	
 	def GetDeviceTypeHandler(self, data):
-		print(self.HW.GetDeviceType(self.WorkingPort))
+		ans = self.HW.GetDeviceType(self.WorkingPort)
+		print(ans)
+		self.UpdateApplication({
+			'event': "GetDeviceTypeHandler",
+			'data': ans
+		})
 
 	def GetDeviceAdditionalHandler(self, data):
-		print(self.HW.GetDeviceAdditional(self.WorkingPort))
+		ans = self.HW.GetDeviceAdditional(self.WorkingPort)
+		print(ans)
+		self.UpdateApplication({
+			'event': "GetDeviceAdditionalHandler",
+			'data': ans
+		})
 
 	def SetNodeAddressHandler(self, data):
 		if len(data) > 0:
 			address = int(data[0])
-			print(self.HW.SetNodeAddress(self.WorkingPort, address))
+			ans = self.HW.SetNodeAddress(self.WorkingPort, address)
+			print(ans)
+			self.UpdateApplication({
+				'event': "SetNodeAddressHandler",
+				'data': ans
+			})
 		else:
 			print("Wrong parameter")
 	
 	def GetNodeAddressHandler(self, data):
-		print(self.HW.GetNodeAddress(self.WorkingPort))
+		ans = self.HW.GetNodeAddress(self.WorkingPort)
+		print(ans)
+		self.UpdateApplication({
+			'event': "GetNodeAddressHandler",
+			'data': ans
+		})
 
 	def GetNodeInfoHandler(self, data):
-		print(self.HW.GetNodeInfo(self.WorkingPort))
+		ans = self.HW.GetNodeInfo(self.WorkingPort)
+		print(ans)
+		self.UpdateApplication({
+			'event': "GetNodeInfoHandler",
+			'data': ans
+		})
 	
 	def GetNodeListHandler(self, data):
-		print(self.HW.GetNodeList(self.WorkingPort))
+		ans = self.HW.GetNodeList(self.WorkingPort)
+		print(ans)
+		self.UpdateApplication({
+			'event': "GetNodeListHandler",
+			'data': ans
+		})
 	
 	def GetNodesMapHandler(self, data):
-		print(self.HW.GetNodesMap(self.WorkingPort))
+		ans = (self.HW.GetNodesMap(self.WorkingPort))
+		print(ans)
+		self.UpdateApplication({
+			'event': "GetNodesMapHandler",
+			'data': ans
+		})
 	
 	def AddNodeIndexHandler(self, data):
 		if len(data) > 0:
 			index = int(data[0])
-			print(self.HW.AddNodeIndex(self.WorkingPort, index))
+			ans = self.HW.AddNodeIndex(self.WorkingPort, index)
+			print(ans)
+			self.UpdateApplication({
+				'event': "AddNodeIndexHandler",
+				'data': ans
+			})
 		else:
 			print("Wrong parameter")
 	
 	def DelNodeIndexHandler(self, data):
 		if len(data) > 0:
 			index = int(data[0])
-			print(self.HW.DelNodeIndex(self.WorkingPort, index))
+			ans = self.HW.DelNodeIndex(self.WorkingPort, index)
+			print(ans)
+			self.UpdateApplication({
+				'event': "DelNodeIndexHandler",
+				'data': ans
+			})
 		else:
 			print("Wrong parameter")
 	
@@ -199,28 +256,53 @@ class Terminal(TerminalLayer):
 			print("Wrong parameter")
 	
 	def GetRemoteNodeInfoHandler(self, data):
-		print(self.HW.GetRemoteNodeInfo(self.WorkingPort, self.RemoteNodeId))
+		ans = self.HW.GetRemoteNodeInfo(self.WorkingPort, self.RemoteNodeId)
+		print(ans)
+		self.UpdateApplication({
+			'event': "GetRemoteNodeInfoHandler",
+			'data': ans
+		})
 
 	def GetRemoteNodeDataHandler(self, data):
-		print(self.HW.GetRemoteNodeData(self.WorkingPort, self.RemoteNodeId))
+		ans = self.HW.GetRemoteNodeData(self.WorkingPort, self.RemoteNodeId)
+		print(ans)
+		self.UpdateApplication({
+			'event': "GetRemoteNodeDataHandler",
+			'data': ans
+		})
 	
 	def SetRemoteNodeDataHandler(self, data):
 		if len(data) > 1:
 			index = int(data[0])
 			value = int(data[1])
-			print(self.HW.SetRemoteNodeData(self.WorkingPort, self.RemoteNodeId, index, value))
+			ans = self.HW.SetRemoteNodeData(self.WorkingPort, self.RemoteNodeId, index, value)
+			print(ans)
+			self.UpdateApplication({
+				'event': "SetRemoteNodeDataHandler",
+				'data': ans
+			})
 		else:
 			print("Wrong parameter")
 	
 	def SetRemoteNodeAddressHandler(self, data):
 		if len(data) > 0:
 			address = int(data[0])
-			print(self.HW.SetRemoteNodeAddress(self.WorkingPort, self.RemoteNodeId, address))
+			ans = self.HW.SetRemoteNodeAddress(self.WorkingPort, self.RemoteNodeId, address)
+			print(ans)
+			self.UpdateApplication({
+				'event': "SetRemoteNodeAddressHandler",
+				'data': ans
+			})
 		else:
 			print("Wrong parameter")
 	
 	def GetRemoteNodeAddressHandler(self, data):
-		print(self.HW.GetRemoteNodeAddressHandler(self.WorkingPort, self.RemoteNodeId))
+		ans = self.HW.GetRemoteNodeAddressHandler(self.WorkingPort, self.RemoteNodeId)
+		print(ans)
+		self.UpdateApplication({
+			'event': "GetRemoteNodeAddressHandler",
+			'data': ans
+		})
 	
 	def UndefinedHandler(self, data):
 		pass

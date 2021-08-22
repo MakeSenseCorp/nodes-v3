@@ -1,1 +1,1 @@
-c:\Python27\python.exe main.py
+c:\Users\kiveishy\AppData\Local\Programs\Python\Python39\python.exe main.py

@@ -99,6 +99,7 @@
                 var event = packet.payload.event;
                 var data = packet.payload.data;
                 this.Publish(event, data);
+                console.log(packet.payload);
             }
             Application.prototype.ListHandler = function(data, scope) {
                 console.log(data);
