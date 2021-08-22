@@ -102,29 +102,44 @@ class BounderiesTask(Task):
 			{
 				"ticker": "ebay",
 				"timestamp": 0.0
+			},
+			{
+				"ticker": "nio",
+				"timestamp": 0.0
+			},
+			{
+				"ticker": "li",
+				"timestamp": 0.0
+			},
+			{
+				"ticker": "amzn",
+				"timestamp": 0.0
 			}
 		]
 	
 	def Handler(self):
-		for ticker in self.Tickers:
-			if time.time() - ticker["timestamp"] > self.StockUpdateInterval:
-				# self.Logger.Log("Query {0} stock".format(ticker["ticker"]), 1)
-				data = self.Limits.Calculate(ticker["ticker"])
-				# self.Limits.Print(self.Logger, data)
-				# self.Logger.Log("",1)
+		if self.Limits.IsMarketOpen() is True:
+			for ticker in self.Tickers:
+				if time.time() - ticker["timestamp"] > self.StockUpdateInterval:
+					# self.Logger.Log("Query {0} stock".format(ticker["ticker"]), 1)
+					data = self.Limits.Calculate(ticker["ticker"])
+					# self.Limits.Print(self.Logger, data)
+					# self.Logger.Log("",1)
 
-				for item in data:
-					if item["price"] > item["limit"]["high"]:
-						self.Logger.Log("{0}: {1} price {2:.2f} HIGHER ({3:.2f})".format(item["name"], item["ticker"], item["price"], item["limit"]["high"]),1)
-					elif item["price"] < item["limit"]["low"]:
-						self.Logger.Log("{0}: {1} price {2:.2f} LOWER ({3:.2f})".format(item["name"], item["ticker"], item["price"], item["limit"]["low"]),1)
-					else:
-						pass
-				# self.Logger.Log("",1)
+					for item in data:
+						if item["price"] > item["limit"]["high"]:
+							self.Logger.Log("{0}: {1} price {2:.2f} HIGHER ({3:.2f})".format(item["name"], item["ticker"], item["price"], item["limit"]["high"]),1)
+						elif item["price"] < item["limit"]["low"]:
+							self.Logger.Log("{0}: {1} price {2:.2f} LOWER ({3:.2f})".format(item["name"], item["ticker"], item["price"], item["limit"]["low"]),1)
+						else:
+							pass
+					# self.Logger.Log("",1)
 
-				time.sleep(self.StockInterval)
-				ticker["timestamp"] = time.time()
-		time.sleep(self.MainLoopInterval)
+					time.sleep(self.StockInterval)
+					ticker["timestamp"] = time.time()
+			time.sleep(self.MainLoopInterval)
+		else:
+			time.sleep(10 * 60)
 
 class StockBounderies():
 	def __init__(self):
@@ -412,6 +427,10 @@ class StockBounderies():
 				else:
 					logger.Log("{0}\t{1:.2f}\t{2:.2f}\t{3:.2f}\t{4:.2f}\t{5:.2f}\t{6:.2f}\t{7:.2f}\t{8:.2f}".format(item["name"], item["price"], item["min"], item["max"], item["std"], item["amp"], item["limit"]["price"], item["limit"]["low"], item["limit"]["high"]), 1)
 
+	def IsMarketOpen(self):
+		currTime = dt.datetime.now().time()
+		return (currTime > dt.time(16,25) and currTime < dt.time(23,5))
+	
 class Terminal():
 	def __init__(self):
 		self.ProcessRunning = True
@@ -436,10 +455,6 @@ class Terminal():
 		self.Tasks = {
 			"bounderies": BounderiesTask()
 		}
-	
-	def IsMarketOpen(self):
-		currTime = dt.datetime.now().time()
-		return (currTime > dt.time(16,25) and currTime < dt.time(23,5))
 
 	def CalculateStopLoss(self, ticker):
 		colors = ["green", "orange", "navy", "purple", "steelblue", "tomato"]
