@@ -198,6 +198,11 @@ void send_client(uint8_t index) {
         rx_sensor_item->status = STATUS_CONNECTED;
         if (rx_buff_ptr->node_id == tx_buff_ptr->node_id) {
           exit = true;
+          
+          if (memcmp(rx_sensor_item->last_message, nrf_rx_buff, sizeof(nrf_rx_buff))) {
+            send_async_data_to_uart((uint8_t *)&nrf_rx_buff, sizeof(nrf_rx_buff));
+            memcpy(rx_sensor_item->last_message, nrf_rx_buff, sizeof(nrf_rx_buff));
+          }
         }
       } else {
         // No data from client

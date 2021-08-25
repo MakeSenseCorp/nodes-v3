@@ -13,10 +13,10 @@ class HardwareLayer(definitions.ILayer):
 		self.HW.AdaptorAsyncDataEvent		= self.AdaptorAsyncDataCallback
 	
 	def AdaptorAsyncDataCallback(self, path, packet):
-		pass
+		print("AdaptorAsyncDataCallback", packet)
 
 	def AdaptorDisconnectedCallback(self, path, rf_type):
-		pass
+		print("AdaptorDisconnectedCallback", path)
 
 	def RegisterListener(self, callback):
 		pass

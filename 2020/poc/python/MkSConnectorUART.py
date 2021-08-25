@@ -40,6 +40,7 @@ class Connector (MkSAbstractConnector.AbstractConnector):
 			except Exception as e:
 				print ("({classname})# [ERROR] (RecievePacketsWorker) {0}".format(str(e), classname=self.ClassName))
 
+	# MIGHT BE DEPRICATED
 	def FindUARTDevices(self):
 		dev = os.listdir("/dev/")
 		return ["/dev/" + item for item in dev if "ttyUSB" in item]
@@ -137,6 +138,7 @@ class Connector (MkSAbstractConnector.AbstractConnector):
 				return key
 		return None
 	
+	# MIGHT BE DEPRICATED
 	def UpdateUARTInterfaces(self):
 		changes = []
 		interfaces = self.FindUARTDevices()
