@@ -1,10 +1,13 @@
 import json
 import time
 import _thread
-from classes import definitions
-from classes import webserver
 from collections import OrderedDict
 from geventwebsocket import WebSocketServer, WebSocketApplication, Resource
+
+from classes import definitions
+from classes import webserver
+from classes import sensordb
+from classes import translator
 
 class WebsocketLayer():
 	def __init__(self):
@@ -164,23 +167,227 @@ class ApplicationLayer(definitions.ILayer):
 class Application(ApplicationLayer):
 	def __init__(self):
 		ApplicationLayer.__init__(self)
-		self.WSHandlers = {
-			'gateway_info': self.GayewayInfoHandler,
-			'serial_list': self.SerialListHandler,
+		self.WSHandlers 	= {
+			'gateway_info': 	self.GayewayInfoHandler,
+			'serial_list': 		self.SerialListHandler,
+			'connect': 			self.ConnectHandler,
+			'disconnect': 		self.DisconnectHandler,
+			"setworkingport": 	self.SetWorkingPortHandler,
+			"listnodes":		self.GetNodeListHandler,
+			"getnodeinfo_r":	self.GetRemoteNodeInfoHandler,
+			"getnodedata_r":	self.GetRemoteNodeDataHandler,
+			"setnodedata_r":	self.SetRemoteNodeDataHandler,
 		}
-		self.HW = None
+		self.HW 			= None
+		self.DB 			= sensordb.SensorDB("sensors.db")
+		self.Translator 	= translator.BasicTranslator()
+
+		self.WorkingPort = ""
 
 	def RegisterHardware(self, hw_layer):
 		self.HW = hw_layer
 	
 	def GayewayInfoHandler(self, sock, packet):
 		print("GayewayInfoHandler {0}".format(packet))
-		return {
+		is_async = packet["payload"]["async"]
+		data = {
 			"gateway": {
 				"connected": []
 			}
 		}
+		if is_async is True:
+			self.EmitEvent(data)
+			return None
+		else:
+			return data
 	
 	def SerialListHandler(self, sock, packet):
 		print("GayewayInfoHandler {0}".format(packet))
-		return self.HW.ListSerialComPorts()
+		is_async = packet["payload"]["async"]
+		data = self.HW.ListSerialComPorts()
+		if is_async is True:
+			self.EmitEvent(data)
+			return None
+		else:
+			return data
+	
+	def ConnectHandler(self, sock, packet):
+		print("ConnectHandler {0}".format(packet))
+		is_async 	= packet["payload"]["async"]
+		port 		= packet["payload"]["port"]
+		baudrate 	= packet["payload"]["baudrate"]
+
+		print("Connect serial port {0} baudrate {1}".format(port, baudrate))
+		status = self.HW.SingleConnect(port, baudrate)
+		if status is False:
+			print("Connection FAILED.")
+		else:
+			print("Connection SUCCESS.")
+		
+		data = {
+			'event': "ConnectHandler",
+			'data': status
+		}
+
+		if is_async is True:
+			self.EmitEvent(data)
+			return None
+		else:
+			return data
+	
+	def DisconnectHandler(self, sock, packet):
+		print("DisconnectHandler {0}".format(packet))
+		is_async 	= packet["payload"]["async"]
+		port 		= packet["payload"]["port"]
+
+		print("Disconnect serial port {0}".format(port))
+		status = self.HW.SingleDisconnect(port)
+		if status is False:
+			print("Disconnect FAILED.")
+		else:
+			print("Disconnect SUCCESS.")
+		
+		data = {
+			'event': "DisconnectHandler",
+			'data': status
+		}
+
+		if is_async is True:
+			self.EmitEvent(data)
+			return None
+		else:
+			return data
+	
+	def SetWorkingPortHandler(self, sock, packet):
+		print("SetWorkingPortHandler {0}".format(packet))
+		is_async 			= packet["payload"]["async"]
+		self.WorkingPort 	= packet["payload"]["port"]
+
+		if is_async is True:
+			self.EmitEvent({})
+			return None
+		else:
+			return {}
+	
+	def GetNodeListHandler(self, sock, packet):
+		print("GetNodeListHandler {0}".format(packet))
+		is_async = packet["payload"]["async"]
+		ans = self.HW.GetNodeList(self.WorkingPort)
+		data = {
+			'event': "GetNodeListHandler",
+			'data': ans
+		}
+		if is_async is True:
+			self.EmitEvent(data)
+			return None
+		else:
+			return data
+	
+	def GetRemoteNodeInfoHandler(self, sock, packet):
+		print("GetRemoteNodeInfoHandler {0}".format(packet))
+		is_async = packet["payload"]["async"]
+		node_id  = packet["payload"]["node_id"]
+		ans = self.HW.GetRemoteNodeInfo(self.WorkingPort, node_id)
+		if ans is not None:
+			info = self.Translator.Translate(ans["packet"])
+			data = {
+				'event': "GetRemoteNodeInfoHandler",
+				'data': info
+			}
+
+			if is_async is True:
+				self.EmitEvent(data)
+				return None
+			else:
+				return data
+		else:
+			return {
+				"error": True
+			}
+	
+	def GetRemoteNodeDataHandler(self, sock, packet):
+		print("GetRemoteNodeDataHandler {0}".format(packet))
+		is_async 	 = packet["payload"]["async"]
+		node_id  	 = packet["payload"]["node_id"]
+		sensor_index = packet["payload"]["sensor_index"]
+
+		ans = self.HW.GetRemoteNodeData(self.WorkingPort, node_id, sensor_index)
+		if ans is not None:
+			info = self.Translator.Translate(ans["packet"])
+			data = {
+				'event': "GetRemoteNodeDataHandler",
+				'data': info
+			}
+
+			if is_async is True:
+				self.EmitEvent(data)
+				return None
+			else:
+				return data
+		else:
+			return {
+				"error": True
+			}
+	
+	def SetRemoteNodeDataHandler(self, sock, packet):
+		print("GetRemoteNodeDataHandler {0}".format(packet))
+		is_async 	 = packet["payload"]["async"]
+		node_id  	 = packet["payload"]["node_id"]
+		sensor_index = packet["payload"]["sensor_index"]
+		sensor_value = packet["payload"]["sensor_value"]
+
+		ans = self.HW.SetRemoteNodeData(self.WorkingPort, node_id, sensor_index, sensor_value)
+		if ans is not None:
+			info = self.Translator.Translate(ans["packet"])
+			data = {
+				'event': "SetRemoteNodeDataHandler",
+				'data': info
+			}
+
+			if is_async is True:
+				self.EmitEvent(data)
+				return None
+			else:
+				return data
+		else:
+			return {
+				"error": True
+			}
+	
+	'''
+	Recieve UART packet (pay attention NOT nrf)
+	[direction, op_code, content_length, [0...15]]
+	'''
+	def AsyncDataArrived(self, packet):
+		if len(packet) == 19:
+			info = self.Translator.Translate(packet[3:])
+			if info is not None:
+				sensor_id = int(info["sensor_id"])
+				timestamp = int(time.time())
+				info["timestamp"] = timestamp
+				# Emit this event to browser
+				self.EmitEvent(info)
+				self.DB.InsertSensorValue({
+					'id': 1,
+					'sensor_id': sensor_id,
+					'value': float(info["temperature"]),
+					'timestamp': timestamp
+				})
+				self.DB.InsertSensorValue({
+					'id': 2,
+					'sensor_id': sensor_id,
+					'value': float(info["humidity"]),
+					'timestamp': timestamp
+				})
+				self.DB.InsertSensorValue({
+					'id': 3,
+					'sensor_id': sensor_id,
+					'value': float(info["movement"]),
+					'timestamp': timestamp
+				})
+				self.DB.InsertSensorValue({
+					'id': 4,
+					'sensor_id': sensor_id,
+					'value': float(info["relay"]),
+					'timestamp': timestamp
+				})

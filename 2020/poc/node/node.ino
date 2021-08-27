@@ -5,6 +5,7 @@
 #include <nRF24L01.h>
 #include <RF24.h>
 #include <SoftwareSerial.h>
+#include <MKSMath.h>
 
 #define MESSAGE_HEADER_PAYLOAD_SIZE   2
 #define MAX_COMMAND_TABLE_SIZE        128
@@ -105,10 +106,12 @@ nrf_commands_table_t nrf_handlers_map[] = {
   { OPCODE_GET_ADDRESS,             nrf_get_address},
 };
 
+MovingAVGNoBuffer_t temperature_iir = {0, 50};
 sensor_temperature_t temperature = { 1, 30 };
+MovingAVGNoBuffer_t humidity_iir = {0, 50};
 sensor_humidity_t humidity = { 2, 70 };
-sensor_pir_t pir = { 3, 1 };
-sensor_relay_t relay = { 4, 1 };
+sensor_pir_t pir = { 3, 0 };
+sensor_relay_t relay = { 4, 0 };
 
 DHT dht(DHT_PIN, DHT11);
 
@@ -333,6 +336,10 @@ int nrf_get_node_info(void) {
 
   temperature.value = (uint16_t)dht.readTemperature();
   humidity.value = (uint16_t)dht.readHumidity();
+
+  temperature.value = (uint16_t)CalculateMAVGNoBuffer(&temperature_iir, (float)temperature.value);
+  humidity.value = (uint16_t)CalculateMAVGNoBuffer(&humidity_iir, (float)humidity.value);
+
   pir.value = digitalRead(3);
 
   memcpy(&tx_buff_ptr->payload[offset], (uint8_t*)&temperature, sizeof(sensor_temperature_t));
@@ -357,9 +364,15 @@ typedef struct {
   uint32_t value;
 } nrf_set_node_data_t;
 int nrf_set_node_data(void) {
+  node_info_header_t* node_header = (node_info_header_t*)&(tx_buff_ptr->payload[0]);
+  uint8_t offset = sizeof(node_info_header_t);
   nrf_set_node_data_t* data_rx = (nrf_set_node_data_t*)&(rx_buff_ptr->payload[0]);
-  nrf_set_node_data_t* data_tx = (nrf_set_node_data_t*)&(tx_buff_ptr->payload[0]);
+  nrf_set_node_data_t* data_tx = (nrf_set_node_data_t*)&(tx_buff_ptr->payload[offset]);
+
   Serial.println("nrf_set_node_data");
+
+  node_header->type = 50;
+  node_header->payload_length = 2;
 
   for (uint8_t i = 0; i < 10; i++) {
     Serial.print(rx_buff_ptr->payload[i]);
@@ -378,6 +391,7 @@ int nrf_set_node_data(void) {
       data_tx->index = data_rx->index;
       data_tx->value = relay.value;
       Serial.println(relay.value);
+      offset += 2;
 
       if (!relay.value) {
         Serial.println("OFF");
@@ -394,12 +408,54 @@ int nrf_set_node_data(void) {
 
   tx_buff_ptr->node_id  = NODE_ID;
   tx_buff_ptr->opcode   = rx_buff_ptr->opcode;
-  tx_buff_ptr->size     = 0;
+  tx_buff_ptr->size     = offset;
   tx_buff_ptr->crc      = 0xff;
 }
 
 int nrf_get_node_data(void) {
+  node_info_header_t* node_header = (node_info_header_t*)&(tx_buff_ptr->payload[0]);
+  uint8_t offset = sizeof(node_info_header_t);
+  nrf_set_node_data_t* data_rx = (nrf_set_node_data_t*)&(rx_buff_ptr->payload[0]);
+  nrf_set_node_data_t* data_tx = (nrf_set_node_data_t*)&(tx_buff_ptr->payload[offset]);
+
   Serial.println("nrf_get_node_data");
+
+  node_header->type = 50;
+
+  switch (data_rx->index) {
+    case 1: {
+      node_header->payload_length = 3;
+      data_tx->index = 1;
+      data_tx->value = temperature.value;
+    }
+    break;
+    case 2: {
+      node_header->payload_length = 3;
+      data_tx->index = 2;
+      data_tx->value = humidity.value;
+    }
+    break;
+    case 3: {
+      node_header->payload_length = 2;
+      data_tx->index = 3;
+      data_tx->value = pir.value;
+    }
+    break;
+    case 4: {
+      node_header->payload_length = 2;
+      data_tx->index = 4;
+      data_tx->value = relay.value;
+    }
+    break;
+    default:
+    break;
+  }
+
+  offset += node_header->payload_length;
+  tx_buff_ptr->node_id  = NODE_ID;
+  tx_buff_ptr->opcode   = rx_buff_ptr->opcode;
+  tx_buff_ptr->size     = offset;
+  tx_buff_ptr->crc      = 0xff;
 }
 
 int nrf_set_address(void) {

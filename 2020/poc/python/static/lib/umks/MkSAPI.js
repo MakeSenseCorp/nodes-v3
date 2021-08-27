@@ -59,7 +59,9 @@ MkSAPI.prototype.ConnectLocalWS = function (ip, port, callback) {
 		var identifier = jsonData.header.identifier;
 		if (self.Callbacks[identifier]) {
 			handler = self.Callbacks[identifier];
-			handler.callback(jsonData, {error: "none"});
+			if (handler.callback !== undefined && handler.callback !== null) {
+				handler.callback(jsonData, {error: "none"});
+			}
 
 			// console.log("[LOCAL #2] Delete Identifier #", identifier);	
 			delete self.Callbacks[identifier];
@@ -99,7 +101,9 @@ MkSAPI.prototype.CallbacksMonitor = function () {
 				
 				if (item.timeout_counter > item.timeout) {
 					try {
-						item.callback(null, {error: "timeout"});
+						if (item.callback !== undefined && item.callback !== null) {
+							item.callback(null, {error: "timeout"});
+						}
 					}
 					catch (e) {
 						console.log("[ERROR] (CallbacksMonitor)", e.message);

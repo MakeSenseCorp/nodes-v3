@@ -20,7 +20,7 @@ void send_async_data_to_uart(uint8_t* payload, uint16_t size) {
   uart_tx_header->magic_number[1] = 0xAD;
   uart_tx_header->direction       = ASYNC;
   uart_tx_header->op_code         = 0;
-  uart_tx_header->content_length  = MKS_HEADER_SIZE + size;
+  uart_tx_header->content_length  = size;
   serial_tx_len                   = MKS_HEADER_SIZE + size;
 
   memcpy(&uart_tx_buffer[MKS_HEADER_SIZE], payload, size);

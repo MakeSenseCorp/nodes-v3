@@ -1,5 +1,6 @@
 import subprocess
 from classes import definitions
+from classes import translator
 
 # import MkSLogger
 
@@ -42,6 +43,7 @@ class Terminal(TerminalLayer):
 		TerminalLayer.__init__(self)
 		self.HW 			= None
 		self.Application 	= None
+		self.Translator 	= translator.BasicTranslator()
 
 		self.Tasks = {
 			"NRFTask": NRFTask()
@@ -257,30 +259,40 @@ class Terminal(TerminalLayer):
 	
 	def GetRemoteNodeInfoHandler(self, data):
 		ans = self.HW.GetRemoteNodeInfo(self.WorkingPort, self.RemoteNodeId)
-		print(ans)
-		self.UpdateApplication({
-			'event': "GetRemoteNodeInfoHandler",
-			'data': ans
-		})
+		if ans is not None:
+			info = self.Translator.Translate(ans["packet"])
+			print(info)
+			self.UpdateApplication({
+				'event': "GetRemoteNodeInfoHandler",
+				'data': info
+			})
 
 	def GetRemoteNodeDataHandler(self, data):
-		ans = self.HW.GetRemoteNodeData(self.WorkingPort, self.RemoteNodeId)
-		print(ans)
-		self.UpdateApplication({
-			'event': "GetRemoteNodeDataHandler",
-			'data': ans
-		})
+		if len(data) > 0:
+			index = int(data[0])
+			ans = self.HW.GetRemoteNodeData(self.WorkingPort, self.RemoteNodeId, index)
+			if ans is not None:
+				info = self.Translator.Translate(ans["packet"])
+				print(info)
+				self.UpdateApplication({
+					'event': "GetRemoteNodeDataHandler",
+					'data': info
+				})
+		else:
+			print("Wrong parameter")
 	
 	def SetRemoteNodeDataHandler(self, data):
 		if len(data) > 1:
 			index = int(data[0])
 			value = int(data[1])
 			ans = self.HW.SetRemoteNodeData(self.WorkingPort, self.RemoteNodeId, index, value)
-			print(ans)
-			self.UpdateApplication({
-				'event': "SetRemoteNodeDataHandler",
-				'data': ans
-			})
+			if ans is not None:
+				info = self.Translator.Translate(ans["packet"])
+				print(info)
+				self.UpdateApplication({
+					'event': "SetRemoteNodeDataHandler",
+					'data': info
+				})
 		else:
 			print("Wrong parameter")
 	
@@ -306,6 +318,9 @@ class Terminal(TerminalLayer):
 	
 	def UndefinedHandler(self, data):
 		pass
+
+	def AsyncDataArrived(self, packet):
+		print("Terminal", packet)
 
 	def Close(self):
 		self.HW.Disconnect()

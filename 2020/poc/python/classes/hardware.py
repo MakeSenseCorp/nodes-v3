@@ -13,16 +13,26 @@ class HardwareLayer(definitions.ILayer):
 		self.HW.AdaptorAsyncDataEvent		= self.AdaptorAsyncDataCallback
 	
 	def AdaptorAsyncDataCallback(self, path, packet):
-		print("AdaptorAsyncDataCallback", packet)
+		# print("AdaptorAsyncDataCallback", packet)
+		for callback in self.AsyncListeners:
+			callback(packet)
 
 	def AdaptorDisconnectedCallback(self, path, rf_type):
 		print("AdaptorDisconnectedCallback", path)
 
 	def RegisterListener(self, callback):
-		pass
+		if callback is not None:
+			self.AsyncListeners.append(callback)
 
 	def RemoveListener(self, callback):
-		pass
+		index = -1
+		for idx, handler in enumerate(self.AsyncListeners):
+			if handler == callback:
+				index = idx
+				break
+		
+		if index != -1:
+			self.AsyncListeners.remove(self.AsyncListeners[index])
 
 	def ListSerialComPorts(self):
 		return self.HW.ListSerialComPorts()

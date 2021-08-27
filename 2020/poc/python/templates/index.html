@@ -53,6 +53,148 @@
             var port  = web_data.port;
             console.log(web_data);
 
+            function Piterm(api) {
+                var self = this;
+                this.API = api;
+
+                return this;
+            }
+            Piterm.prototype.GetGatwayInfo = function() {
+                this.API.SendCustomCommand("gateway_info", {
+                    "async": true
+                }, null);
+            }
+            Piterm.prototype.GetSerialList = function() {
+                this.API.SendCustomCommand("serial_list", {
+                    "async": true
+                }, null);
+            }
+            Piterm.prototype.Connect = function(port, baudrate) {
+                this.API.SendCustomCommand("connect", {
+                    "async": true,
+                    "port": port,
+                    "baudrate": baudrate
+                }, null);
+            }
+            Piterm.prototype.Disconnect = function(port, baudrate) {
+                this.API.SendCustomCommand("disconnect", {
+                    "async": true,
+                    "port": port
+                }, null);
+            }
+            Piterm.prototype.SetWorkingPort = function(port) {
+                this.API.SendCustomCommand("setworkingport", {
+                    "async": true,
+                    "port": port
+                }, null);
+            }
+            Piterm.prototype.ListNodes = function() {
+                this.API.SendCustomCommand("listnodes", {
+                    "async": true
+                }, null);
+            }
+            Piterm.prototype.GetNodeInfoRemote = function(node_id) {
+                this.API.SendCustomCommand("getnodeinfo_r", {
+                    "async": true,
+                    "node_id": node_id
+                }, null);
+            }
+            Piterm.prototype.GetSensorDataRemote = function(node_id, sensor_index) {
+                this.API.SendCustomCommand("getnodedata_r", {
+                    "async": true,
+                    "node_id": node_id,
+                    "sensor_index": sensor_index
+                }, null);
+            }
+            Piterm.prototype.SetSensorDataRemote = function(node_id, sensor_index, sensor_value) {
+                this.API.SendCustomCommand("setnodedata_r", {
+                    "async": true,
+                    "node_id": node_id,
+                    "sensor_index": sensor_index,
+                    "sensor_value": sensor_value
+                }, null);
+            }
+
+            function Pidaptor(api) {
+                var self = this;
+                this.API = api;
+
+                return this;
+            }
+            Pidaptor.prototype.GetGatwayInfo = function(callback) {
+                this.API.SendCustomCommand("gateway_info", {
+                    "async": false
+                }, function(data, error) {
+                    callback(data, error);
+                });
+            }
+            Pidaptor.prototype.GetSerialList = function(callback) {
+                this.API.SendCustomCommand("serial_list", {
+                    "async": false
+                }, function(data, error) {
+                    callback(data, error);
+                });
+            }
+            Pidaptor.prototype.Connect = function(port, baudrate) {
+                this.API.SendCustomCommand("connect", {
+                    "async": true,
+                    "port": port,
+                    "baudrate": baudrate
+                }, function(data, error) {
+                    callback(data, error);
+                });
+            }
+            Pidaptor.prototype.Disconnect = function(port, baudrate) {
+                this.API.SendCustomCommand("disconnect", {
+                    "async": true,
+                    "port": port
+                }, function(data, error) {
+                    callback(data, error);
+                });
+            }
+            Pidaptor.prototype.SetWorkingPort = function(port) {
+                this.API.SendCustomCommand("setworkingport", {
+                    "async": true,
+                    "port": port
+                }, function(data, error) {
+                    callback(data, error);
+                });
+            }
+            Pidaptor.prototype.ListNodes = function() {
+                this.API.SendCustomCommand("listnodes", {
+                    "async": true
+                }, function(data, error) {
+                    callback(data, error);
+                });
+            }
+            Pidaptor.prototype.GetNodeInfoRemote = function(node_id) {
+                this.API.SendCustomCommand("getnodeinfo_r", {
+                    "async": true,
+                    "node_id": node_id
+                }, function(data, error) {
+                    callback(data, error);
+                });
+            }
+            Pidaptor.prototype.GetSensorDataRemote = function(node_id, sensor_index) {
+                this.API.SendCustomCommand("getnodedata_r", {
+                    "async": true,
+                    "node_id": node_id,
+                    "sensor_index": sensor_index
+                }, function(data, error) {
+                    callback(data, error);
+                });
+            }
+            Pidaptor.prototype.SetSensorDataRemote = function(node_id, sensor_index, sensor_value) {
+                this.API.SendCustomCommand("setnodedata_r", {
+                    "async": true,
+                    "node_id": node_id,
+                    "sensor_index": sensor_index,
+                    "sensor_value": sensor_value
+                }, function(data, error) {
+                    callback(data, error);
+                });
+            }
+
             function Application() {
                 var self = this;
                 // Get makesense api instanse.
@@ -65,6 +207,8 @@
                     self.NodeLoaded();
                 }
                 this.EventMapper = {};
+                this.Adaptor = new Pidaptor(this.API);
+                this.Terminal = new Piterm(this.API);
 
                 return this;
             }
@@ -101,17 +245,37 @@
                 this.Publish(event, data);
                 console.log(packet.payload);
             }
+            // ASYNC REGISTERED HANDLERS
             Application.prototype.ListHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.GetNodeListHandler = function(data, scope) {
+                var nodes = data.list;
+                for (key in nodes) {
+                    console.log(nodes[key]);
+                }
+            }
+            Application.prototype.GetRemoteNodeInfoHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.GetRemoteNodeDataHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.SetRemoteNodeDataHandler = function(data, scope) {
                 console.log(data);
             }
 
             var app = new Application();
             app.RegisterEventHandler("ListHandler", app.ListHandler, app);
+            app.RegisterEventHandler("GetNodeListHandler", app.GetNodeListHandler, app);
+            app.RegisterEventHandler("GetRemoteNodeInfoHandler", app.GetRemoteNodeInfoHandler, app);
+            app.RegisterEventHandler("GetRemoteNodeDataHandler", app.GetRemoteNodeDataHandler, app);
+            app.RegisterEventHandler("SetRemoteNodeDataHandler", app.SetRemoteNodeDataHandler, app);
             app.Connect(ip, port, function() {
-                app.API.SendCustomCommand("gateway_info", {}, function(data, error) {
+                app.Adaptor.GetGatwayInfo(function(data, error) {
                     console.log(data);
                 });
-                app.API.SendCustomCommand("serial_list", {}, function(data, error) {
+                app.Adaptor.GetSerialList(function(data, error) {
                     console.log(data);
                 });
             });

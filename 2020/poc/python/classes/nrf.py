@@ -248,22 +248,10 @@ class NRF(hardware.HardwareLayer):
 			if packet[1] == self.Commands.OPCODE_RX_DATA:
 				if len(packet) > 18:
 					if packet[4] == self.Commands.OPCODE_GET_NODE_INFO:
-						nrf_packet = packet[6:]
-						if nrf_packet[0] == 50:
-							# Temperature, Humidity & Relay
-							temperature = nrf_packet[3] | nrf_packet[4] << 8
-							humidity 	= nrf_packet[6] | nrf_packet[7] << 8
-							pir 		= nrf_packet[9]
-							relay 		= nrf_packet[11]
-							return {
-								'temperature': temperature,
-								'humidity': humidity,
-								'relay': relay,
-								'movement': pir,
-								'packet': packet
-							}
-						else:
-							pass
+						nrf_packet = packet[3:]
+						return {
+							'packet': nrf_packet
+						}
 					else:
 						print("(ERROR) Incorrect answer. {0}".format(packet))
 						return None
@@ -277,9 +265,9 @@ class NRF(hardware.HardwareLayer):
 			print("(ERROR) Return packet is less then expected.")
 			return None
 	
-	def GetRemoteNodeData(self, port, index):
-		payload = [self.Commands.OPCODE_GET_NODES_DATA]
-		packet = self.Commands.ReadRemoteCommand(index, payload)
+	def GetRemoteNodeData(self, port, node_id, sensor_index):
+		payload = [self.Commands.OPCODE_GET_NODES_DATA, 1, sensor_index]
+		packet = self.Commands.ReadRemoteCommand(node_id, payload)
 		packet = self.HW.Send(port, packet)
 
 		if packet is None:
@@ -288,8 +276,9 @@ class NRF(hardware.HardwareLayer):
 		if len(packet) > 0:
 			if packet[1] == self.Commands.OPCODE_RX_DATA:
 				if packet[4] == self.Commands.OPCODE_GET_NODES_DATA:
+					nrf_packet = packet[3:]
 					return {
-						'packet': packet
+						'packet': nrf_packet
 					}
 				else:
 					print("(ERROR) Incorrect answer. {0}".format(packet))
@@ -314,8 +303,9 @@ class NRF(hardware.HardwareLayer):
 		if packet is not None and len(packet) > 0:
 			if packet[1] == self.Commands.OPCODE_RX_DATA:
 				if packet[4] == self.Commands.OPCODE_SET_NODES_DATA:
+					nrf_packet = packet[3:]
 					return {
-						'packet': packet
+						'packet': nrf_packet
 					}
 				else:
 					print("(ERROR) Incorrect answer. {0}".format(packet))

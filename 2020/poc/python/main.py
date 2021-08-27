@@ -8,6 +8,10 @@ from classes import nrf
 
 def signal_handler(signal, frame):
 	pass
+
+class Node():
+	def __init__(self):
+		pass
 	
 def main():
 	signal.signal(signal.SIGINT, signal_handler)
@@ -29,6 +33,9 @@ def main():
 	app.RegisterHardware(gateway)
 	cli.RegisterHardware(gateway)
 	cli.RegisterApplication(app)
+
+	# gateway.RegisterListener(cli.AsyncDataArrived)
+	gateway.RegisterListener(app.AsyncDataArrived)
 
 	app.Run()
 	cli.Run() # Blocking
