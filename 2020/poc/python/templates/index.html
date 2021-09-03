@@ -42,6 +42,8 @@
         <script src="{{ url_for('static', filename='js/vendor/feather.min.js') }}"></script>
         <script src="{{ url_for('static', filename='js/vendor/jquery-3.3.1.min.js') }}"></script>
         <script src="{{ url_for('static', filename='js/vendor/bootstrap.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/application/pidaptor.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/application/piterm.js') }}"></script>
         <script src="{{ url_for('static', filename='lib/umks/MKSApi.js') }}"></script>
 
         <script type="text/javascript">
@@ -52,148 +54,6 @@
             var ip    = web_data.ip;
             var port  = web_data.port;
             console.log(web_data);
-
-            function Piterm(api) {
-                var self = this;
-                this.API = api;
-
-                return this;
-            }
-            Piterm.prototype.GetGatwayInfo = function() {
-                this.API.SendCustomCommand("gateway_info", {
-                    "async": true
-                }, null);
-            }
-            Piterm.prototype.GetSerialList = function() {
-                this.API.SendCustomCommand("serial_list", {
-                    "async": true
-                }, null);
-            }
-            Piterm.prototype.Connect = function(port, baudrate) {
-                this.API.SendCustomCommand("connect", {
-                    "async": true,
-                    "port": port,
-                    "baudrate": baudrate
-                }, null);
-            }
-            Piterm.prototype.Disconnect = function(port, baudrate) {
-                this.API.SendCustomCommand("disconnect", {
-                    "async": true,
-                    "port": port
-                }, null);
-            }
-            Piterm.prototype.SetWorkingPort = function(port) {
-                this.API.SendCustomCommand("setworkingport", {
-                    "async": true,
-                    "port": port
-                }, null);
-            }
-            Piterm.prototype.ListNodes = function() {
-                this.API.SendCustomCommand("listnodes", {
-                    "async": true
-                }, null);
-            }
-            Piterm.prototype.GetNodeInfoRemote = function(node_id) {
-                this.API.SendCustomCommand("getnodeinfo_r", {
-                    "async": true,
-                    "node_id": node_id
-                }, null);
-            }
-            Piterm.prototype.GetSensorDataRemote = function(node_id, sensor_index) {
-                this.API.SendCustomCommand("getnodedata_r", {
-                    "async": true,
-                    "node_id": node_id,
-                    "sensor_index": sensor_index
-                }, null);
-            }
-            Piterm.prototype.SetSensorDataRemote = function(node_id, sensor_index, sensor_value) {
-                this.API.SendCustomCommand("setnodedata_r", {
-                    "async": true,
-                    "node_id": node_id,
-                    "sensor_index": sensor_index,
-                    "sensor_value": sensor_value
-                }, null);
-            }
-
-            function Pidaptor(api) {
-                var self = this;
-                this.API = api;
-
-                return this;
-            }
-            Pidaptor.prototype.GetGatwayInfo = function(callback) {
-                this.API.SendCustomCommand("gateway_info", {
-                    "async": false
-                }, function(data, error) {
-                    callback(data, error);
-                });
-            }
-            Pidaptor.prototype.GetSerialList = function(callback) {
-                this.API.SendCustomCommand("serial_list", {
-                    "async": false
-                }, function(data, error) {
-                    callback(data, error);
-                });
-            }
-            Pidaptor.prototype.Connect = function(port, baudrate) {
-                this.API.SendCustomCommand("connect", {
-                    "async": true,
-                    "port": port,
-                    "baudrate": baudrate
-                }, function(data, error) {
-                    callback(data, error);
-                });
-            }
-            Pidaptor.prototype.Disconnect = function(port, baudrate) {
-                this.API.SendCustomCommand("disconnect", {
-                    "async": true,
-                    "port": port
-                }, function(data, error) {
-                    callback(data, error);
-                });
-            }
-            Pidaptor.prototype.SetWorkingPort = function(port) {
-                this.API.SendCustomCommand("setworkingport", {
-                    "async": true,
-                    "port": port
-                }, function(data, error) {
-                    callback(data, error);
-                });
-            }
-            Pidaptor.prototype.ListNodes = function() {
-                this.API.SendCustomCommand("listnodes", {
-                    "async": true
-                }, function(data, error) {
-                    callback(data, error);
-                });
-            }
-            Pidaptor.prototype.GetNodeInfoRemote = function(node_id) {
-                this.API.SendCustomCommand("getnodeinfo_r", {
-                    "async": true,
-                    "node_id": node_id
-                }, function(data, error) {
-                    callback(data, error);
-                });
-            }
-            Pidaptor.prototype.GetSensorDataRemote = function(node_id, sensor_index) {
-                this.API.SendCustomCommand("getnodedata_r", {
-                    "async": true,
-                    "node_id": node_id,
-                    "sensor_index": sensor_index
-                }, function(data, error) {
-                    callback(data, error);
-                });
-            }
-            Pidaptor.prototype.SetSensorDataRemote = function(node_id, sensor_index, sensor_value) {
-                this.API.SendCustomCommand("setnodedata_r", {
-                    "async": true,
-                    "node_id": node_id,
-                    "sensor_index": sensor_index,
-                    "sensor_value": sensor_value
-                }, function(data, error) {
-                    callback(data, error);
-                });
-            }
 
             function Application() {
                 var self = this;
@@ -243,10 +103,12 @@
                 var event = packet.payload.event;
                 var data = packet.payload.data;
                 this.Publish(event, data);
-                console.log(packet.payload);
             }
             // ASYNC REGISTERED HANDLERS
-            Application.prototype.ListHandler = function(data, scope) {
+            Application.prototype.SystemInfoHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.SerialListHandler = function(data, scope) {
                 console.log(data);
             }
             Application.prototype.GetNodeListHandler = function(data, scope) {
@@ -264,13 +126,75 @@
             Application.prototype.SetRemoteNodeDataHandler = function(data, scope) {
                 console.log(data);
             }
+            Application.prototype.GetDeviceTypeHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.GetDeviceAdditionalHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.SetNodeAddressHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.GetNodeAddressHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.GetNodeInfoHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.GetNodesMapHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.AddNodeIndexHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.DelNodeIndexHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.SetRemoteNodeAddressHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.DelNodeIndexHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.USBDeviceConnectedHandler = function(data, scope) {
+                console.log("CONNECTED", data);
+            }
+            Application.prototype.USBDeviceDisconnectedHandler = function(data, scope) {
+                console.log("DISCONNECTED", data);
+            }
+            Application.prototype.SetWorkingPortHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.GatewayInfoHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.AsyncDataArrived = function(data, scope) {
+                console.log(data);
+            }
 
             var app = new Application();
-            app.RegisterEventHandler("ListHandler", app.ListHandler, app);
-            app.RegisterEventHandler("GetNodeListHandler", app.GetNodeListHandler, app);
-            app.RegisterEventHandler("GetRemoteNodeInfoHandler", app.GetRemoteNodeInfoHandler, app);
-            app.RegisterEventHandler("GetRemoteNodeDataHandler", app.GetRemoteNodeDataHandler, app);
-            app.RegisterEventHandler("SetRemoteNodeDataHandler", app.SetRemoteNodeDataHandler, app);
+            app.RegisterEventHandler("AsyncDataArrived",                app.AsyncDataArrived,               app);
+            app.RegisterEventHandler("SystemInfoHandler",               app.SystemInfoHandler,              app);
+            app.RegisterEventHandler("GatewayInfoHandler",              app.GatewayInfoHandler,             app);
+            app.RegisterEventHandler("SerialListHandler",               app.SerialListHandler,              app);
+            app.RegisterEventHandler("SetWorkingPortHandler",           app.SetWorkingPortHandler,          app);
+            app.RegisterEventHandler("GetNodeListHandler",              app.GetNodeListHandler,             app);
+            app.RegisterEventHandler("GetRemoteNodeInfoHandler",        app.GetRemoteNodeInfoHandler,       app);
+            app.RegisterEventHandler("GetRemoteNodeDataHandler",        app.GetRemoteNodeDataHandler,       app);
+            app.RegisterEventHandler("SetRemoteNodeDataHandler",        app.SetRemoteNodeDataHandler,       app);
+            app.RegisterEventHandler("GetDeviceTypeHandler",            app.GetDeviceTypeHandler,           app);
+            app.RegisterEventHandler("GetDeviceAdditionalHandler",      app.GetDeviceAdditionalHandler,     app);
+            app.RegisterEventHandler("SetNodeAddressHandler",           app.SetNodeAddressHandler,          app);
+            app.RegisterEventHandler("GetNodeAddressHandler",           app.GetNodeAddressHandler,          app);
+            app.RegisterEventHandler("GetNodeInfoHandler",              app.GetNodeInfoHandler,             app);
+            app.RegisterEventHandler("GetNodesMapHandler",              app.GetNodesMapHandler,             app);
+            app.RegisterEventHandler("AddNodeIndexHandler",             app.AddNodeIndexHandler,            app);
+            app.RegisterEventHandler("DelNodeIndexHandler",             app.DelNodeIndexHandler,            app);
+            app.RegisterEventHandler("SetRemoteNodeAddressHandler",     app.SetRemoteNodeAddressHandler,    app);
+            app.RegisterEventHandler("GetRemoteNodeAddressHandler",     app.GetRemoteNodeAddressHandler,    app);
+            app.RegisterEventHandler("USBDeviceConnectedHandler",       app.USBDeviceConnectedHandler,      app);
+            app.RegisterEventHandler("USBDeviceDisconnectedHandler",    app.USBDeviceDisconnectedHandler,   app);
+
             app.Connect(ip, port, function() {
                 app.Adaptor.GetGatwayInfo(function(data, error) {
                     console.log(data);

@@ -309,7 +309,7 @@ class Terminal(TerminalLayer):
 			print("Wrong parameter")
 	
 	def GetRemoteNodeAddressHandler(self, data):
-		ans = self.HW.GetRemoteNodeAddressHandler(self.WorkingPort, self.RemoteNodeId)
+		ans = self.HW.GetRemoteNodeAddress(self.WorkingPort, self.RemoteNodeId)
 		print(ans)
 		self.UpdateApplication({
 			'event': "GetRemoteNodeAddressHandler",
@@ -319,7 +319,7 @@ class Terminal(TerminalLayer):
 	def UndefinedHandler(self, data):
 		pass
 
-	def AsyncDataArrived(self, packet):
+	def AsyncDataArrived(self, port, packet):
 		print("Terminal", packet)
 
 	def Close(self):

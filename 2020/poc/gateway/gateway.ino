@@ -267,7 +267,7 @@ uint8_t append_polling_node(uint8_t node_id) {
 
 uint8_t remove_polling_node(uint8_t node_id) {
   if (!polling_nodes_count) {
-    return 0x0;
+    return 0x1;
   }
 
   for (uint8_t i = 0; i < MAX_NODES_INDEX-1; i++) {
@@ -284,11 +284,11 @@ uint8_t remove_polling_node(uint8_t node_id) {
         polling_nodes[i + nodes_id_move_count] = 0;
       }
       polling_nodes_count--;
-      break;
+      return 0x0;
     }
   }
 
-  return 0x0;
+  return 0x1;
 }
 
 uint8_t find_index_by_id(uint8_t node_id) {

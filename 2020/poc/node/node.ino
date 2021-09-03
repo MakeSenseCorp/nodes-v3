@@ -334,11 +334,11 @@ int nrf_get_node_info(void) {
   //Serial.println(dht.readTemperature());
   //Serial.println(dht.readHumidity());
 
-  temperature.value = (uint16_t)dht.readTemperature();
-  humidity.value = (uint16_t)dht.readHumidity();
+  // temperature.value = (uint16_t)dht.readTemperature();
+  // humidity.value = (uint16_t)dht.readHumidity();
 
-  temperature.value = (uint16_t)CalculateMAVGNoBuffer(&temperature_iir, (float)temperature.value);
-  humidity.value = (uint16_t)CalculateMAVGNoBuffer(&humidity_iir, (float)humidity.value);
+  temperature.value = (uint16_t)round(CalculateMAVGNoBuffer(&temperature_iir, dht.readTemperature()));
+  humidity.value = (uint16_t)round(CalculateMAVGNoBuffer(&humidity_iir, dht.readHumidity()));
 
   pir.value = digitalRead(3);
 

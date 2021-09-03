@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import _thread
 from collections import OrderedDict
@@ -8,6 +9,7 @@ from classes import definitions
 from classes import webserver
 from classes import sensordb
 from classes import translator
+from classes import common
 
 class WebsocketLayer():
 	def __init__(self):
@@ -129,6 +131,8 @@ class ApplicationLayer(definitions.ILayer):
 		web.AddEndpoint("/", "index", None, data)
 		web.Run()
 
+		self.Start()
+
 		time.sleep(0.5)
 		WSManager.RegisterCallbacks(self.WSConnectedHandler, self.WSDataArrivedHandler, self.WSDisconnectedHandler, self.WSSessionsEmpty)
 		WSManager.SetPort(1981)
@@ -138,14 +142,17 @@ class ApplicationLayer(definitions.ILayer):
 		pass
 
 	def WSDataArrivedHandler(self, ws, packet):
-		command = packet["header"]["command"]
-		if self.WSHandlers is not None:
-			if command in self.WSHandlers.keys():
-				message = self.WSHandlers[command](ws, packet)
-				if message == "" or message is None:
-					return
-				packet["payload"] = message
-				WSManager.Send(id(ws), packet)
+		try:
+			command = packet["header"]["command"]
+			if self.WSHandlers is not None:
+				if command in self.WSHandlers.keys():
+					message = self.WSHandlers[command](ws, packet)
+					if message == "" or message is None:
+						return
+					packet["payload"] = message
+					WSManager.Send(id(ws), packet)
+		except Exception as e:
+			print("WSDataArrivedHandler Exception: {0}".format(str(e)))
 
 	def WSDisconnectedHandler(self, ws_id):
 		pass
@@ -168,31 +175,176 @@ class Application(ApplicationLayer):
 	def __init__(self):
 		ApplicationLayer.__init__(self)
 		self.WSHandlers 	= {
-			'gateway_info': 	self.GayewayInfoHandler,
-			'serial_list': 		self.SerialListHandler,
-			'connect': 			self.ConnectHandler,
-			'disconnect': 		self.DisconnectHandler,
-			"setworkingport": 	self.SetWorkingPortHandler,
-			"listnodes":		self.GetNodeListHandler,
-			"getnodeinfo_r":	self.GetRemoteNodeInfoHandler,
-			"getnodedata_r":	self.GetRemoteNodeDataHandler,
-			"setnodedata_r":	self.SetRemoteNodeDataHandler,
+			'system_info':			self.SystemInfoHandler,
+			'gateway_info': 		self.GatewayInfoHandler,
+			'list': 				self.SerialListHandler,
+			'connect': 				self.ConnectHandler,
+			'disconnect': 			self.DisconnectHandler,
+			# NODE UART CONNECTED
+			"setworkingport": 		self.SetWorkingPortHandler,
+			"getdevicetype": 		self.GetDeviceTypeHandler,
+			"getdeviceadditional": 	self.GetDeviceAdditionalHandler,
+			"setnodeaddress": 		self.SetNodeAddressHandler,
+			"getnodeaddress": 		self.GetNodeAddressHandler,
+			"getnodeinfo": 			self.GetNodeInfoHandler,
+			"listnodes":			self.GetNodeListHandler,
+			"getnodesmap": 			self.GetNodesMapHandler,
+			"addnodeindex": 		self.AddNodeIndexHandler,
+			"delnodeindex": 		self.DelNodeIndexHandler,
+			# NODE REMOTE CONNECTED
+			"getnodeinfo_r":		self.GetRemoteNodeInfoHandler,
+			"getnodedata_r":		self.GetRemoteNodeDataHandler,
+			"setnodedata_r":		self.SetRemoteNodeDataHandler,
+			"setnodeaddress_r": 	self.SetRemoteNodeAddressHandler,
+			"getnodeaddress_r": 	self.GetRemoteNodeAddressHandler,
 		}
 		self.HW 			= None
 		self.DB 			= sensordb.SensorDB("sensors.db")
 		self.Translator 	= translator.BasicTranslator()
 
 		self.WorkingPort = ""
+		self.LocalUsbDb = {
+			"comports": [],
+			"gateways": {},
+			"nodes": {}
+		}
+
+		self.Working = False
+	
+	def Start(self):
+		_thread.start_new_thread(self.Worker, ())
+	
+	def Worker(self):
+		self.Working = True
+		while self.Working is True:
+			try:
+				added, removed = self.CheckSerialConnections()
+				if removed is not None:
+					self.RemoveDisconnected(removed)
+				if added is not None:
+					self.ConnectNewComDevices(added)
+				time.sleep(5)
+			except Exception as e:
+				print("Worker Exception: {0}".format(e))
+	
+	def RemoveGateway(self, comport):
+		if comport in self.LocalUsbDb["gateways"]:
+			self.EmitEvent({
+				"event": "USBDeviceDisconnectedHandler",
+				"data": {
+					"type": "GATEWAY",
+					"port": self.LocalUsbDb["gateways"][comport]["port"],
+					"index": self.LocalUsbDb["gateways"][comport]["index"],
+				}
+			})
+			del self.LocalUsbDb["gateways"][comport]
+	
+	def RemoveNodes(self, comport):
+		if comport in self.LocalUsbDb["nodes"]:
+			self.EmitEvent({
+				"event": "USBDeviceDisconnectedHandler",
+				"data": {
+					"type": "NODE",
+					"port": self.LocalUsbDb["nodes"][comport]["port"],
+					"index": self.LocalUsbDb["nodes"][comport]["index"],
+				}
+			})
+			del self.LocalUsbDb["nodes"][comport]
+
+	def RemoveDisconnected(self, removed_ports_list):
+		for com in removed_ports_list:
+			self.RemoveGateway(com)
+			self.RemoveNodes(com)
+
+	def ConnectNewComDevices(self, added_ports_list):
+		for com in added_ports_list:
+			status = self.HW.SingleConnect(com, 115200)
+			if status is True:
+				info = self.HW.GetDeviceType(com)
+				device_type = info["device_type"]
+				if device_type is None:
+					self.HW.SingleDisconnect(com)
+				else:
+					if device_type == "2020":
+						info = self.HW.GetDeviceAdditional(com)
+						if "type" in info and "index" in info:
+							if info["type"] == "GATEWAY":
+								self.LocalUsbDb["gateways"][com] = {
+									"port": com,
+									"index": info["index"],
+									"remotes": {}
+								}
+								self.EmitEvent({
+									"event": "USBDeviceConnectedHandler",
+									"data": {
+										"type": "GATEWAY",
+										"port": com,
+										"index": info["index"],
+									}
+								})
+								data_nodes = self.HW.GetNodeList(com)
+								if data_nodes is not None:
+									for node in data_nodes["list"]:
+										sensor_id = node["sensor_id"]
+										self.LocalUsbDb["gateways"][com]["remotes"][sensor_id] = {
+											"status": node["status"],
+											"info": None
+										}
+							elif info["type"] == "NODE":
+								self.LocalUsbDb["nodes"][com] = {
+									"port": com,
+									"index": info["index"],
+									"sensors": None
+								}
+								self.EmitEvent({
+									"event": "USBDeviceConnectedHandler",
+									"data": {
+										"type": "NODE",
+										"port": com,
+										"index": info["index"],
+									}
+								})
+					else:
+						self.HW.SingleDisconnect(com)
+
+	def CheckSerialConnections(self):
+		current_ports = []
+		data = self.HW.ListSerialComPorts()
+		local_db_ports = self.LocalUsbDb["comports"]
+		for comp in data:
+			current_ports.append(comp["port"])
+		added, removed = common.DiffArray(local_db_ports, current_ports)
+		if added is not None or removed is not None:
+			self.LocalUsbDb["comports"] = current_ports
+		return added, removed
 
 	def RegisterHardware(self, hw_layer):
 		self.HW = hw_layer
 	
-	def GayewayInfoHandler(self, sock, packet):
-		print("GayewayInfoHandler {0}".format(packet))
+	def SystemInfoHandler(self, sock, packet):
+		print("SystemInfoHandler {0}".format(packet))
 		is_async = packet["payload"]["async"]
 		data = {
-			"gateway": {
-				"connected": []
+			"event": "SystemInfoHandler",
+			"data": {
+				"system": {
+					"local_db": self.LocalUsbDb
+				}
+			}
+		}
+		if is_async is True:
+			self.EmitEvent(data)
+			return None
+		else:
+			return data
+
+	def GatewayInfoHandler(self, sock, packet):
+		print("GatewayInfoHandler {0}".format(packet))
+		is_async = packet["payload"]["async"]
+		data = {
+			"event": "GatewayInfoHandler",
+			"data": {
+				"gateway": self.LocalUsbDb["gateways"]
 			}
 		}
 		if is_async is True:
@@ -202,11 +354,14 @@ class Application(ApplicationLayer):
 			return data
 	
 	def SerialListHandler(self, sock, packet):
-		print("GayewayInfoHandler {0}".format(packet))
+		print("SerialListHandler {0}".format(packet))
 		is_async = packet["payload"]["async"]
 		data = self.HW.ListSerialComPorts()
 		if is_async is True:
-			self.EmitEvent(data)
+			self.EmitEvent({
+				"event": "SerialListHandler",
+				"data": data
+			})
 			return None
 		else:
 			return data
@@ -264,24 +419,195 @@ class Application(ApplicationLayer):
 		self.WorkingPort 	= packet["payload"]["port"]
 
 		if is_async is True:
-			self.EmitEvent({})
+			self.EmitEvent({
+				'event': "SetWorkingPortHandler",
+				'data': True
+			})
 			return None
 		else:
 			return {}
 	
+	def GetDeviceTypeHandler(self, sock, packet):
+		is_async = packet["payload"]["async"]
+		ans = self.HW.GetDeviceType(self.WorkingPort)
+		if is_async is True:
+			self.EmitEvent({
+				'event': "GetDeviceTypeHandler",
+				'data': ans
+			})
+			return None
+		else:
+			return ans
+	
+	def GetDeviceAdditionalHandler(self, sock, packet):
+		is_async = packet["payload"]["async"]
+		ans = self.HW.GetDeviceAdditional(self.WorkingPort)
+		if is_async is True:
+			self.EmitEvent({
+				'event': "GetDeviceAdditionalHandler",
+				'data': ans
+			})
+			return None
+		else:
+			return ans
+	
+	def SetNodeAddressHandler(self, sock, packet):
+		is_async = packet["payload"]["async"]
+		address = packet["payload"]["address"]
+		if address is not None:
+			ans = self.HW.SetNodeAddress(self.WorkingPort, address)
+			if is_async is True:
+				self.EmitEvent({
+					'event': "SetNodeAddressHandler",
+					'data': ans
+				})
+				return None
+			else:
+				return ans
+		else:
+			return None
+	
+	def GetNodeAddressHandler(self, sock, packet):
+		is_async = packet["payload"]["async"]
+		ans = self.HW.GetNodeAddress(self.WorkingPort)
+		if is_async is True:
+			self.EmitEvent({
+				'event': "GetNodeAddressHandler",
+				'data': ans
+			})
+			return None
+		else:
+			return ans
+	
+	def GetNodeInfoHandler(self, sock, packet):
+		is_async = packet["payload"]["async"]
+		ans = self.HW.GetNodeInfo(self.WorkingPort)
+		if is_async is True:
+			self.EmitEvent({
+				'event': "GetNodeInfoHandler",
+				'data': ans
+			})
+			return None
+		else:
+			return ans
+	
+	def GetNodesMapHandler(self, sock, packet):
+		is_async = packet["payload"]["async"]
+		ans = (self.HW.GetNodesMap(self.WorkingPort))
+		if is_async is True:
+			self.EmitEvent({
+				'event': "GetNodesMapHandler",
+				'data': ans
+			})
+			return None
+		else:
+			return ans
+	
+	def AddNodeIndexHandler(self, sock, packet):
+		is_async = packet["payload"]["async"]
+		index = packet["payload"]["index"]
+		if index is not None:
+			ans = self.HW.AddNodeIndex(self.WorkingPort, index)
+			if ans is not None:
+				#TODO - Update DB with new registered sensor id
+				if ans["status"] is True:
+					self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"][index] = {
+						"status": 0,
+						"info": None
+					}
+				if is_async is True:
+					self.EmitEvent({
+						'event': "AddNodeIndexHandler",
+						'data': ans
+					})
+					return None
+				else:
+					return ans
+			else:
+				return None
+		else:
+			return None
+	
+	def DelNodeIndexHandler(self, sock, packet):
+		is_async = packet["payload"]["async"]
+		index = packet["payload"]["index"]
+		if index is not None:
+			ans = self.HW.DelNodeIndex(self.WorkingPort, index)
+			if ans is not None:
+				#TODO - Update DB with unregistered sensor id
+				if ans["status"] is True:
+					del self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"][index]
+				if is_async is True:
+					self.EmitEvent({
+						'event': "DelNodeIndexHandler",
+						'data': ans
+					})
+					return None
+				else:
+					return ans
+			else:
+				return None
+		else:
+			return None
+	
+	def SetRemoteNodeAddressHandler(self, sock, packet):
+		is_async = packet["payload"]["async"]
+		address = packet["payload"]["address"]
+		node_id = packet["payload"]["node_id"]
+		if address is not None and node_id is not None:
+			ans = self.HW.SetRemoteNodeAddress(self.WorkingPort, node_id, address)
+			if is_async is True:
+				self.EmitEvent({
+					'event': "SetRemoteNodeAddressHandler",
+					'data': ans
+				})
+				return None
+			else:
+				return ans
+		else:
+			return None
+	
+	def GetRemoteNodeAddressHandler(self, sock, packet):
+		is_async = packet["payload"]["async"]
+		node_id = packet["payload"]["node_id"]
+		if node_id is not None:
+			ans = self.HW.GetRemoteNodeAddress(self.WorkingPort, node_id)
+			if is_async is True:
+				self.EmitEvent({
+					'event': "GetRemoteNodeAddressHandler",
+					'data': ans
+				})
+				return None
+			else:
+				return ans
+		else:
+			return None
+
 	def GetNodeListHandler(self, sock, packet):
 		print("GetNodeListHandler {0}".format(packet))
 		is_async = packet["payload"]["async"]
 		ans = self.HW.GetNodeList(self.WorkingPort)
-		data = {
-			'event': "GetNodeListHandler",
-			'data': ans
-		}
-		if is_async is True:
-			self.EmitEvent(data)
-			return None
+		if ans is not None:
+			for node in ans["list"]:
+				sensor_id = node["sensor_id"]
+				if sensor_id in self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"]:
+					self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"][sensor_id]["status"] = node["status"]
+				else:
+					self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"][sensor_id] = {
+						"status": node["status"],
+						"info": None
+					}
+			data = {
+				'event': "GetNodeListHandler",
+				'data': ans
+			}
+			if is_async is True:
+				self.EmitEvent(data)
+				return None
+			else:
+				return data
 		else:
-			return data
+			return None
 	
 	def GetRemoteNodeInfoHandler(self, sock, packet):
 		print("GetRemoteNodeInfoHandler {0}".format(packet))
@@ -299,7 +625,7 @@ class Application(ApplicationLayer):
 				self.EmitEvent(data)
 				return None
 			else:
-				return data
+				return info
 		else:
 			return {
 				"error": True
@@ -323,7 +649,7 @@ class Application(ApplicationLayer):
 				self.EmitEvent(data)
 				return None
 			else:
-				return data
+				return info
 		else:
 			return {
 				"error": True
@@ -348,7 +674,7 @@ class Application(ApplicationLayer):
 				self.EmitEvent(data)
 				return None
 			else:
-				return data
+				return info
 		else:
 			return {
 				"error": True
@@ -358,15 +684,26 @@ class Application(ApplicationLayer):
 	Recieve UART packet (pay attention NOT nrf)
 	[direction, op_code, content_length, [0...15]]
 	'''
-	def AsyncDataArrived(self, packet):
+	def AsyncDataArrived(self, path, packet):
+		# 1. Data from sensors (NRF protocol)
+		# 2. Data from Gateway (Other protocol)
 		if len(packet) == 19:
 			info = self.Translator.Translate(packet[3:])
 			if info is not None:
 				sensor_id = int(info["sensor_id"])
 				timestamp = int(time.time())
 				info["timestamp"] = timestamp
+				info["port"] = path
 				# Emit this event to browser
-				self.EmitEvent(info)
+				self.EmitEvent({
+					"event": "AsyncDataArrived",
+					"data": info
+				})
+				# Update sensor values for this gateway
+				if path in self.LocalUsbDb["gateways"]:
+					if sensor_id in self.LocalUsbDb["gateways"][path]["remotes"]:
+						self.LocalUsbDb["gateways"][path]["remotes"][sensor_id]["info"] = info
+						self.LocalUsbDb["gateways"][path]["remotes"][sensor_id]["status"] = 1
 				self.DB.InsertSensorValue({
 					'id': 1,
 					'sensor_id': sensor_id,

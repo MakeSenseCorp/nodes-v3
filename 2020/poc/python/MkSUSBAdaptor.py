@@ -8,7 +8,7 @@ import struct
 import _thread
 import threading
 
-class Adaptor ():
+class Adaptor():
 	def __init__(self, path, baudrate):
 		self.ClassName 						  = "Adaptor"
 		self.SerialAdapter 					  = None

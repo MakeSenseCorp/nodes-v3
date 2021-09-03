@@ -170,7 +170,11 @@ class NRF(hardware.HardwareLayer):
 				}
 				data = packet[3:]
 				for idx, item in enumerate(data[::2]):
-					info["list"].append(data[idx*2:idx*2+2])
+					node = data[idx*2:idx*2+2]
+					info["list"].append({
+						"sensor_id": node[0],
+						"status": node[1]
+					})
 				return info
 			else:
 				print("(ERROR) Return OPCODE is incorrect.")
@@ -205,9 +209,14 @@ class NRF(hardware.HardwareLayer):
 		if packet is None:
 			return None
 
-		if len(packet) > 0:
+		if len(packet) > 3:
 			if packet[1] == self.Commands.OPCODE_ADD_NODE_INDEX:
+				updated_index = packet[3]
+				status = False
+				if index == updated_index:
+					status = True
 				return {
+					'status': status,
 					'info': packet
 				}
 			else:
@@ -224,9 +233,14 @@ class NRF(hardware.HardwareLayer):
 		if packet is None:
 			return None
 
-		if len(packet) > 0:
+		if len(packet) > 3:
 			if packet[1] == self.Commands.OPCODE_DEL_NODE_INDEX:
+				updated_index = packet[3]
+				status = False
+				if index == updated_index:
+					status = True
 				return {
+					'status': status,
 					'info': packet
 				}
 			else:
@@ -342,7 +356,7 @@ class NRF(hardware.HardwareLayer):
 			print("(ERROR) Return packet is less then expected.")
 			return None
 	
-	def GetRemoteNodeAddressHandler(self, port, node_id):
+	def GetRemoteNodeAddress(self, port, node_id):
 		payload = [self.Commands.OPCODE_GET_ADDRESS]
 		packet = self.Commands.ReadRemoteCommand(node_id, payload)
 		packet = self.HW.Send(port, packet)
