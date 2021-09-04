@@ -175,28 +175,36 @@ class Application(ApplicationLayer):
 	def __init__(self):
 		ApplicationLayer.__init__(self)
 		self.WSHandlers 	= {
-			'system_info':			self.SystemInfoHandler,
-			'gateway_info': 		self.GatewayInfoHandler,
-			'list': 				self.SerialListHandler,
-			'connect': 				self.ConnectHandler,
-			'disconnect': 			self.DisconnectHandler,
+			'system_info':					self.SystemInfoHandler,
+			'gateway_info': 				self.GatewayInfoHandler,
+			'list': 						self.SerialListHandler,
+			'connect': 						self.ConnectHandler,
+			'disconnect': 					self.DisconnectHandler,
 			# NODE UART CONNECTED
-			"setworkingport": 		self.SetWorkingPortHandler,
-			"getdevicetype": 		self.GetDeviceTypeHandler,
-			"getdeviceadditional": 	self.GetDeviceAdditionalHandler,
-			"setnodeaddress": 		self.SetNodeAddressHandler,
-			"getnodeaddress": 		self.GetNodeAddressHandler,
-			"getnodeinfo": 			self.GetNodeInfoHandler,
-			"listnodes":			self.GetNodeListHandler,
-			"getnodesmap": 			self.GetNodesMapHandler,
-			"addnodeindex": 		self.AddNodeIndexHandler,
-			"delnodeindex": 		self.DelNodeIndexHandler,
+			"setworkingport": 				self.SetWorkingPortHandler,
+			"getdevicetype": 				self.GetDeviceTypeHandler,
+			"getdeviceadditional": 			self.GetDeviceAdditionalHandler,
+			"setnodeaddress": 				self.SetNodeAddressHandler,
+			"getnodeaddress": 				self.GetNodeAddressHandler,
+			"getnodeinfo": 					self.GetNodeInfoHandler,
+			"listnodes":					self.GetNodeListHandler,
+			"getnodesmap": 					self.GetNodesMapHandler,
+			"addnodeindex": 				self.AddNodeIndexHandler,
+			"delnodeindex": 				self.DelNodeIndexHandler,
 			# NODE REMOTE CONNECTED
-			"getnodeinfo_r":		self.GetRemoteNodeInfoHandler,
-			"getnodedata_r":		self.GetRemoteNodeDataHandler,
-			"setnodedata_r":		self.SetRemoteNodeDataHandler,
-			"setnodeaddress_r": 	self.SetRemoteNodeAddressHandler,
-			"getnodeaddress_r": 	self.GetRemoteNodeAddressHandler,
+			"getnodeinfo_r":				self.GetRemoteNodeInfoHandler,
+			"getnodedata_r":				self.GetRemoteNodeDataHandler,
+			"setnodedata_r":				self.SetRemoteNodeDataHandler,
+			"setnodeaddress_r": 			self.SetRemoteNodeAddressHandler,
+			"getnodeaddress_r": 			self.GetRemoteNodeAddressHandler,
+			# DB REQUESTS
+			"select_sensors":				self.SelectSensorsHandler,
+			"select_sensor_history":		self.SelectSensorHistoryHandler,
+			"select_sensors_by_device":		self.SelectSensorsByDeviceHandler,
+			"update_sensor_info":			self.UpdateSensorInfoHandler,
+			"select_devices":				self.SelectDevicesHandler,
+			"insert_device":				self.InsertDeviceHandler,
+			"delete_device":				self.DeleteDeviceHandler,
 		}
 		self.HW 			= None
 		self.DB 			= sensordb.SensorDB("sensors.db")
@@ -681,6 +689,147 @@ class Application(ApplicationLayer):
 				"error": True
 			}
 	
+	def SelectSensorsHandler(self, sock, packet):
+		print("SelectSensorsHandler {0}".format(packet))
+		is_async = packet["payload"]["async"]
+		db_data = self.DB.GetSensors()
+		if db_data is not None:
+			if is_async is True:
+				self.EmitEvent({
+					'event': "SelectSensorsHandler",
+					'data': db_data
+				})
+				return None
+			else:
+				return db_data
+		else:
+			return None
+	
+	def SelectSensorHistoryHandler(self, sock, packet):
+		print("SelectSensorHistoryHandler {0}".format(packet))
+		is_async = packet["payload"]["async"]
+		sensor_id = packet["payload"]["sensor_id"]
+
+		db_info = self.DB.GetSensorHistory(sensor_id)
+		if is_async is True:
+			self.EmitEvent({
+				'event': "SelectSensorHistoryHandler",
+				'data': db_info
+			})
+			return None
+		else:
+			return db_info
+	
+	def SelectSensorsByDeviceHandler(self, sock, packet):
+		print("SelectSensorsByDeviceHandler {0}".format(packet))
+		is_async = packet["payload"]["async"]
+		device_id = packet["payload"]["device_id"]
+
+		db_info = self.DB.GetSensorByDeviceId(device_id)
+		if is_async is True:
+			self.EmitEvent({
+				'event': "SelectSensorsByDeviceHandler",
+				'data': db_info
+			})
+			return None
+		else:
+			return db_info
+	
+	def UpdateSensorInfoHandler(self, sock, packet):
+		print("UpdateSensorInfoHandler {0}".format(packet))
+		is_async = packet["payload"]["async"]
+		sensor_id = packet["payload"]["sensor_id"]
+		sensor_name = packet["payload"]["sensor_name"]
+		sensor_description = packet["payload"]["sensor_description"]
+
+		status = self.DB.UpdateSensorInfo(sensor_id, sensor_name, sensor_description)
+		if status is True:
+			if is_async is True:
+				self.EmitEvent({
+					'event': "UpdateSensorInfoHandler",
+					'data': status
+				})
+				return None
+			else:
+				return status
+		else:
+			return None
+	
+	def SelectDevicesHandler(self, sock, packet):
+		print("SelectDevicesHandler {0}".format(packet))
+		is_async = packet["payload"]["async"]
+
+		db_data = self.DB.GetDeviceList()
+		if is_async is True:
+			self.EmitEvent({
+				'event': "SelectDevicesHandler",
+				'data': db_data
+			})
+			return None
+		else:
+			return db_data
+	
+	def InsertDeviceHandler(self, sock, packet):
+		print("InsertDeviceHandler {0}".format(packet))
+		is_async = packet["payload"]["async"]
+		device_type = packet["payload"]["device_type"]
+		device_id = packet["payload"]["device_id"]
+
+		if self.DB.SensorExist(device_id) is True:
+			return None
+
+		if device_type == 50:
+			sensor_type_map = {
+				1: ["Temperature", ""],
+				2: ["Humidity", ""],
+				3: ["Movement", "PIR"],
+				4: ["Switch", "LED"]
+			}
+			for idx in range(1,5):
+				self.DB.InsertSensor({
+					"type": idx,
+					"device_id": device_id,
+					"device_type": device_type,
+					"name": sensor_type_map[idx][0],
+					"description": sensor_type_map[idx][1]
+				})
+			if is_async is True:
+				self.EmitEvent({
+					'event': "InsertDeviceHandler",
+					'data': {
+						"done": True
+					}
+				})
+				return None
+			else:
+				return {
+					"done": True
+				}
+		else:
+			return None
+	
+	def DeleteDeviceHandler(self, sock, packet):
+		print("DeleteDeviceHandler {0}".format(packet))
+		is_async = packet["payload"]["async"]
+		device_id = packet["payload"]["device_id"]
+
+		if self.DB.SensorExist(device_id) is False:
+			return None
+		
+		self.DB.DeleteDevice(device_id)
+		if is_async is True:
+			self.EmitEvent({
+				'event': "DeleteDeviceHandler",
+				'data': {
+					"done": True
+				}
+			})
+			return None
+		else:
+			return {
+				"done": True
+			}
+	
 	'''
 	Recieve UART packet (pay attention NOT nrf)
 	[direction, op_code, content_length, [0...15]]
@@ -688,44 +837,59 @@ class Application(ApplicationLayer):
 	def AsyncDataArrived(self, path, packet):
 		# 1. Data from sensors (NRF protocol)
 		# 2. Data from Gateway (Other protocol)
-		if len(packet) == 19:
-			info = self.Translator.Translate(packet[3:])
-			if info is not None:
-				device_id = int(info["device_id"])
-				timestamp = int(time.time())
-				info["timestamp"] = timestamp
-				info["port"] = path
-				# Emit this event to browser
+		if len(packet) > 3:
+			opcode = packet[1]
+			payload_size = packet[2]
+			if opcode == 112:
+				device_id = packet[3]
 				self.EmitEvent({
-					"event": "AsyncDataArrived",
-					"data": info
+					"event": "DeviceCommunicationLostHandler",
+					"data": device_id
 				})
-				# Update sensor values for this gateway
-				if path in self.LocalUsbDb["gateways"]:
-					if device_id in self.LocalUsbDb["gateways"][path]["remotes"]:
-						self.LocalUsbDb["gateways"][path]["remotes"][device_id]["info"] = info
-						self.LocalUsbDb["gateways"][path]["remotes"][device_id]["status"] = 1
-				self.DB.InsertSensorValue({
-					'id': 1,
-					'device_id': device_id,
-					'value': float(info["temperature"]),
-					'timestamp': timestamp
-				})
-				self.DB.InsertSensorValue({
-					'id': 2,
-					'device_id': device_id,
-					'value': float(info["humidity"]),
-					'timestamp': timestamp
-				})
-				self.DB.InsertSensorValue({
-					'id': 3,
-					'device_id': device_id,
-					'value': float(info["movement"]),
-					'timestamp': timestamp
-				})
-				self.DB.InsertSensorValue({
-					'id': 4,
-					'device_id': device_id,
-					'value': float(info["relay"]),
-					'timestamp': timestamp
-				})
+				self.LocalUsbDb["gateways"][path]["remotes"][device_id]["status"] = 0
+			elif opcode == 100:
+				if payload_size == 16:
+					device_type, info = self.Translator.Translate(packet[3:])
+					if info is not None:
+						device_id = int(info["device_id"])
+						timestamp = int(time.time())
+						info["timestamp"] = timestamp
+						info["port"] = path
+						# Emit this event to browser
+						self.EmitEvent({
+							"event": "NRFPacket",
+							"data": info
+						})
+						
+						if device_type == 50:
+							# Update sensor values for this gateway
+							if path in self.LocalUsbDb["gateways"]:
+								if device_id in self.LocalUsbDb["gateways"][path]["remotes"]:
+									self.LocalUsbDb["gateways"][path]["remotes"][device_id]["info"] = info
+									self.LocalUsbDb["gateways"][path]["remotes"][device_id]["status"] = 1
+							
+							db_info = self.DB.GetSensorByDeviceId(device_id)
+							self.DB.InsertSensorValue({
+								'id': db_info[0]["id"],
+								'device_id': device_id,
+								'value': float(info["temperature"]),
+								'timestamp': timestamp
+							})
+							self.DB.InsertSensorValue({
+								'id': db_info[1]["id"],
+								'device_id': device_id,
+								'value': float(info["humidity"]),
+								'timestamp': timestamp
+							})
+							self.DB.InsertSensorValue({
+								'id': db_info[2]["id"],
+								'device_id': device_id,
+								'value': float(info["movement"]),
+								'timestamp': timestamp
+							})
+							self.DB.InsertSensorValue({
+								'id': db_info[3]["id"],
+								'device_id': device_id,
+								'value': float(info["relay"]),
+								'timestamp': timestamp
+							})

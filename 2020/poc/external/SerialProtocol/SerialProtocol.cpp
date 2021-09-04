@@ -13,13 +13,13 @@ void blink(unsigned int interval) {
   delay(interval);
 }
 
-void send_async_data_to_uart(uint8_t* payload, uint16_t size) {
+void send_async_data_to_uart(uint16_t opcode, uint8_t* payload, uint16_t size) {
   mks_header* uart_tx_header = (mks_header *)(&uart_tx_buffer[0]);
 
   uart_tx_header->magic_number[0] = 0xDE;
   uart_tx_header->magic_number[1] = 0xAD;
   uart_tx_header->direction       = ASYNC;
-  uart_tx_header->op_code         = 0;
+  uart_tx_header->op_code         = opcode;
   uart_tx_header->content_length  = size;
   serial_tx_len                   = MKS_HEADER_SIZE + size;
 

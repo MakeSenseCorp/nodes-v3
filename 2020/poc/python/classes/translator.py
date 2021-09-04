@@ -31,14 +31,14 @@ class BasicTranslator():
 		uint8_t payload[12];
 		uint8_t crc;
 	} message_t;
-	payload = [device_type, size, Data[0...11]]
+	payload = [device_type, size, Data[0...9]]
 	'''
 	def Translate(self, packet):
 		if (len(packet) == 16):
 			device_type = packet[3]
 			if device_type in self.DeviceType:
 				handler = self.DeviceType[device_type]
-				return handler(packet)
+				return device_type, handler(packet)
 		return None
 	
 	def PTHL(self, packet):

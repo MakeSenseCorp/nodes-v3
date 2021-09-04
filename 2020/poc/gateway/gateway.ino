@@ -83,6 +83,7 @@ typedef struct {
   uint8_t last_message[16];
   uint8_t status;
   uint8_t timeout_count;
+  uint8_t status_filter;
 } sensor_db_t;
 sensor_db_t polling_nodes_db[MAX_NODES_INDEX];
 
@@ -200,7 +201,7 @@ void send_client(uint8_t index) {
           exit = true;
           
           if (memcmp(rx_sensor_item->last_message, nrf_rx_buff, sizeof(nrf_rx_buff))) {
-            send_async_data_to_uart((uint8_t *)&nrf_rx_buff, sizeof(nrf_rx_buff));
+            send_async_data_to_uart(OPCODE_RX_DATA, (uint8_t *)&nrf_rx_buff, sizeof(nrf_rx_buff));
             memcpy(rx_sensor_item->last_message, nrf_rx_buff, sizeof(nrf_rx_buff));
           }
         }
@@ -218,6 +219,12 @@ void send_client(uint8_t index) {
 
     if (tx_sensor_item->timeout_count >= TIMEOUT_DISCONNECT_COUNT) {
       tx_sensor_item->status = STATUS_DISCONNECTED;
+      tx_sensor_item->status_filter++;
+      if (tx_sensor_item->status_filter % 250 == 0) {
+        uint8_t node_id = tx_buff_ptr->node_id;
+        send_async_data_to_uart(OPCODE_DEVICE_COMM_LOSS, (uint8_t *)&node_id, 1);
+        memset(tx_sensor_item->last_message, 0, 16);
+      }
     }
 
     delay(32);

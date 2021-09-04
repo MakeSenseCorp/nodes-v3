@@ -168,12 +168,44 @@
             Application.prototype.GatewayInfoHandler = function(data, scope) {
                 console.log(data);
             }
-            Application.prototype.AsyncDataArrived = function(data, scope) {
+            Application.prototype.NRFPacket = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.InsertDeviceHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.SelectSensorsHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.DeleteDeviceHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.SelectDevicesHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.UpdateSensorInfoHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.DeviceCommunicationLostHandler = function(data, scope) {
+                console.log("COMM LOST", data);
+            }
+            Application.prototype.SelectSensorsByDeviceHandler = function(data, scope) {
+                console.log(data);
+            }
+            Application.prototype.SelectSensorHistoryHandler = function(data, scope) {
                 console.log(data);
             }
 
             var app = new Application();
-            app.RegisterEventHandler("AsyncDataArrived",                app.AsyncDataArrived,               app);
+            app.RegisterEventHandler("SelectSensorHistoryHandler",      app.SelectSensorHistoryHandler,     app);
+            app.RegisterEventHandler("SelectSensorsByDeviceHandler",    app.SelectSensorsByDeviceHandler,   app);
+            app.RegisterEventHandler("DeviceCommunicationLostHandler",  app.DeviceCommunicationLostHandler, app);
+            app.RegisterEventHandler("UpdateSensorInfoHandler",         app.UpdateSensorInfoHandler,        app);
+            app.RegisterEventHandler("SelectDevicesHandler",            app.SelectDevicesHandler,           app);
+            app.RegisterEventHandler("DeleteDeviceHandler",             app.DeleteDeviceHandler,            app);
+            app.RegisterEventHandler("SelectSensorsHandler",            app.SelectSensorsHandler,           app);
+            app.RegisterEventHandler("InsertDeviceHandler",             app.InsertDeviceHandler,            app);
+            app.RegisterEventHandler("NRFPacket",                       app.NRFPacket,                      app);
             app.RegisterEventHandler("SystemInfoHandler",               app.SystemInfoHandler,              app);
             app.RegisterEventHandler("GatewayInfoHandler",              app.GatewayInfoHandler,             app);
             app.RegisterEventHandler("SerialListHandler",               app.SerialListHandler,              app);

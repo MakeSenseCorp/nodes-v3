@@ -19,6 +19,7 @@ class SensorDB():
 							"id"			INTEGER PRIMARY KEY AUTOINCREMENT,
 							"type"			INTEGER NOT NULL,
 							"device_id"		INTEGER,
+							"device_type"	INTEGER,
 							"name"			TEXT,
 							"description"	TEXT,
 							"enabled"		INTEGER
@@ -38,7 +39,7 @@ class SensorDB():
 
 	def SensorExist(self, id):
 		try:
-			query = "SELECT * FROM sensor_info WHERE id={0}".format(id)
+			query = "SELECT * FROM sensor_info WHERE device_id={0}".format(id)
 			self.CURS.execute(query)
 			rows = self.CURS.fetchall()
 			if len(rows) > 0:
@@ -59,43 +60,45 @@ class SensorDB():
 						"id": 			row[0],
 						"type": 		row[1],
 						"device_id": 	row[2],
-						"name": 		row[3],
-						"description": 	row[4],
-						"enabled": 		row[5]
+						"device_type": 	row[3],
+						"name": 		row[4],
+						"description": 	row[5],
+						"enabled": 		row[6]
 					})
 		except Exception as e:
 			pass
 		return sensors
 	
-	def GetSensorById(self, id):
+	def GetSensorByDeviceId(self, id):
+		sensors = []
 		try:
-			query = "SELECT * FROM sensor_value WHERE id={0}".format(id)
+			query = "SELECT * FROM sensor_info WHERE device_id={0}".format(id)
 			self.CURS.execute(query)
 			rows = self.CURS.fetchall()
 			if len(rows) > 0:
-				return {
-					"id": 			rows[0][0],
-					"type": 		rows[0][1],
-					"device_id": 	rows[0][2],
-					"name": 		rows[0][3],
-					"description": 	rows[0][4],
-					"enabled": 		rows[0][5]
-				}
+				for row in rows:
+					sensors.append({
+						"id": 			row[0],
+						"type": 		row[1],
+						"device_id": 	row[2],
+						"name": 		row[3],
+						"description": 	row[4],
+						"enabled": 		row[5]
+					})
+				return sensors
 		except Exception as e:
 			pass
-		return None
+		return sensors
 	
 	def GetSensorHistory(self, id):
 		history = []
-		query 	= "SELECT * FROM sensor_info"
+		query 	= "SELECT * FROM sensor_value WHERE id={0}".format(id)
 		try:
 			self.CURS.execute(query)
 			rows = self.CURS.fetchall()
 			if len(rows) > 0:
 				for row in rows:
 					history.append({
-						"id": 			row[0],
-						"device_id": 	row[1],
 						"value": 		row[2],
 						"timestamp": 	row[3]
 					})
@@ -106,9 +109,9 @@ class SensorDB():
 	def InsertSensor(self, sensor):
 		try:
 			query = '''
-				INSERT INTO stocks_info (id, type, device_id, name, description, enabled)
-				VALUES (NULL,{0},{1},'{2}','{3}',1)
-			'''.format(sensor["type"],sensor["device_id"],sensor["name"],sensor["description"])
+				INSERT INTO sensor_info (id, type, device_id, device_type, name, description, enabled)
+				VALUES (NULL,{0},{1},{2},'{3}','{4}',1)
+			'''.format(sensor["type"],sensor["device_id"],sensor["device_type"],sensor["name"],sensor["description"])
 			self.CURS.execute(query)
 			self.DB.commit()
 			return self.CURS.lastrowid
@@ -133,6 +136,22 @@ class SensorDB():
 			pass
 		return None
 	
+	def DeleteDevice(self, device_id):
+		try:
+			self.CURS.execute('''
+				DELETE FROM sensor_info
+				WHERE device_id = {0}
+			'''.format(device_id))
+			self.DB.commit()
+			self.CURS.execute('''
+				DELETE FROM sensor_value
+				WHERE device_id = {0}
+			'''.format(device_id))
+			self.DB.commit()
+		except Exception as e:
+			pass
+		return None
+	
 	def InsertSensorValue(self, sensor):
 		try:
 			query = '''
@@ -147,15 +166,37 @@ class SensorDB():
 		return None
 	
 	def GetDeviceList(self):
+		devices = []
 		try:
 			query = '''
-				SELECt device_id FROM `sensor_info`
+				SELECt device_id, device_type, COUNT(device_id) as sensors_count FROM `sensor_info`
 				GROUP BY device_id
 			'''
 			self.CURS.execute(query)
-			self.DB.commit()
-			return self.CURS.lastrowid
+			rows = self.CURS.fetchall()
+			if len(rows) > 0:
+				for row in rows:
+					devices.append({
+						"device_id": 		row[0],
+						"device_type": 		row[1],
+						"sensors_count": 	row[2],
+					})
+				return devices
 		except Exception as e:
 			pass
-		return None
+		return devices
+	
+	def UpdateSensorInfo(self, sensor_id, name, description):
+		query = '''
+			UPDATE sensor_info
+			SET name = '{0}', description = '{1}'
+			WHERE id = {2}
+		'''.format(name,description,sensor_id)
+
+		try:
+			self.CURS.execute(query)
+			self.DB.commit()
+			return True
+		except Exception as e:
+			return False
 	

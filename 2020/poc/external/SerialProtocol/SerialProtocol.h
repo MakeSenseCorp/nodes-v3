@@ -32,6 +32,7 @@
 #define OPCODE_GET_NODES_LIST                         109
 #define OPCODE_SET_NODES_DATA                         110
 #define OPCODE_GET_NODES_DATA                         111
+#define OPCODE_DEVICE_COMM_LOSS                       112
 
 #define MKS_ACK                                       0x1
 #define MKS_NACK                                      0x2
@@ -72,5 +73,5 @@ int read_serial_buffer();
 void handler_serial(commands_table_t* handler_table, uint8_t length);
 unsigned char find_handler_index(unsigned char command, commands_table_t* handler_table, uint8_t length);
 void send_data_to_master(uint8_t opcode, uint8_t* payload, uint16_t size);
-void send_async_data_to_uart(uint8_t* payload, uint16_t size);
+void send_async_data_to_uart(uint16_t opcode, uint8_t* payload, uint16_t size);
 #endif

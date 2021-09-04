@@ -120,3 +120,46 @@ Piterm.prototype.GetRemoteNodeAddress = function(node_id) {
         "node_id": node_id
     }, null);
 }
+Piterm.prototype.InsertDevice = function(device_type, device_id) {
+    this.API.SendCustomCommand("insert_device", {
+        "async": true,
+        "device_type": device_type,
+        "device_id": device_id
+    }, null);
+}
+Piterm.prototype.DeleteDevice = function(device_id) {
+    this.API.SendCustomCommand("delete_device", {
+        "async": true,
+        "device_id": device_id
+    }, null);
+}
+Piterm.prototype.SelectSensors = function() {
+    this.API.SendCustomCommand("select_sensors", {
+        "async": true
+    }, null);
+}
+Piterm.prototype.SelectDevices = function() {
+    this.API.SendCustomCommand("select_devices", {
+        "async": true
+    }, null);
+}
+Piterm.prototype.UpdateSensorInfo = function(sensor_id, sensor_name, sensor_description) {
+    this.API.SendCustomCommand("update_sensor_info", {
+        "async": true,
+        "sensor_id": sensor_id,
+        "sensor_name": sensor_name,
+        "sensor_description": sensor_description
+    }, null);
+}
+Piterm.prototype.SelectSensorsByDevice = function(device_id) {
+    this.API.SendCustomCommand("select_sensors_by_device", {
+        "async": true,
+        "device_id": device_id
+    }, null);
+}
+Piterm.prototype.SelectSensorHistory = function(sensor_id) {
+    this.API.SendCustomCommand("select_sensor_history", {
+        "async": true,
+        "sensor_id": sensor_id
+    }, null);
+}
