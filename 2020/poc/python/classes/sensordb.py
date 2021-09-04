@@ -18,7 +18,7 @@ class SensorDB():
 		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "sensor_info" (
 							"id"			INTEGER PRIMARY KEY AUTOINCREMENT,
 							"type"			INTEGER NOT NULL,
-							"sensor_id"		INTEGER,
+							"device_id"		INTEGER,
 							"name"			TEXT,
 							"description"	TEXT,
 							"enabled"		INTEGER
@@ -26,7 +26,7 @@ class SensorDB():
 		
 		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "sensor_value" (
 							"id" 			INTEGER NOT NULL,
-							"sensor_id"		INTEGER NOT NULL,
+							"device_id"		INTEGER NOT NULL,
 							"value"			REAL,
 							"timestamp"		REAL
 						);''')
@@ -58,7 +58,7 @@ class SensorDB():
 					sensors.append({
 						"id": 			row[0],
 						"type": 		row[1],
-						"sensor_id": 	row[2],
+						"device_id": 	row[2],
 						"name": 		row[3],
 						"description": 	row[4],
 						"enabled": 		row[5]
@@ -76,7 +76,7 @@ class SensorDB():
 				return {
 					"id": 			rows[0][0],
 					"type": 		rows[0][1],
-					"sensor_id": 	rows[0][2],
+					"device_id": 	rows[0][2],
 					"name": 		rows[0][3],
 					"description": 	rows[0][4],
 					"enabled": 		rows[0][5]
@@ -95,7 +95,7 @@ class SensorDB():
 				for row in rows:
 					history.append({
 						"id": 			row[0],
-						"sensor_id": 	row[1],
+						"device_id": 	row[1],
 						"value": 		row[2],
 						"timestamp": 	row[3]
 					})
@@ -106,9 +106,9 @@ class SensorDB():
 	def InsertSensor(self, sensor):
 		try:
 			query = '''
-				INSERT INTO stocks_info (id, type, sensor_id, name, description, enabled)
+				INSERT INTO stocks_info (id, type, device_id, name, description, enabled)
 				VALUES (NULL,{0},{1},'{2}','{3}',1)
-			'''.format(sensor["type"],sensor["sensor_id"],sensor["name"],sensor["description"])
+			'''.format(sensor["type"],sensor["device_id"],sensor["name"],sensor["description"])
 			self.CURS.execute(query)
 			self.DB.commit()
 			return self.CURS.lastrowid
@@ -136,12 +136,26 @@ class SensorDB():
 	def InsertSensorValue(self, sensor):
 		try:
 			query = '''
-				INSERT INTO sensor_value (id, sensor_id, value, timestamp)
+				INSERT INTO sensor_value (id, device_id, value, timestamp)
 				VALUES ({0},{1},{2},{3})
-			'''.format(sensor["id"],sensor["sensor_id"],sensor["value"],sensor["timestamp"])
+			'''.format(sensor["id"],sensor["device_id"],sensor["value"],sensor["timestamp"])
 			self.CURS.execute(query)
 			self.DB.commit()
 			return self.CURS.lastrowid
 		except Exception as e:
 			pass
 		return None
+	
+	def GetDeviceList(self):
+		try:
+			query = '''
+				SELECt device_id FROM `sensor_info`
+				GROUP BY device_id
+			'''
+			self.CURS.execute(query)
+			self.DB.commit()
+			return self.CURS.lastrowid
+		except Exception as e:
+			pass
+		return None
+	

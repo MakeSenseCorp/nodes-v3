@@ -205,6 +205,7 @@ class Application(ApplicationLayer):
 		self.WorkingPort = ""
 		self.LocalUsbDb = {
 			"comports": [],
+			"device_id_list": [],
 			"gateways": {},
 			"nodes": {}
 		}
@@ -285,8 +286,8 @@ class Application(ApplicationLayer):
 								data_nodes = self.HW.GetNodeList(com)
 								if data_nodes is not None:
 									for node in data_nodes["list"]:
-										sensor_id = node["sensor_id"]
-										self.LocalUsbDb["gateways"][com]["remotes"][sensor_id] = {
+										device_id = node["device_id"]
+										self.LocalUsbDb["gateways"][com]["remotes"][device_id] = {
 											"status": node["status"],
 											"info": None
 										}
@@ -589,11 +590,11 @@ class Application(ApplicationLayer):
 		ans = self.HW.GetNodeList(self.WorkingPort)
 		if ans is not None:
 			for node in ans["list"]:
-				sensor_id = node["sensor_id"]
-				if sensor_id in self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"]:
-					self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"][sensor_id]["status"] = node["status"]
+				device_id = node["device_id"]
+				if device_id in self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"]:
+					self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"][device_id]["status"] = node["status"]
 				else:
-					self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"][sensor_id] = {
+					self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"][device_id] = {
 						"status": node["status"],
 						"info": None
 					}
@@ -690,7 +691,7 @@ class Application(ApplicationLayer):
 		if len(packet) == 19:
 			info = self.Translator.Translate(packet[3:])
 			if info is not None:
-				sensor_id = int(info["sensor_id"])
+				device_id = int(info["device_id"])
 				timestamp = int(time.time())
 				info["timestamp"] = timestamp
 				info["port"] = path
@@ -701,30 +702,30 @@ class Application(ApplicationLayer):
 				})
 				# Update sensor values for this gateway
 				if path in self.LocalUsbDb["gateways"]:
-					if sensor_id in self.LocalUsbDb["gateways"][path]["remotes"]:
-						self.LocalUsbDb["gateways"][path]["remotes"][sensor_id]["info"] = info
-						self.LocalUsbDb["gateways"][path]["remotes"][sensor_id]["status"] = 1
+					if device_id in self.LocalUsbDb["gateways"][path]["remotes"]:
+						self.LocalUsbDb["gateways"][path]["remotes"][device_id]["info"] = info
+						self.LocalUsbDb["gateways"][path]["remotes"][device_id]["status"] = 1
 				self.DB.InsertSensorValue({
 					'id': 1,
-					'sensor_id': sensor_id,
+					'device_id': device_id,
 					'value': float(info["temperature"]),
 					'timestamp': timestamp
 				})
 				self.DB.InsertSensorValue({
 					'id': 2,
-					'sensor_id': sensor_id,
+					'device_id': device_id,
 					'value': float(info["humidity"]),
 					'timestamp': timestamp
 				})
 				self.DB.InsertSensorValue({
 					'id': 3,
-					'sensor_id': sensor_id,
+					'device_id': device_id,
 					'value': float(info["movement"]),
 					'timestamp': timestamp
 				})
 				self.DB.InsertSensorValue({
 					'id': 4,
-					'sensor_id': sensor_id,
+					'device_id': device_id,
 					'value': float(info["relay"]),
 					'timestamp': timestamp
 				})

@@ -49,7 +49,7 @@ class BasicTranslator():
 			pir 		= payload[7]
 			relay 		= payload[9]
 			return {
-				'sensor_id': packet[0],
+				'device_id': packet[0],
 				'temperature': temperature,
 				'humidity': humidity,
 				'relay': relay,
@@ -62,7 +62,7 @@ class BasicTranslator():
 			sensor_value = payload[1]
 			if sensor_type == 4:
 				return {
-					'sensor_id': packet[0],
+					'device_id': packet[0],
 					'senor': "relay",
 					'value': sensor_value,
 					'payload': payload
@@ -74,28 +74,28 @@ class BasicTranslator():
 			sensor_type = payload[0]
 			if sensor_type == 1:
 				return {
-					'sensor_id': packet[0],
+					'device_id': packet[0],
 					'senor': "temperature",
 					'value': payload[1] | payload[2] << 8,
 					'payload': payload
 				}
 			if sensor_type == 2:
 				return {
-					'sensor_id': packet[0],
+					'device_id': packet[0],
 					'senor': "humidity",
 					'value': payload[1] | payload[2] << 8,
 					'payload': payload
 				}
 			if sensor_type == 3:
 				return {
-					'sensor_id': packet[0],
+					'device_id': packet[0],
 					'senor': "movement",
 					'value': payload[1],
 					'payload': payload
 				}
 			if sensor_type == 4:
 				return {
-					'sensor_id': packet[0],
+					'device_id': packet[0],
 					'senor': "relay",
 					'value': payload[1],
 					'payload': payload

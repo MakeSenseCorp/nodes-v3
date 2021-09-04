@@ -172,7 +172,7 @@ class NRF(hardware.HardwareLayer):
 				for idx, item in enumerate(data[::2]):
 					node = data[idx*2:idx*2+2]
 					info["list"].append({
-						"sensor_id": node[0],
+						"device_id": node[0],
 						"status": node[1]
 					})
 				return info
