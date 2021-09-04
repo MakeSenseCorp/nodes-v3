@@ -25,7 +25,7 @@ Pidaptor.prototype.GetSerialList = function(callback) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.Connect = function(port, baudrate) {
+Pidaptor.prototype.Connect = function(port, baudrate, callback) {
     this.API.SendCustomCommand("connect", {
         "async": false,
         "port": port,
@@ -34,7 +34,7 @@ Pidaptor.prototype.Connect = function(port, baudrate) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.Disconnect = function(port, baudrate) {
+Pidaptor.prototype.Disconnect = function(port, callback) {
     this.API.SendCustomCommand("disconnect", {
         "async": false,
         "port": port
@@ -42,7 +42,7 @@ Pidaptor.prototype.Disconnect = function(port, baudrate) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.SetWorkingPort = function(port) {
+Pidaptor.prototype.SetWorkingPort = function(port, callback) {
     this.API.SendCustomCommand("setworkingport", {
         "async": false,
         "port": port
@@ -50,14 +50,14 @@ Pidaptor.prototype.SetWorkingPort = function(port) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.ListNodes = function() {
+Pidaptor.prototype.ListNodes = function(callback) {
     this.API.SendCustomCommand("listnodes", {
         "async": false
     }, function(data, error) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.GetNodeInfoRemote = function(node_id) {
+Pidaptor.prototype.GetNodeInfoRemote = function(node_id, callback) {
     this.API.SendCustomCommand("getnodeinfo_r", {
         "async": false,
         "node_id": node_id
@@ -65,7 +65,7 @@ Pidaptor.prototype.GetNodeInfoRemote = function(node_id) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.GetSensorDataRemote = function(node_id, sensor_index) {
+Pidaptor.prototype.GetSensorDataRemote = function(node_id, sensor_index, callback) {
     this.API.SendCustomCommand("getnodedata_r", {
         "async": false,
         "node_id": node_id,
@@ -74,7 +74,7 @@ Pidaptor.prototype.GetSensorDataRemote = function(node_id, sensor_index) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.SetSensorDataRemote = function(node_id, sensor_index, sensor_value) {
+Pidaptor.prototype.SetSensorDataRemote = function(node_id, sensor_index, sensor_value, callback) {
     this.API.SendCustomCommand("setnodedata_r", {
         "async": false,
         "node_id": node_id,
@@ -84,21 +84,21 @@ Pidaptor.prototype.SetSensorDataRemote = function(node_id, sensor_index, sensor_
         callback(data, error);
     });
 }
-Pidaptor.prototype.GetDeviceType = function() {
+Pidaptor.prototype.GetDeviceType = function(callback) {
     this.API.SendCustomCommand("getdevicetype", {
         "async": false
     }, function(data, error) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.GetDeviceAdditional = function() {
+Pidaptor.prototype.GetDeviceAdditional = function(callback) {
     this.API.SendCustomCommand("getdeviceadditional", {
         "async": false
     }, function(data, error) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.SetNodeAddress = function(address) {
+Pidaptor.prototype.SetNodeAddress = function(address, callback) {
     this.API.SendCustomCommand("setnodeaddress", {
         "async": false,
         "address": address
@@ -106,28 +106,28 @@ Pidaptor.prototype.SetNodeAddress = function(address) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.GetNodeAddress = function() {
+Pidaptor.prototype.GetNodeAddress = function(callback) {
     this.API.SendCustomCommand("getnodeaddress", {
         "async": false
     }, function(data, error) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.GetNodeInfo = function() {
+Pidaptor.prototype.GetNodeInfo = function(callback) {
     this.API.SendCustomCommand("getnodeinfo", {
         "async": false
     }, function(data, error) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.GetNodesMap = function() {
+Pidaptor.prototype.GetNodesMap = function(callback) {
     this.API.SendCustomCommand("getnodesmap", {
         "async": false
     }, function(data, error) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.AddNodeIndexHandler = function(index) {
+Pidaptor.prototype.AddNodeIndexHandler = function(index, callback) {
     this.API.SendCustomCommand("addnodeindex", {
         "async": false,
         "index": index
@@ -135,7 +135,7 @@ Pidaptor.prototype.AddNodeIndexHandler = function(index) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.DelNodeIndexHandler = function(index) {
+Pidaptor.prototype.DelNodeIndexHandler = function(index, callback) {
     this.API.SendCustomCommand("delnodeindex", {
         "async": false,
         "index": index
@@ -143,7 +143,7 @@ Pidaptor.prototype.DelNodeIndexHandler = function(index) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.SetRemoteNodeAddress = function(node_id, address) {
+Pidaptor.prototype.SetRemoteNodeAddress = function(node_id, address, callback) {
     this.API.SendCustomCommand("setnodeaddress_r", {
         "async": false,
         "node_id": node_id,
@@ -152,10 +152,67 @@ Pidaptor.prototype.SetRemoteNodeAddress = function(node_id, address) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.GetRemoteNodeAddress = function(node_id) {
+Pidaptor.prototype.GetRemoteNodeAddress = function(node_id, callback) {
     this.API.SendCustomCommand("getnodeaddress_r", {
         "async": false,
         "node_id": node_id
+    }, function(data, error) {
+        callback(data, error);
+    });
+}
+Pidaptor.prototype.InsertDevice = function(device_type, device_id, callback) {
+    this.API.SendCustomCommand("insert_device", {
+        "async": true,
+        "device_type": device_type,
+        "device_id": device_id
+    }, function(data, error) {
+        callback(data, error);
+    });
+}
+Pidaptor.prototype.DeleteDevice = function(device_id, callback) {
+    this.API.SendCustomCommand("delete_device", {
+        "async": true,
+        "device_id": device_id
+    }, function(data, error) {
+        callback(data, error);
+    });
+}
+Pidaptor.prototype.SelectSensors = function(callback) {
+    this.API.SendCustomCommand("select_sensors", {
+        "async": true
+    }, function(data, error) {
+        callback(data, error);
+    });
+}
+Pidaptor.prototype.SelectDevices = function(callback) {
+    this.API.SendCustomCommand("select_devices", {
+        "async": true
+    }, function(data, error) {
+        callback(data, error);
+    });
+}
+Pidaptor.prototype.UpdateSensorInfo = function(sensor_id, sensor_name, sensor_description, callback) {
+    this.API.SendCustomCommand("update_sensor_info", {
+        "async": true,
+        "sensor_id": sensor_id,
+        "sensor_name": sensor_name,
+        "sensor_description": sensor_description
+    }, function(data, error) {
+        callback(data, error);
+    });
+}
+Pidaptor.prototype.SelectSensorsByDevice = function(device_id, callback) {
+    this.API.SendCustomCommand("select_sensors_by_device", {
+        "async": true,
+        "device_id": device_id
+    }, function(data, error) {
+        callback(data, error);
+    });
+}
+Pidaptor.prototype.SelectSensorHistory = function(sensor_id, callback) {
+    this.API.SendCustomCommand("select_sensor_history", {
+        "async": true,
+        "sensor_id": sensor_id
     }, function(data, error) {
         callback(data, error);
     });
