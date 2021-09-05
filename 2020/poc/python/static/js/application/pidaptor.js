@@ -11,7 +11,7 @@ Pidaptor.prototype.GetGatwayInfo = function(callback) {
         callback(data, error);
     });
 }
-Pidaptor.prototype.GetSystemInfo = function() {
+Pidaptor.prototype.GetSystemInfo = function(callback) {
     this.API.SendCustomCommand("system_info", {
         "async": false
     }, function(data, error) {
@@ -162,7 +162,7 @@ Pidaptor.prototype.GetRemoteNodeAddress = function(node_id, callback) {
 }
 Pidaptor.prototype.InsertDevice = function(device_type, device_id, callback) {
     this.API.SendCustomCommand("insert_device", {
-        "async": true,
+        "async": false,
         "device_type": device_type,
         "device_id": device_id
     }, function(data, error) {
@@ -171,7 +171,7 @@ Pidaptor.prototype.InsertDevice = function(device_type, device_id, callback) {
 }
 Pidaptor.prototype.DeleteDevice = function(device_id, callback) {
     this.API.SendCustomCommand("delete_device", {
-        "async": true,
+        "async": false,
         "device_id": device_id
     }, function(data, error) {
         callback(data, error);
@@ -179,21 +179,21 @@ Pidaptor.prototype.DeleteDevice = function(device_id, callback) {
 }
 Pidaptor.prototype.SelectSensors = function(callback) {
     this.API.SendCustomCommand("select_sensors", {
-        "async": true
+        "async": false
     }, function(data, error) {
         callback(data, error);
     });
 }
 Pidaptor.prototype.SelectDevices = function(callback) {
     this.API.SendCustomCommand("select_devices", {
-        "async": true
+        "async": false
     }, function(data, error) {
         callback(data, error);
     });
 }
 Pidaptor.prototype.UpdateSensorInfo = function(sensor_id, sensor_name, sensor_description, callback) {
     this.API.SendCustomCommand("update_sensor_info", {
-        "async": true,
+        "async": false,
         "sensor_id": sensor_id,
         "sensor_name": sensor_name,
         "sensor_description": sensor_description
@@ -203,7 +203,7 @@ Pidaptor.prototype.UpdateSensorInfo = function(sensor_id, sensor_name, sensor_de
 }
 Pidaptor.prototype.SelectSensorsByDevice = function(device_id, callback) {
     this.API.SendCustomCommand("select_sensors_by_device", {
-        "async": true,
+        "async": false,
         "device_id": device_id
     }, function(data, error) {
         callback(data, error);
@@ -211,7 +211,7 @@ Pidaptor.prototype.SelectSensorsByDevice = function(device_id, callback) {
 }
 Pidaptor.prototype.SelectSensorHistory = function(sensor_id, callback) {
     this.API.SendCustomCommand("select_sensor_history", {
-        "async": true,
+        "async": false,
         "sensor_id": sensor_id
     }, function(data, error) {
         callback(data, error);

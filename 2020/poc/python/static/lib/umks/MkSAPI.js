@@ -14,6 +14,11 @@ function MkSAPI () {
 	this.Callbacks 			= {};
 	this.PacketCounter		= 1;
 	this.SentPackets 		= [];
+
+	window.ApplicationModules = {
+		'Count': 0,
+		'ModulesPathList': []
+	}
 	
 	return this;
 }
@@ -172,18 +177,29 @@ MkSAPI.prototype.UnregisterOnNodeChange = function (callback) {
 	this.SendPacket("unregister_on_node_change", {}, callback);
 }
 
+MkSAPI.prototype.AppendModule = function(name) {
+	window.ApplicationModules.ModulesPathList.push(name+".js");
+	window.ApplicationModules.Count++;
+}
+
+MkSAPI.prototype.GetModules = function(name) {
+	for (key in window.ApplicationModules.ModulesPathList) {
+		this.LoadModule(window.ApplicationModules.ModulesPathList[key]);
+	}
+}
+
 MkSAPI.prototype.LoadModule = function(name) {
 	var self = this;
-	this.GetFileContent(this.UUID, {
-		"file_path": "modules/js/"+name
+	this.GetFileContent({
+		"file_path": "modules/"+name
 	}, function(res) {
-		var payload = res.data.payload;
+		var payload = res.payload;
 		var js = self.ConvertHEXtoString(payload.content);
 		// Inject into DOM
 		self.ExecuteJS(js);
-		window.MKSModulesCount--;
-		console.log(window.MKSModulesCount);
-		if (window.MKSModulesCount == 0) {
+		window.ApplicationModules.Count--;
+		console.log(window.ApplicationModules.Count);
+		if (window.ApplicationModules.Count == 0) {
 			if (self.ModulesLoadedCallback != null) {
 				self.ModulesLoadedCallback();
 			}

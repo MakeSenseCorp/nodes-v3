@@ -1,5 +1,5 @@
+import os
 import json
-import re
 import time
 import _thread
 from collections import OrderedDict
@@ -10,6 +10,7 @@ from classes import webserver
 from classes import sensordb
 from classes import translator
 from classes import common
+import MkSFile
 
 class WebsocketLayer():
 	def __init__(self):
@@ -175,6 +176,9 @@ class Application(ApplicationLayer):
 	def __init__(self):
 		ApplicationLayer.__init__(self)
 		self.WSHandlers 	= {
+			# APPLICATION FRAMWORK
+			'get_file':						self.GetFileRequestHandler,
+			# NODE BASIC
 			'system_info':					self.SystemInfoHandler,
 			'gateway_info': 				self.GatewayInfoHandler,
 			'list': 						self.SerialListHandler,
@@ -330,6 +334,18 @@ class Application(ApplicationLayer):
 	def RegisterHardware(self, hw_layer):
 		self.HW = hw_layer
 	
+	def GetFileRequestHandler(self, sock, packet):
+		print("GetFileRequestHandler {0}".format(packet))
+		objFile = MkSFile.File()
+
+		path	= os.path.join(".", "resource", packet["payload"]["file_path"])
+		content = objFile.Load(path)
+		
+		return {
+			'file_path': packet["payload"]["file_path"],
+			'content': content.encode("utf-8").hex()
+		}
+
 	def SystemInfoHandler(self, sock, packet):
 		print("SystemInfoHandler {0}".format(packet))
 		is_async = packet["payload"]["async"]
@@ -345,7 +361,11 @@ class Application(ApplicationLayer):
 			self.EmitEvent(data)
 			return None
 		else:
-			return data
+			return {
+				"system": {
+					"local_db": self.LocalUsbDb
+				}
+			}
 
 	def GatewayInfoHandler(self, sock, packet):
 		print("GatewayInfoHandler {0}".format(packet))
@@ -360,7 +380,7 @@ class Application(ApplicationLayer):
 			self.EmitEvent(data)
 			return None
 		else:
-			return data
+			return self.LocalUsbDb["gateways"]
 	
 	def SerialListHandler(self, sock, packet):
 		print("SerialListHandler {0}".format(packet))
@@ -614,7 +634,7 @@ class Application(ApplicationLayer):
 				self.EmitEvent(data)
 				return None
 			else:
-				return data
+				return ans
 		else:
 			return None
 	
@@ -788,6 +808,7 @@ class Application(ApplicationLayer):
 			for idx in range(1,5):
 				self.DB.InsertSensor({
 					"type": idx,
+					"index": idx,
 					"device_id": device_id,
 					"device_type": device_type,
 					"name": sensor_type_map[idx][0],
@@ -872,24 +893,24 @@ class Application(ApplicationLayer):
 							self.DB.InsertSensorValue({
 								'id': db_info[0]["id"],
 								'device_id': device_id,
-								'value': float(info["temperature"]),
+								'value': float(info["sensors"][0]["value"]),
 								'timestamp': timestamp
 							})
 							self.DB.InsertSensorValue({
 								'id': db_info[1]["id"],
 								'device_id': device_id,
-								'value': float(info["humidity"]),
+								'value': float(info["sensors"][1]["value"]),
 								'timestamp': timestamp
 							})
 							self.DB.InsertSensorValue({
 								'id': db_info[2]["id"],
 								'device_id': device_id,
-								'value': float(info["movement"]),
+								'value': float(info["sensors"][2]["value"]),
 								'timestamp': timestamp
 							})
 							self.DB.InsertSensorValue({
 								'id': db_info[3]["id"],
 								'device_id': device_id,
-								'value': float(info["relay"]),
+								'value': float(info["sensors"][3]["value"]),
 								'timestamp': timestamp
 							})

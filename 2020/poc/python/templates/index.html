@@ -3,7 +3,8 @@
     <head>
         <title>Application</title>
         <link rel="icon" href="{{ url_for('static', filename='images/node/favicon.ico') }}">
-        <link href="{{ url_for('static', filename='css/vendor/bootstrap.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='lib/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='lib/bootstrap/css/docs.min.css') }}" rel="stylesheet">
     </head>
     <body>
         <nav class="navbar navbar-dark bg-dark flex-md-nowrap p-0 shadow">
@@ -31,17 +32,29 @@
                     </ul>
                 </div>
             </nav>
+            <div>
+				<br>
+				<div id="id_application_view_module"></div>
+			</div>
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom"></div>
             <footer class="footer"></footer>
         </main>
 
         <!-- Icons -->
         <script src="{{ url_for('static', filename='js/vendor/feather.min.js') }}"></script>
-        <script src="{{ url_for('static', filename='js/vendor/jquery-3.3.1.min.js') }}"></script>
-        <script src="{{ url_for('static', filename='js/vendor/bootstrap.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/nodes/js/jquery_3_3_1/jquery.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/nodes/js/popper_1_14_7/popper.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/bootstrap/js/bootstrap.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/bootstrap/js/bootstrap-slider.js') }}"></script>
+
         <script src="{{ url_for('static', filename='js/application/pidaptor.js') }}"></script>
         <script src="{{ url_for('static', filename='js/application/piterm.js') }}"></script>
         <script src="{{ url_for('static', filename='lib/umks/MKSApi.js') }}"></script>
+
+        <script src="{{ url_for('static', filename='lib/umks/widgets/basic_graph.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/umks/widgets/basic_modal.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/umks/widgets/basic_table.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/umks/widgets/progress_bar.js') }}"></script>
 
         <script type="text/javascript">
             var myVar       = "{{ data }}";
@@ -91,10 +104,22 @@
                 self.API.OnNodeChangeCallback = self.OnChangeEvent.bind(self);
                 this.API.ConnectLocalWS(ip, port, function() {
                     console.log("Connected to local websocket");
+
+                    // Module area
+                    self.API.AppendModule("ModuleDashboardView");
+                    self.API.GetModules();
+
                     callback();
                 });
             }
             Application.prototype.NodeLoaded = function () {
+                console.log("Modules Loaded");
+
+                window.ApplicationModules.DashboardView = new ModuleDashboardView();
+                window.ApplicationModules.DashboardView.SetHostingID("id_application_view_module");
+				window.ApplicationModules.DashboardView.SetObjectDOMName("window.ApplicationModules.DashboardView");
+                window.ApplicationModules.DashboardView.Build(null, function(module) {});	
+
             }
             Application.prototype.OnChangeEvent = function(packet) {
                 var event = packet.payload.event;
@@ -154,10 +179,10 @@
                 console.log(data);
             }
             Application.prototype.USBDeviceConnectedHandler = function(data, scope) {
-                console.log("CONNECTED", data);
+                window.ApplicationModules.DashboardView.DeviceConnectedEvent(data);
             }
             Application.prototype.USBDeviceDisconnectedHandler = function(data, scope) {
-                console.log("DISCONNECTED", data);
+                window.ApplicationModules.DashboardView.DeviceDisconnectedEvent(data);
             }
             Application.prototype.SetWorkingPortHandler = function(data, scope) {
                 console.log(data);
@@ -166,7 +191,7 @@
                 console.log(data);
             }
             Application.prototype.NRFPacket = function(data, scope) {
-                console.log(data);
+                window.ApplicationModules.DashboardView.NRFDataEvent(data);
             }
             Application.prototype.InsertDeviceHandler = function(data, scope) {
                 console.log(data);
@@ -184,7 +209,7 @@
                 console.log(data);
             }
             Application.prototype.DeviceCommunicationLostHandler = function(data, scope) {
-                console.log("COMM LOST", data);
+                window.ApplicationModules.DashboardView.DeviceConnectionLostEvent(data);
             }
             Application.prototype.SelectSensorsByDeviceHandler = function(data, scope) {
                 console.log(data);
@@ -224,14 +249,7 @@
             app.RegisterEventHandler("USBDeviceConnectedHandler",       app.USBDeviceConnectedHandler,      app);
             app.RegisterEventHandler("USBDeviceDisconnectedHandler",    app.USBDeviceDisconnectedHandler,   app);
 
-            app.Connect(ip, port, function() {
-                app.Adaptor.GetGatwayInfo(function(data, error) {
-                    console.log(data);
-                });
-                app.Adaptor.GetSerialList(function(data, error) {
-                    console.log(data);
-                });
-            });
+            app.Connect(ip, port, function() {});
 
             feather.replace();
             window.resizeTo(1200,800);

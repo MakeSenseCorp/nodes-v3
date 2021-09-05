@@ -12,12 +12,10 @@ class SensorDB():
 		self.BuildSchema()
 	
 	def BuildSchema(self):
-		'''
-			leftovers - How many stock still available for this buy.
-		'''
 		self.CURS.execute('''CREATE TABLE IF NOT EXISTS "sensor_info" (
 							"id"			INTEGER PRIMARY KEY AUTOINCREMENT,
-							"type"			INTEGER NOT NULL,
+							"sensor_index"  INTEGER,
+							"type"			INTEGER,
 							"device_id"		INTEGER,
 							"device_type"	INTEGER,
 							"name"			TEXT,
@@ -58,12 +56,13 @@ class SensorDB():
 				for row in rows:
 					sensors.append({
 						"id": 			row[0],
-						"type": 		row[1],
-						"device_id": 	row[2],
-						"device_type": 	row[3],
-						"name": 		row[4],
-						"description": 	row[5],
-						"enabled": 		row[6]
+						"index":		row[1],
+						"type": 		row[2],
+						"device_id": 	row[3],
+						"device_type": 	row[4],
+						"name": 		row[5],
+						"description": 	row[6],
+						"enabled": 		row[7]
 					})
 		except Exception as e:
 			pass
@@ -79,11 +78,13 @@ class SensorDB():
 				for row in rows:
 					sensors.append({
 						"id": 			row[0],
-						"type": 		row[1],
-						"device_id": 	row[2],
-						"name": 		row[3],
-						"description": 	row[4],
-						"enabled": 		row[5]
+						"index":		row[1],
+						"type": 		row[2],
+						"device_id": 	row[3],
+						"device_type": 	row[4],
+						"name": 		row[5],
+						"description": 	row[6],
+						"enabled": 		row[7]
 					})
 				return sensors
 		except Exception as e:
@@ -109,14 +110,14 @@ class SensorDB():
 	def InsertSensor(self, sensor):
 		try:
 			query = '''
-				INSERT INTO sensor_info (id, type, device_id, device_type, name, description, enabled)
-				VALUES (NULL,{0},{1},{2},'{3}','{4}',1)
-			'''.format(sensor["type"],sensor["device_id"],sensor["device_type"],sensor["name"],sensor["description"])
+				INSERT INTO sensor_info (id, sensor_index, type, device_id, device_type, name, description, enabled)
+				VALUES (NULL,{0},{1},{2},{3},'{4}','{5}',1)
+			'''.format(sensor["index"],sensor["type"],sensor["device_id"],sensor["device_type"],sensor["name"],sensor["description"])
 			self.CURS.execute(query)
 			self.DB.commit()
 			return self.CURS.lastrowid
 		except Exception as e:
-			pass
+			print(str(e))
 		return None
 	
 	def DeleteSensor(self, id):

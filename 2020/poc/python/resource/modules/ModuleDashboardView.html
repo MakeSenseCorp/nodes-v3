@@ -1,0 +1,55 @@
+<div id="id_m_component_view_[ID]">
+    <div class="container">
+        <div class="row">
+            <div class="col-xl-12">
+                <h5 class="mb-3">USB Devices</h5>
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-xl-12">
+                            <div id="id_m_usb_device_table"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-12">
+                <h5 class="mb-3">My Sensors</h5>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group mr-2">
+                        <button class="btn btn-sm btn-outline-secondary">Share</button>
+                        <button class="btn btn-sm btn-outline-secondary">Export</button>
+                    </div>
+                    <div class="btn-group mr-2">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle btn-sm" type="button" id="id_m_stock_append_basic_prediction_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <span id="id_m_stock_append_basic_prediction_dropdown_span">Sort By</span>
+                            </button>
+                            <div class="dropdown-menu text-center" aria-labelledby="id_m_stock_append_basic_prediction_dropdown" id="id_m_stock_append_basic_prediction_dropdown_items">
+                                <span class="dropdown-item" onclick="window.StockAppend.SelectPredictionType(-1, 'Total');" style="cursor:pointer">Total</span>
+                                <span class="dropdown-item" onclick="window.StockAppend.SelectPredictionType(0, '1D');" style="cursor:pointer">1D</span>
+                                <span class="dropdown-item" onclick="window.StockAppend.SelectPredictionType(1, '5D');" style="cursor:pointer">5D</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <br/>
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-xl-12">
+                            <div id="id_m_sensors_table"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-12">
+                <h5 class="mb-3">Remote Devices</h5>
+                <div class="mb-3">
+                    <div class="row">
+                        <div class="col-xl-12">
+                            <div id="id_m_remote_device_table"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

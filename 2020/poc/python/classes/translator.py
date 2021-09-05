@@ -50,11 +50,34 @@ class BasicTranslator():
 			relay 		= payload[9]
 			return {
 				'device_id': packet[0],
-				'temperature': temperature,
-				'humidity': humidity,
-				'relay': relay,
-				'movement': pir,
+				'sensors': [
+					{
+						'index': 1,
+						'type': 1,
+						'type_name': "temperature",
+						'value': temperature,
+					},
+					{
+						'index': 2,
+						'type': 2,
+						'type_name': "humidity",
+						'value': humidity,
+					},
+					{
+						'index': 3,
+						'type': 3,
+						'type_name': "Movement",
+						'value': pir,
+					},
+					{
+						'index': 4,
+						'type': 4,
+						'type_name': "relay",
+						'value': relay,
+					}
+				],
 				'payload': payload
+				
 			}
 		elif packet[1] == self.OPCODE_SET_NODES_DATA:
 			payload = packet[5:-1]
@@ -63,7 +86,9 @@ class BasicTranslator():
 			if sensor_type == 4:
 				return {
 					'device_id': packet[0],
-					'senor': "relay",
+					'index': 4,
+					'type': 4,
+					'type_name': "relay",
 					'value': sensor_value,
 					'payload': payload
 				}
@@ -75,28 +100,36 @@ class BasicTranslator():
 			if sensor_type == 1:
 				return {
 					'device_id': packet[0],
-					'senor': "temperature",
+					'index': 1,
+					'type': 1,
+					'type_name': "temperature",
 					'value': payload[1] | payload[2] << 8,
 					'payload': payload
 				}
 			if sensor_type == 2:
 				return {
 					'device_id': packet[0],
-					'senor': "humidity",
+					'index': 2,
+					'type': 2,
+					'type_name': "humidity",
 					'value': payload[1] | payload[2] << 8,
 					'payload': payload
 				}
 			if sensor_type == 3:
 				return {
 					'device_id': packet[0],
-					'senor': "movement",
+					'index': 3,
+					'type': 3,
+					'type_name': "movement",
 					'value': payload[1],
 					'payload': payload
 				}
 			if sensor_type == 4:
 				return {
 					'device_id': packet[0],
-					'senor': "relay",
+					'index': 4,
+					'type': 4,
+					'type_name': "relay",
 					'value': payload[1],
 					'payload': payload
 				}
