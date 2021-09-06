@@ -36,7 +36,7 @@
 				<br>
 				<div id="id_application_view_module"></div>
 			</div>
-            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom"></div>
+            <!-- <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom"></div> -->
             <footer class="footer"></footer>
         </main>
 
@@ -79,6 +79,7 @@
                 this.EventMapper = {};
                 this.Adaptor = new Pidaptor(this.API);
                 this.Terminal = new Piterm(this.API);
+                window.ApplicationModules.Modal = new MksBasicModal("GLOBAL");
 
                 return this;
             }
@@ -107,6 +108,8 @@
 
                     // Module area
                     self.API.AppendModule("ModuleDashboardView");
+                    self.API.AppendModule("ModuleGatewayView");
+                    self.API.AppendModule("ModuleNodeView");
                     self.API.GetModules();
 
                     callback();
@@ -140,7 +143,7 @@
                 }
             }
             Application.prototype.GetRemoteNodeInfoHandler = function(data, scope) {
-                console.log(data);
+                window.ApplicationModules.DashboardView.NRFDataEvent(data);
             }
             Application.prototype.GetRemoteNodeDataHandler = function(data, scope) {
                 console.log(data);
@@ -179,10 +182,10 @@
                 console.log(data);
             }
             Application.prototype.USBDeviceConnectedHandler = function(data, scope) {
-                window.ApplicationModules.DashboardView.DeviceConnectedEvent(data);
+                window.ApplicationModules.DashboardView.USBDeviceConnectedEvent(data);
             }
             Application.prototype.USBDeviceDisconnectedHandler = function(data, scope) {
-                window.ApplicationModules.DashboardView.DeviceDisconnectedEvent(data);
+                window.ApplicationModules.DashboardView.USBDeviceDisconnectedEvent(data);
             }
             Application.prototype.SetWorkingPortHandler = function(data, scope) {
                 console.log(data);

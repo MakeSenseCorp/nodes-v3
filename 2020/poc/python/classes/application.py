@@ -73,7 +73,7 @@ class WebsocketLayer():
 
 	def Worker(self):
 		try:
-			server = WebSocketServer(('', self.Port), Resource(OrderedDict([('/', WSApplication)])))
+			server = WebSocketServer(('0.0.0.0', self.Port), Resource(OrderedDict([('/', WSApplication)])))
 
 			self.ServerRunning = True
 			print ("({classname})# Staring local WS server ... {0}".format(self.Port, classname=self.ClassName))
@@ -124,7 +124,7 @@ class ApplicationLayer(definitions.ILayer):
 	def Run(self):
 		# Data for the pages.
 		web_data = {
-			'ip': str("localhost"),
+			'ip': str("10.0.0.7"),
 			'port': str(1981)
 		}
 		data = json.dumps(web_data)
@@ -242,6 +242,7 @@ class Application(ApplicationLayer):
 	
 	def RemoveGateway(self, comport):
 		if comport in self.LocalUsbDb["gateways"]:
+			print("RemoveGateway")
 			self.EmitEvent({
 				"event": "USBDeviceDisconnectedHandler",
 				"data": {
@@ -254,6 +255,7 @@ class Application(ApplicationLayer):
 	
 	def RemoveNodes(self, comport):
 		if comport in self.LocalUsbDb["nodes"]:
+			print("RemoveNodes")
 			self.EmitEvent({
 				"event": "USBDeviceDisconnectedHandler",
 				"data": {
@@ -287,6 +289,7 @@ class Application(ApplicationLayer):
 									"index": info["index"],
 									"remotes": {}
 								}
+								print("NewGateway")
 								self.EmitEvent({
 									"event": "USBDeviceConnectedHandler",
 									"data": {
@@ -644,7 +647,7 @@ class Application(ApplicationLayer):
 		node_id  = packet["payload"]["node_id"]
 		ans = self.HW.GetRemoteNodeInfo(self.WorkingPort, node_id)
 		if ans is not None:
-			info = self.Translator.Translate(ans["packet"])
+			device_type, info = self.Translator.Translate(ans["packet"])
 			data = {
 				'event': "GetRemoteNodeInfoHandler",
 				'data': info
