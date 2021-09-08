@@ -1,4 +1,4 @@
-function ModuleGatewayView(obj, device) {
+function ModuleSensorView(obj, sensor) {
     var self = this;
 
     // Modules basic
@@ -11,24 +11,24 @@ function ModuleGatewayView(obj, device) {
     this.ComponentObject            = null;
 
     this.DasboardModule             = obj;
-    this.Device                     = device;
+    this.Sensor                     = sensor;
 
     return this;
 }
 
-ModuleGatewayView.prototype.SetObjectDOMName = function(name) {
+ModuleSensorView.prototype.SetObjectDOMName = function(name) {
     this.DOMName = name;
 }
 
-ModuleGatewayView.prototype.SetHostingID = function(id) {
+ModuleSensorView.prototype.SetHostingID = function(id) {
     this.HostingID = id;
 }
 
-ModuleGatewayView.prototype.Build = function(data, callback) {
+ModuleSensorView.prototype.Build = function(data, callback) {
     var self = this;
 
     app.API.GetFileContent({
-        "file_path": "modules/ModuleGatewayView.html"
+        "file_path": "modules/ModuleSensorView.html"
     }, function(res) {
         // Get payload
         var payload = res.payload;
@@ -50,30 +50,34 @@ ModuleGatewayView.prototype.Build = function(data, callback) {
     });
 }
 
-ModuleGatewayView.prototype.Clean = function() {
+ModuleSensorView.prototype.Clean = function() {
 }
 
-ModuleGatewayView.prototype.Hide = function() {
+ModuleSensorView.prototype.Hide = function() {
     var self = this;
     this.ComponentObject.classList.add("d-none")
 }
 
-ModuleGatewayView.prototype.Show = function() {
+ModuleSensorView.prototype.Show = function() {
     var self = this;
     this.ComponentObject.classList.remove("d-none")
 }
 
-ModuleGatewayView.prototype.Load = function() {
+ModuleSensorView.prototype.Load = function() {
     var self = this;
 
-    document.getElementById("id_m_port").innerHTML = this.Device.port;
-    document.getElementById("id_m_device_index_dropdown_span").innerHTML = this.Device.index;
+    document.getElementById("id_m_name").value = this.Sensor.name;
+    document.getElementById("id_m_description").value = this.Sensor.description;
 }
 
-ModuleGatewayView.prototype.SelectIndex = function(index) {
-    // document.getElementById("id_m_device_index_dropdown_span").innerHTML = index;
-}
-
-ModuleGatewayView.prototype.Update = function() {
-    console.log("Gateway update will do nothing.");
+ModuleSensorView.prototype.Update = function() {
+    var self = this;
+    app.Adaptor.SetWorkingPort(this.DasboardModule.DefaultGateway.port, function(data, error) {
+        var name = document.getElementById("id_m_name").value;
+        var decription = document.getElementById("id_m_description").value;
+        app.Adaptor.UpdateSensorInfo(self.Sensor.id, name, decription, function(data, error) {
+            self.DasboardModule.LoadSensors();
+            window.ApplicationModules.Modal.Hide();
+        });
+    });
 }

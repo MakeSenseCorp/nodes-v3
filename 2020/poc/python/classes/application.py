@@ -195,6 +195,7 @@ class Application(ApplicationLayer):
 			"getnodesmap": 					self.GetNodesMapHandler,
 			"addnodeindex": 				self.AddNodeIndexHandler,
 			"delnodeindex": 				self.DelNodeIndexHandler,
+			"getavailableindexes":			self.GetAvailableIndexesHandler,
 			# NODE REMOTE CONNECTED
 			"getnodeinfo_r":				self.GetRemoteNodeInfoHandler,
 			"getnodedata_r":				self.GetRemoteNodeDataHandler,
@@ -236,6 +237,16 @@ class Application(ApplicationLayer):
 					self.RemoveDisconnected(removed)
 				if added is not None:
 					self.ConnectNewComDevices(added)
+				
+				ans = self.HW.GetNodeList(self.WorkingPort)
+				if ans is not None:
+					self.EmitEvent({
+						"event": "GetNodeListHandler",
+						"data": ans
+					})
+					for node in ans["list"]:
+						self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"][node["device_id"]]["status"] = node["status"]
+
 				time.sleep(5)
 			except Exception as e:
 				print("Worker Exception: {0}".format(e))
@@ -484,10 +495,12 @@ class Application(ApplicationLayer):
 			return ans
 	
 	def SetNodeAddressHandler(self, sock, packet):
+		print("SetNodeAddressHandler {0}".format(packet))
 		is_async = packet["payload"]["async"]
 		address = packet["payload"]["address"]
 		if address is not None:
 			ans = self.HW.SetNodeAddress(self.WorkingPort, address)
+			self.LocalUsbDb["nodes"][self.WorkingPort]["index"] = address
 			if is_async is True:
 				self.EmitEvent({
 					'event': "SetNodeAddressHandler",
@@ -614,6 +627,9 @@ class Application(ApplicationLayer):
 				return ans
 		else:
 			return None
+
+	def GetAvailableIndexesHandler(self, sock, packet):
+		pass
 
 	def GetNodeListHandler(self, sock, packet):
 		print("GetNodeListHandler {0}".format(packet))
@@ -866,6 +882,7 @@ class Application(ApplicationLayer):
 			payload_size = packet[2]
 			if opcode == 112:
 				device_id = packet[3]
+				# print("DeviceCommunicationLostHandler")
 				self.EmitEvent({
 					"event": "DeviceCommunicationLostHandler",
 					"data": device_id
@@ -879,6 +896,7 @@ class Application(ApplicationLayer):
 						timestamp = int(time.time())
 						info["timestamp"] = timestamp
 						info["port"] = path
+						# print("NRFPacket")
 						# Emit this event to browser
 						self.EmitEvent({
 							"event": "NRFPacket",

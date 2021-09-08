@@ -110,6 +110,7 @@
                     self.API.AppendModule("ModuleDashboardView");
                     self.API.AppendModule("ModuleGatewayView");
                     self.API.AppendModule("ModuleNodeView");
+                    self.API.AppendModule("ModuleSensorView");
                     self.API.GetModules();
 
                     callback();
@@ -137,10 +138,11 @@
                 console.log(data);
             }
             Application.prototype.GetNodeListHandler = function(data, scope) {
-                var nodes = data.list;
-                for (key in nodes) {
-                    console.log(nodes[key]);
+                if (data === undefined || data === null) {
+                    return;
                 }
+
+                window.ApplicationModules.DashboardView.GetDevicesEvent(data.list);
             }
             Application.prototype.GetRemoteNodeInfoHandler = function(data, scope) {
                 window.ApplicationModules.DashboardView.NRFDataEvent(data);

@@ -16,6 +16,8 @@ function ModuleDashboardView() {
     this.Devices                    = {};
     this.Sensors                    = {};
     this.System                     = null;
+    this.ModuleNodeViewObj          = null;
+    this.ModuleGatewayViewObj       = null;
 
     return this;
 }
@@ -256,13 +258,8 @@ ModuleDashboardView.prototype.UpdateDevicesTable = function() {
         } else {
             row.push(`<div><strong><span style="color: red; cursor: pointer;">Offline</span></strong></div>`);
         }
-        row.push(`
-            <div class="row">
-                <div class="col-xl-2"><span style="color: green;cursor: pointer;" onclick="" data-feather="settings"></span></div>
-                <div class="col-xl-10"><span style="color: red;cursor: pointer;" onclick="" data-feather="delete"></span></div>
-            </div>
-        `);
-        row.push(``);
+        row.push(`<span style="color: gray;cursor: pointer;" onclick="" data-feather="settings"></span>`);
+        row.push(`<span style="color: red;cursor: pointer;" onclick="" data-feather="delete"></span>`);
         data.push(row);
     }
     table.ShowRowNumber(true);
@@ -342,7 +339,7 @@ ModuleDashboardView.prototype.UpdateSensorsTable = function() {
                 row.push(`<div>`+sensor.value+`</div>`);
         }
         row.push(`<div>`+sensor.description+`</div>`);
-        row.push(`<span style="color: green;cursor: pointer;" onclick="" data-feather="settings"></span>`);
+        row.push(`<span style="color: green;cursor: pointer;" onclick="window.ApplicationModules.DashboardView.SensorSettingsOnclickEvent(`+sensor.device_id+`,`+sensor.index+`,'id_m_sensor_`+sensor.id+`');" data-feather="settings"></span>`);
         data.push(row);
     }
     table.ShowRowNumber(true);
@@ -356,8 +353,22 @@ ModuleDashboardView.prototype.GetSensors = function() {
     var self = this;
 }
 
-ModuleDashboardView.prototype.GetDevices = function() {
+ModuleDashboardView.prototype.GetDevicesEvent = function(data) {
     var self = this;
+
+    var status_change = false;
+    for (key in data) {
+        var device = data[key];
+        if (this.Devices[device.device_id].status != device.status) {
+            status_change = true;
+        }
+        this.Devices[device.device_id].status = device.status;
+    }
+
+    if (status_change == true) {
+        this.UpdateDevicesTable();
+        this.UpdateSensorsTable();
+    }
 }
 
 ModuleDashboardView.prototype.USBDeviceConnectedEvent = function(device) {
@@ -455,29 +466,46 @@ ModuleDashboardView.prototype.SwichOnclickEvent = function(device_id, index, id)
     });
 }
 
+ModuleDashboardView.prototype.SensorSettingsOnclickEvent = function(device_id, index, id) {
+    var sensor = this.Sensors[[device_id, index]]
+    this.ModuleSensorViewObj = new ModuleSensorView(this, sensor);
+    this.ModuleSensorViewObj.SetObjectDOMName(this.DOMName+".ModuleSensorViewObj");
+    this.ModuleSensorViewObj.Build(null, function(module) {
+        window.ApplicationModules.Modal.Remove();
+        window.ApplicationModules.Modal.SetTitle("Sensor");
+        window.ApplicationModules.Modal.SetContent(module.HTML);
+        window.ApplicationModules.Modal.SetFooter(`<button type="button" class="btn btn-success" onclick="window.ApplicationModules.DashboardView.ModuleSensorViewObj.Update();">Save</button><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+        window.ApplicationModules.Modal.Build("lg");
+        window.ApplicationModules.Modal.Show();
+        module.Load();
+    });
+}
+
 ModuleDashboardView.prototype.SettingsOnclickEvent = function(port) {
     var device = this.USBDevices[port];
     if (device.type == "NODE") {
-        var view = new ModuleNodeView();
-        view.SetObjectDOMName(this.DOMName+".NodeView");
-        view.Build(null, function(module) {
+        this.ModuleNodeViewObj = new ModuleNodeView(this, device);
+        this.ModuleNodeViewObj.SetObjectDOMName(this.DOMName+".ModuleNodeViewObj");
+        this.ModuleNodeViewObj.Build(null, function(module) {
             window.ApplicationModules.Modal.Remove();
             window.ApplicationModules.Modal.SetTitle("Node");
             window.ApplicationModules.Modal.SetContent(module.HTML);
-            window.ApplicationModules.Modal.SetFooter(`<button type="button" id="" class="btn btn-success" onclick="">Save</button><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+            window.ApplicationModules.Modal.SetFooter(`<button type="button" class="btn btn-success" onclick="window.ApplicationModules.DashboardView.ModuleNodeViewObj.Update();">Save</button><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
             window.ApplicationModules.Modal.Build("lg");
             window.ApplicationModules.Modal.Show();
+            module.Load();
         });
     } else {
-        var view = new ModuleGatewayView();
-        view.SetObjectDOMName(this.DOMName+".GatewayView");
-        view.Build(null, function(module) {
+        this.ModuleGatewayViewObj = new ModuleGatewayView(this, device);
+        this.ModuleGatewayViewObj.SetObjectDOMName(this.DOMName+".ModuleGatewayViewObj");
+        this.ModuleGatewayViewObj.Build(null, function(module) {
             window.ApplicationModules.Modal.Remove();
             window.ApplicationModules.Modal.SetTitle("Gateway");
             window.ApplicationModules.Modal.SetContent(module.HTML);
-            window.ApplicationModules.Modal.SetFooter(`<button type="button" id="" class="btn btn-success" onclick="">Save</button><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
+            window.ApplicationModules.Modal.SetFooter(`<button type="button" class="btn btn-success" onclick="window.ApplicationModules.DashboardView.ModuleGatewayViewObj.Update();">Save</button><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>`);
             window.ApplicationModules.Modal.Build("lg");
             window.ApplicationModules.Modal.Show();
+            module.Load();
         });
     }
 }

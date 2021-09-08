@@ -220,11 +220,13 @@ void send_client(uint8_t index) {
     if (tx_sensor_item->timeout_count >= TIMEOUT_DISCONNECT_COUNT) {
       tx_sensor_item->status = STATUS_DISCONNECTED;
       tx_sensor_item->status_filter++;
+      /*
       if (tx_sensor_item->status_filter % 250 == 0) {
         uint8_t node_id = tx_buff_ptr->node_id;
         send_async_data_to_uart(OPCODE_DEVICE_COMM_LOSS, (uint8_t *)&node_id, 1);
         memset(tx_sensor_item->last_message, 0, 16);
       }
+      */
     }
 
     delay(32);
