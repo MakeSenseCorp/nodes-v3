@@ -86,6 +86,7 @@ ModuleDashboardView.prototype.LoadSystem = function(callback) {
         self.System = system;
         var gateways = system.local_db.gateways;
         var nodes = system.local_db.nodes;
+        console.log(nodes);
 
         console.log("GetSystemInfo", self.System);
         if (Object.keys(gateways).length == 0) {
@@ -119,7 +120,6 @@ ModuleDashboardView.prototype.LoadSystem = function(callback) {
                 };
             }
         }
-        self.UpdateUSBDevicesTable();
 
         if (callback !== undefined && callback != null) {
             callback(true);
@@ -159,9 +159,14 @@ ModuleDashboardView.prototype.LoadDevices = function(callback) {
                 var nodes = data.payload.list;
                 for (key in nodes) {
                     var node = nodes[key];
-                    self.Devices[node.device_id].status = node.status;
+                    if (self.Devices.hasOwnProperty(node.device_id) == false) {
+                        app.Adaptor.DelNodeIndexHandler(node.device_id, function(data, error) {
+                            console.log("Node deleted from gateway", data.payload.device_id);
+                        });
+                    } else {
+                        self.Devices[node.device_id].status = node.status;
+                    }
                 }
-                self.UpdateDevicesTable();
 
                 if (callback !== undefined && callback != null) {
                     callback(true);
@@ -189,17 +194,19 @@ ModuleDashboardView.prototype.LoadSensors = function(callback) {
             sensor.value = 0;
             self.Sensors[[sensor.device_id, sensor.index]] = sensor;
         }
-        self.UpdateSensorsTable();
+        
         for (key in self.Devices) {
             var device = self.Devices[key];
             if (device.status == true) {
                 app.Adaptor.GetNodeInfoRemote(device.id, function(data, error) {
                     self.NRFDataEvent(data.payload);
-                    if (callback !== undefined && callback != null) {
-                        callback(true);
-                    }
+                    self.UpdateSensorsTable();
                 });
             }
+        }
+
+        if (callback !== undefined && callback != null) {
+            callback(true);
         }
     })
 }
@@ -208,12 +215,19 @@ ModuleDashboardView.prototype.LoadingProcess = function() {
     var self = this;
 
     this.LoadSystem(function(status) {
+        console.log("System Loaded");
         self.LoadDevices(function(status) {
+            console.log("Devices Loaded");
             self.LoadSensors(function(status) {
-
+                console.log("Sensors Loaded");
+                self.UpdateUSBDevicesTable();
+                self.UpdateDevicesTable();
+                self.UpdateSensorsTable();
             });
         });
     });
+
+    
 }
 
 ModuleDashboardView.prototype.UpdateUSBDevicesTable = function() {
@@ -223,7 +237,7 @@ ModuleDashboardView.prototype.UpdateUSBDevicesTable = function() {
 
     var data = [];
     var table = new MksBasicTable();
-    table.SetSchema(["", "", "", "", ""]);
+    table.SetSchema(["", "", "", "", "", ""]);
     for (key in this.USBDevices) {
         var device = this.USBDevices[key];
         row = [];
@@ -231,6 +245,15 @@ ModuleDashboardView.prototype.UpdateUSBDevicesTable = function() {
         row.push(`<div>`+device.port+`</div>`);
         row.push(`<div>`+device.index+`</div>`);
         row.push(`<div><span style="color: green; cursor: pointer;">Connected</span></div>`);
+        if (device.type == "NODE") {
+            if (self.Devices.hasOwnProperty(device.index) == false) {
+                row.push(`<span style="color: red;cursor: pointer;" onclick="window.ApplicationModules.DashboardView.AppendDeviceOnclickEvent(50,`+device.index+`);" data-feather="thumbs-down"></span>`);
+            } else {
+                row.push(`<span style="color: green;cursor: pointer;" onclick="" data-feather="thumbs-up"></span>`);
+            }
+        } else {
+            row.push(``);
+        }
         row.push(`<span style="color: green;cursor: pointer;" onclick="window.ApplicationModules.DashboardView.SettingsOnclickEvent('`+device.port+`');" data-feather="settings"></span>`);
         data.push(row);
     }
@@ -259,7 +282,7 @@ ModuleDashboardView.prototype.UpdateDevicesTable = function() {
             row.push(`<div><strong><span style="color: red; cursor: pointer;">Offline</span></strong></div>`);
         }
         row.push(`<span style="color: gray;cursor: pointer;" onclick="" data-feather="settings"></span>`);
-        row.push(`<span style="color: red;cursor: pointer;" onclick="" data-feather="delete"></span>`);
+        row.push(`<span style="color: red;cursor: pointer;" onclick="window.ApplicationModules.DashboardView.DeleteDeviceOnclickEvent(`+device.id+`);" data-feather="delete"></span>`);
         data.push(row);
     }
     table.ShowRowNumber(true);
@@ -277,6 +300,10 @@ ModuleDashboardView.prototype.UpdateSensorsTable = function() {
     table.SetSchema(["", "", "", "", ""]);
     for (key in this.Sensors) {
         var sensor = this.Sensors[key];
+        if (this.Devices.hasOwnProperty(sensor.device_id) == false) {
+            continue;
+        }
+
         if (this.Devices[sensor.device_id].status == false) {
             continue;
         }
@@ -359,10 +386,12 @@ ModuleDashboardView.prototype.GetDevicesEvent = function(data) {
     var status_change = false;
     for (key in data) {
         var device = data[key];
-        if (this.Devices[device.device_id].status != device.status) {
-            status_change = true;
+        if (self.Devices.hasOwnProperty(device.device_id) == true) {
+            if (this.Devices[device.device_id].status != device.status) {
+                status_change = true;
+            }
+            this.Devices[device.device_id].status = device.status;
         }
-        this.Devices[device.device_id].status = device.status;
     }
 
     if (status_change == true) {
@@ -507,5 +536,40 @@ ModuleDashboardView.prototype.SettingsOnclickEvent = function(port) {
             window.ApplicationModules.Modal.Show();
             module.Load();
         });
+    }
+}
+
+ModuleDashboardView.prototype.DeleteDeviceOnclickEvent = function(device_id) {
+    var self = this;
+    var gateway = self.DefaultGateway;
+
+    console.log(device_id);
+
+    app.Adaptor.SetWorkingPort(gateway.port, function(data, error) {
+        app.Adaptor.DeleteDevice(device_id, function(data, error) {
+            app.Adaptor.DelNodeIndexHandler(device_id, function(data, error) {
+                console.log("Node deleted from gateway", data.payload.device_id);
+                self.Clean();
+                self.LoadingProcess();
+            });
+        });
+    });
+}
+
+ModuleDashboardView.prototype.AppendDeviceOnclickEvent = function(device_type, device_id) {
+    var self = this;
+    var gateway = self.DefaultGateway;
+
+    if (self.Devices.hasOwnProperty(device_id) == false) {
+        app.Adaptor.SetWorkingPort(gateway.port, function(data, error) {
+            app.Adaptor.InsertDevice(device_type, device_id, function(data, error) {
+                app.Adaptor.AddNodeIndexHandler(device_id, function(data, error) {
+                    self.Clean();
+                    self.LoadingProcess();
+                });
+            });
+        });
+    } else {
+        console.log("Cannot add existed device.", device_id);
     }
 }

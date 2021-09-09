@@ -241,7 +241,7 @@ class NRF(hardware.HardwareLayer):
 					status = True
 				return {
 					'status': status,
-					'info': packet
+					'device_id': updated_index
 				}
 			else:
 				print("(ERROR) Return OPCODE is incorrect.")
