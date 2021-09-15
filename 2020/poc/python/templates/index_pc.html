@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Application</title>
+        <link rel="icon" href="{{ url_for('static', filename='images/node/favicon.ico') }}">
+        <link href="{{ url_for('static', filename='lib/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='lib/bootstrap/css/docs.min.css') }}" rel="stylesheet">
+    </head>
+    <body>
+        <nav class="navbar navbar-dark bg-dark flex-md-nowrap p-0 shadow">
+            <a class="navbar-brand col-sm-3 col-md-2 mr-0" href="#">Application</a>
+            <ul class="navbar-nav px-3">
+                <li class="nav-item text-nowrap">
+                    <a class="nav-link" href="#">10:00 AM</a>
+                </li>
+            </ul>
+        </nav>
+        <br>
+        <main role="main" class="container">
+            <div id="id_application_container_view_module"></div>
+            <footer class="footer"></footer>
+        </main>
+
+        <!-- Icons -->
+        <script src="{{ url_for('static', filename='js/vendor/feather.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/nodes/js/jquery_3_3_1/jquery.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/nodes/js/popper_1_14_7/popper.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/bootstrap/js/bootstrap.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/bootstrap/js/bootstrap-slider.js') }}"></script>
+
+        <script src="{{ url_for('static', filename='js/application/pidaptor.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/application/piterm.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/umks/MKSApi.js') }}"></script>
+
+        <script src="{{ url_for('static', filename='lib/umks/widgets/basic_graph.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/umks/widgets/basic_modal.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/umks/widgets/basic_table.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/umks/widgets/progress_bar.js') }}"></script>
+
+        <script type="text/javascript">
+            var myVar       = "{{ data }}";
+            var decodedJSON = $('<div/>').html(myVar).text();
+            var web_data    = $.parseJSON(decodedJSON);
+
+            var global_ip    = web_data.ip;
+            var global_port  = web_data.port;
+
+            function Loader() {
+                var self = this;
+                // Get makesense api instanse.
+                this.API = MkSAPIBuilder.GetInstance();
+                // Default handler
+                this.API.OnUnexpectedDataArrived = function (packet) {
+                    console.log(packet);
+                }
+                this.HostMap = {
+                    "mobile": {
+                        "html": "mobile/app.html",
+                        "js": "mobile/app.js"
+                    },
+                    "pc": {
+                        "html": "pc/app.html",
+                        "js": "pc/app.js"
+                    }
+                }
+
+                return this;
+            }
+            Loader.prototype.Connect = function(callback) {
+                this.API.ConnectLocalWS(global_ip, global_port, function() {
+                    console.log("Loader", "Connected to local websocket");
+                    callback();
+                });
+            }
+            Loader.prototype.DetectHost = function() {
+                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)){
+                    // true for mobile device
+                    console.log("mobile device");
+                    return "mobile";
+                } else {
+                    // false for not mobile device
+                    console.log("not mobile device");
+                    return "pc";
+                }
+            }
+            Loader.prototype.Load = function(callback) {
+                var self = this;
+
+                var host = this.DetectHost();
+                var files = this.HostMap[host];
+
+                // Load HTML
+                this.API.GetFileContent({
+                    "file_path": files.html
+                }, function(res) {
+                    var payload = res.payload;
+                    var html = self.API.ConvertHEXtoString(payload.content);
+                    // Inject into DOM
+                    document.getElementById("id_application_container_view_module").innerHTML = html;
+                    
+                    // Load JS
+                    self.API.GetFileContent({
+                        "file_path": files.js
+                    }, function(res) {
+                        var payload = res.payload;
+                        var js = self.API.ConvertHEXtoString(payload.content);
+                        // Inject into DOM
+                        self.API.ExecuteJS(js);
+
+                    });
+                });
+            }
+
+            var AppLoader = new Loader();
+            AppLoader.Connect(function() {
+                AppLoader.Load();
+            });
+            window.resizeTo(1200,800);
+        </script>
+    </body>
+</html>

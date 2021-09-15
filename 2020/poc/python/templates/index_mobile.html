@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+	    <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Application</title>
+        <style>
+            .noshadow * {
+                -webkit-box-shadow: none !important;
+                -moz-box-shadow: none !important;
+                box-shadow: none !important;
+            }
+            form.ui-mini .ui-field-contain fieldset.ui-controlgroup legend small {
+                color: #666;
+            }
+        </style>
+    </head>
+    <body>
+        <div data-role="page" id="id_application_container_view_module"></div>
+
+        <link href="{{ url_for('static', filename='lib/jquery-mobile/css/jquery.mobile-1.4.5.min.css') }}" rel="stylesheet">
+        <script src="{{ url_for('static', filename='lib/jquery-mobile/js/jquery.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/jquery-mobile/js/jquery.mobile-1.4.5.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='lib/umks/MKSApi.js') }}"></script>
+
+        <script type="text/javascript">
+            var myVar       = "{{ data }}";
+            var decodedJSON = $('<div/>').html(myVar).text();
+            var web_data    = $.parseJSON(decodedJSON);
+
+            var global_ip    = web_data.ip;
+            var global_port  = web_data.port;
+
+            function Loader() {
+                var self = this;
+                // Get makesense api instanse.
+                this.API = MkSAPIBuilder.GetInstance();
+                // Default handler
+                this.API.OnUnexpectedDataArrived = function (packet) {
+                    console.log(packet);
+                }
+                this.HostMap = {
+                    "mobile": {
+                        "html": "mobile/app.html",
+                        "js": "mobile/app.js"
+                    },
+                    "pc": {
+                        "html": "pc/app.html",
+                        "js": "pc/app.js"
+                    }
+                }
+
+                return this;
+            }
+            Loader.prototype.Connect = function(callback) {
+                this.API.ConnectLocalWS(global_ip, global_port, function() {
+                    console.log("Loader", "Connected to local websocket");
+                    callback();
+                });
+            }
+            Loader.prototype.DetectHost = function() {
+                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)){
+                    // true for mobile device
+                    console.log("mobile device");
+                    return "mobile";
+                } else {
+                    // false for not mobile device
+                    console.log("not mobile device");
+                    return "pc";
+                }
+            }
+            Loader.prototype.Load = function(callback) {
+                var self = this;
+
+                var host = this.DetectHost();
+                var files = this.HostMap[host];
+
+                // Load HTML
+                this.API.GetFileContent({
+                    "file_path": files.html
+                }, function(res) {
+                    var payload = res.payload;
+                    var html = self.API.ConvertHEXtoString(payload.content);
+                    // Inject into DOM
+                    document.getElementById("id_application_container_view_module").innerHTML = html;
+                    
+                    // Load JS
+                    self.API.GetFileContent({
+                        "file_path": files.js
+                    }, function(res) {
+                        var payload = res.payload;
+                        var js = self.API.ConvertHEXtoString(payload.content);
+                        // Inject into DOM
+                        self.API.ExecuteJS(js);
+                        $("#id_application_container_view_module").trigger("create");
+                        
+                    });
+                });
+            }
+
+            var AppLoader = new Loader();
+            AppLoader.Connect(function() {
+                AppLoader.Load();
+            });
+            window.resizeTo(1200,800);
+        </script>
+    </body>
+</html>

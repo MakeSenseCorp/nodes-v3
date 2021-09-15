@@ -33,7 +33,7 @@ class TerminalLayer(definitions.ILayer):
 						if cmd not in [""]:
 							print("unknown command")
 		except Exception as e:
-			print("{0}".format(e))
+			print("Terminal Exception {0}".format(str(e)))
 	
 	def Exit(self):
 		self.ProcessRunning = False

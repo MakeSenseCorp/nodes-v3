@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import os
 import _thread
 from flask import Flask, render_template, jsonify, Response, request
 # from flask_cors import CORS
@@ -9,7 +10,19 @@ class EndpointAction(object):
 		self.DataToJS = args
 
 	def __call__(self, *args):
-		return render_template(self.Page, data=self.DataToJS), 200, {
+		print("Broswer Type", request.user_agent.browser)
+		print("Broswer Platform", request.user_agent.platform)
+
+		page_path = self.Page
+		if "index.html" in self.Page:
+			if request.user_agent.platform in ["android"]:
+				page_path = os.path.join("index_mobile.html")
+			else:
+				page_path = os.path.join("index_pc.html")
+			
+		print(page_path)
+
+		return render_template(page_path, data=self.DataToJS), 200, {
 			'Cache-Control': 'no-cache, no-store, must-revalidate',
 			'Pragma': 'no-cache',
 			'Expires': '0',
