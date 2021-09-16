@@ -402,7 +402,7 @@ ModuleDashboardView.prototype.GetDevicesEvent = function(data) {
 
 ModuleDashboardView.prototype.USBDeviceConnectedEvent = function(device) {
     var self = this;
-    // { type": "GATEWAY | NODW", "port": [COMPORT], "index": DEVICE_ID }
+    // { type": "GATEWAY | NODE", "port": [COMPORT], "index": DEVICE_ID }
     console.log("USBDeviceConnectedEvent", device);
 
     if (this.USBDevices.hasOwnProperty(device.port) == false) {

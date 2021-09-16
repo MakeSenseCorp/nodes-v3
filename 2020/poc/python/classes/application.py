@@ -240,12 +240,19 @@ class Application(ApplicationLayer):
 				
 				ans = self.HW.GetNodeList(self.WorkingPort)
 				if ans is not None:
+					for node in ans["list"]:
+						self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"][node["device_id"]]["status"] = node["status"]
 					self.EmitEvent({
 						"event": "GetNodeListHandler",
 						"data": ans
 					})
-					for node in ans["list"]:
-						self.LocalUsbDb["gateways"][self.WorkingPort]["remotes"][node["device_id"]]["status"] = node["status"]
+				else:
+					self.EmitEvent({
+						"event": "GetNodeListHandler",
+						"data": {
+							"list": []
+						}
+					})
 
 				time.sleep(5)
 			except Exception as e:
@@ -655,7 +662,19 @@ class Application(ApplicationLayer):
 			else:
 				return ans
 		else:
-			return None
+			data = {
+				'event': "GetNodeListHandler",
+				'data': {
+					"list": []
+				}
+			}
+			if is_async is True:
+				self.EmitEvent(data)
+				return None
+			else:
+				return {
+					"list": []
+				}
 	
 	def GetRemoteNodeInfoHandler(self, sock, packet):
 		print("GetRemoteNodeInfoHandler {0}".format(packet))

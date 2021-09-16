@@ -93,6 +93,10 @@ MkSAPI.prototype.ConnectLocalWS = function (ip, port, callback) {
 	};
 }
 
+MkSAPI.prototype.DisconnectLocalWS = function (ip, port, callback) {
+	this.WS.close();
+}
+
 MkSAPI.prototype.CallbacksMonitor = function () {
 	// console.log("(CallbacksMonitor)");
 	if (0 == Object.keys(this.Callbacks).length) {
